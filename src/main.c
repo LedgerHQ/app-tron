@@ -46,6 +46,8 @@ uint32_t set_result_get_publicKey(void);
 #define INS_GET_APP_CONFIGURATION 0x06  // version and settings
 #define INS_SIGN_PERSONAL_MESSAGE 0x08
 #define INS_GET_ECDH_SECRET 0x0A
+#define INS_SIGN_TIP_712_MESSAGE 0x0C
+
 
 #define P1_CONFIRM 0x01
 #define P1_NON_CONFIRM 0x00
@@ -77,6 +79,8 @@ publicKeyContext_t publicKeyContext;
 transactionContext_t transactionContext;
 txContent_t txContent;
 txContext_t txContext;
+messageSigningContext712_t messageSigningContext712;
+strings_t strings;
 
 cx_sha256_t sha2;
 
@@ -99,6 +103,8 @@ unsigned int io_seproxyhal_touch_tx_ok(const bagl_element_t *e);
 unsigned int io_seproxyhal_touch_cancel(const bagl_element_t *e);
 unsigned int io_seproxyhal_touch_address_ok(const bagl_element_t *e);
 unsigned int io_seproxyhal_touch_signMessage_ok(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_signMessage712_v0_ok(const bagl_element_t *e);
+unsigned int io_seproxyhal_touch_signMessage712_v0_cancel(const bagl_element_t *e);
 
 #define VOTE_ADDRESS 0
 #define VOTE_ADDRESS_SIZE 15
@@ -118,6 +124,27 @@ void fillVoteAddressSlot(void *destination, const char * from, uint8_t index) {
 void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index) {
     print_amount(value,destination+voteSlot(index, VOTE_AMOUNT),VOTE_AMOUNT_SIZE, 0);
     PRINTF("Amount: %d - %s\n", index, destination+(voteSlot(index, VOTE_AMOUNT)));
+}
+void format_signature_out(const uint8_t *signature) {
+    memset(G_io_apdu_buffer + 1, 0x00, 64);
+    uint8_t offset = 1;
+    uint8_t xoffset = 4;  // point to r value
+    // copy r
+    uint8_t xlength = signature[xoffset - 1];
+    if (xlength == 33) {
+        xlength = 32;
+        xoffset++;
+    }
+    memmove(G_io_apdu_buffer + offset + 32 - xlength, signature + xoffset, xlength);
+    offset += 32;
+    xoffset += xlength + 2;  // move over rvalue and TagLEn
+    // copy s value
+    xlength = signature[xoffset - 1];
+    if (xlength == 33) {
+        xlength = 32;
+        xoffset++;
+    }
+    memmove(G_io_apdu_buffer + offset + 32 - xlength, signature + xoffset, xlength);
 }
 
 void ui_idle(void);
@@ -2479,6 +2506,79 @@ UX_DEF(ux_sign_flow,
   &ux_sign_flow_5_step
 );
 
+// Sign TRC712 message
+//////////////////////////////////////////////////////////////////////
+
+void prepare_domain_hash_v0() {
+   snprintf(strings.tmp.tmp, 70, "0x%.*H", 32, messageSigningContext712.domainHash);
+}
+
+void prepare_message_hash_v0() {
+   snprintf(strings.tmp.tmp, 70, "0x%.*H", 32, messageSigningContext712.messageHash);
+}
+
+UX_FLOW_DEF_NOCB(
+    ux_sign_712_v0_flow_1_step,
+    pnn,
+    {
+      &C_icon_certificate,
+      "Sign",
+      "typed message",
+    });
+UX_STEP_NOCB_INIT(
+    ux_sign_712_v0_flow_2_step,
+    bnnn_paging,
+    prepare_domain_hash_v0(),
+    {
+      .title = "Domain hash",
+      .text = strings.tmp.tmp,
+    });
+UX_STEP_NOCB_INIT(
+    ux_sign_712_v0_flow_3_step,
+    bnnn_paging,
+    prepare_message_hash_v0(),
+    {
+      .title = "Message hash",
+      .text = strings.tmp.tmp,
+    });
+UX_FLOW_DEF_VALID(
+    ux_sign_712_v0_flow_4_step,
+    pbb,
+    io_seproxyhal_touch_signMessage712_v0_ok(NULL),
+    {
+      &C_icon_validate_14,
+      "Sign",
+      "message",
+    });
+UX_FLOW_DEF_VALID(
+    ux_sign_712_v0_flow_5_step,
+    pbb,
+    io_seproxyhal_touch_signMessage712_v0_cancel(NULL),
+    {
+      &C_icon_crossmark,
+      "Cancel",
+      "signature",
+    });
+
+//UX_DEF(ux_sign_712_v0_flow,
+//  &ux_sign_712_v0_flow_1_step,
+//  &ux_sign_712_v0_flow_2_step,
+//  &ux_sign_712_v0_flow_3_step,
+//  &ux_sign_712_v0_flow_4_step,
+//  &ux_sign_712_v0_flow_5_step,
+//  FLOW_END_STEP,
+//);
+const ux_flow_step_t *        const ux_sign_712_v0_flow [] = {
+  &ux_sign_712_v0_flow_1_step,
+  &ux_sign_712_v0_flow_2_step,
+  &ux_sign_712_v0_flow_3_step,
+  &ux_sign_712_v0_flow_4_step,
+  &ux_sign_712_v0_flow_5_step,
+  FLOW_END_STEP,
+};
+
+
+
 
 // CUSTOM CONTRACT
 //////////////////////////////////////////////////////////////////////
@@ -2659,6 +2759,63 @@ unsigned int io_seproxyhal_touch_signMessage_ok(const bagl_element_t *e) {
 
     // Send back the response, do not restart the event loop
     io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
+    // Display back the original UX
+    ui_idle();
+    return 0; // do not redraw the widget
+}
+
+static const uint8_t const TIP_712_MAGIC[] = { 0x19, 0x01 };
+
+unsigned int io_seproxyhal_touch_signMessage712_v0_ok(const bagl_element_t *e) {
+    uint8_t privateKeyData[32];
+    uint8_t hash[32];
+    uint8_t signature[100];
+    uint8_t signatureLength;
+    cx_ecfp_private_key_t privateKey;
+    cx_sha3_t sha3;
+    uint32_t tx = 0;
+    io_seproxyhal_io_heartbeat();
+    cx_keccak_init(&sha3, 256);
+    cx_hash((cx_hash_t *)&sha3, 0, (uint8_t*)TIP_712_MAGIC, sizeof(TIP_712_MAGIC), NULL, 0);
+    cx_hash((cx_hash_t *)&sha3, 0, messageSigningContext712.domainHash,
+        sizeof(messageSigningContext712.domainHash), NULL, 0);
+    cx_hash((cx_hash_t *)&sha3, CX_LAST, messageSigningContext712.messageHash,
+        sizeof(messageSigningContext712.messageHash), hash, sizeof(hash));
+    PRINTF("TIP712 hash to sign %.*H\n", 32, hash);
+    io_seproxyhal_io_heartbeat();
+    os_perso_derive_node_bip32(
+        CX_CURVE_256K1, messageSigningContext712.bip32Path,
+        messageSigningContext712.pathLength, privateKeyData, NULL);
+    io_seproxyhal_io_heartbeat();
+    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    os_memset(privateKeyData, 0, sizeof(privateKeyData));
+    unsigned int info = 0;
+    io_seproxyhal_io_heartbeat();
+    signatureLength =
+        cx_ecdsa_sign(&privateKey, CX_RND_RFC6979 | CX_LAST, CX_SHA256,
+                      hash,
+                      sizeof(hash), signature, sizeof(signature), &info);
+    os_memset(&privateKey, 0, sizeof(privateKey));
+    G_io_apdu_buffer[0] = 27;
+    if (info & CX_ECCINFO_PARITY_ODD) {
+      G_io_apdu_buffer[0]++;
+    }
+    format_signature_out(signature);
+    tx = 65;
+    G_io_apdu_buffer[tx++] = 0x90;
+    G_io_apdu_buffer[tx++] = 0x00;
+    // Send back the response, do not restart the event loop
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
+    // Display back the original UX
+    ui_idle();
+    return 0; // do not redraw the widget
+}
+
+unsigned int io_seproxyhal_touch_signMessage712_v0_cancel(const bagl_element_t *e) {
+    G_io_apdu_buffer[0] = 0x69;
+    G_io_apdu_buffer[1] = 0x85;
+    // Send back the response, do not restart the event loop
+    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
     // Display back the original UX
     ui_idle();
     return 0; // do not redraw the widget
@@ -3499,6 +3656,51 @@ void handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint
     }
 }
 
+void handleSignTIP712Message(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength, unsigned int *flags, unsigned int *tx) {
+  uint8_t i;
+
+  UNUSED(tx);
+  if ((p1 != 00) || (p2 != 00)) {
+    THROW(0x6B00);
+  }
+  if (dataLength < 1) {
+    PRINTF("Invalid data\n");
+    THROW(0x6a80);
+  }
+  messageSigningContext712.pathLength = workBuffer[0];
+  if ((messageSigningContext712.pathLength < 0x01) ||
+      (messageSigningContext712.pathLength > MAX_BIP32_PATH)) {
+    PRINTF("Invalid path\n");
+    THROW(0x6a80);
+  }
+  workBuffer++;
+  dataLength--;
+  for (i = 0; i < messageSigningContext712.pathLength; i++) {
+    if (dataLength < 4) {
+      PRINTF("Invalid data\n");
+      THROW(0x6a80);
+    }
+    messageSigningContext712.bip32Path[i] = U4BE(workBuffer, 0);
+    workBuffer += 4;
+    dataLength -= 4;
+  }
+  if (dataLength < 32 + 32) {
+    PRINTF("Invalid data\n");
+    THROW(0x6a80);
+  }    
+  memmove(messageSigningContext712.domainHash, workBuffer, 32);
+  memmove(messageSigningContext712.messageHash, workBuffer + 32, 32);
+
+#if defined(TARGET_BLUE)
+    // TODO implement  
+    ui_approval_message_sign_blue_init();
+#else
+    ux_flow_init(0, ux_sign_712_v0_flow, NULL);
+#endif // #if TARGET_ID
+
+    *flags |= IO_ASYNCH_REPLY;  
+}
+
 // Check ADPU and process the assigned task
 void handleApdu(volatile unsigned int *flags, volatile unsigned int *tx) {
     unsigned short sw = 0;
@@ -3574,6 +3776,13 @@ void handleApdu(volatile unsigned int *flags, volatile unsigned int *tx) {
                     G_io_apdu_buffer[OFFSET_LC],
                     flags, tx);
                 break;
+	    case INS_SIGN_TIP_712_MESSAGE:
+           	handleSignTIP712Message(G_io_apdu_buffer[OFFSET_P1], 
+		    G_io_apdu_buffer[OFFSET_P2], 
+		    G_io_apdu_buffer + OFFSET_CDATA, 
+		    G_io_apdu_buffer[OFFSET_LC], 
+		    flags, tx);
+           	break;
 
             default:
                 THROW(E_INS_NOT_SUPPORTED);

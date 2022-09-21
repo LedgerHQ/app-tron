@@ -131,6 +131,13 @@ typedef struct txContent_t {
     publicKeyContext_t *publicKeyContext;
 } txContent_t;
 
+typedef struct messageSigningContext712_t {
+    uint8_t pathLength;
+    uint32_t bip32Path[MAX_BIP32_PATH];
+    uint8_t domainHash[32];
+    uint8_t messageHash[32];
+} messageSigningContext712_t;
+
 bool setContractType(contractType_e type, char *out, size_t outlen);
 bool setExchangeContractDetail(contractType_e type, char *out, size_t outlen);
 
@@ -147,5 +154,32 @@ bool adjustDecimals(const char *src, uint32_t srcLength, char *target,
 void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
+
+#define NETWORK_STRING_MAX_SIZE 16
+
+typedef struct txStringProperties_t {
+    char fullAddress[43];
+    char fullAmount[79];  // 2^256 is 78 digits long
+    char maxFee[50];
+    char nonce[8];  // 10M tx per account ought to be enough for everybody
+    char network_name[NETWORK_STRING_MAX_SIZE];
+} txStringProperties_t;
+
+#ifdef TARGET_NANOS
+#define SHARED_CTX_FIELD_1_SIZE 100
+#else
+#define SHARED_CTX_FIELD_1_SIZE 256
+#endif
+#define SHARED_CTX_FIELD_2_SIZE 40
+
+typedef struct strDataTmp_t {
+    char tmp[SHARED_CTX_FIELD_1_SIZE];
+    char tmp2[SHARED_CTX_FIELD_2_SIZE];
+} strDataTmp_t;
+
+typedef union {
+    txStringProperties_t common;
+    strDataTmp_t tmp;
+} strings_t;
 
 #endif
