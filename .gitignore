@@ -38,6 +38,7 @@ glyphs.h
 *.x86_64
 *.hex
 bin/**
+build/
 
 # Debug files
 *.dSYM/
@@ -72,3 +73,6 @@ ledger/
 # Tron Protogen
 examples/proto
 examples/protocol
+
+# Temporary test snapshots
+tests/snapshots-tmp

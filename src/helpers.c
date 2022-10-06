@@ -17,12 +17,8 @@
 
 #include "helpers.h"
 #include "base58.h"
+#include "os_io_seproxyhal.h"
 
-#ifndef TARGET_BLUE
-  #include "os_io_seproxyhal.h"
-#else
-  void io_seproxyhal_io_heartbeat(void) {}
-#endif
 
 void getAddressFromKey(cx_ecfp_public_key_t *publicKey, uint8_t *address) {
   return getAddressFromPublicKey(publicKey->W, address);
@@ -115,4 +111,21 @@ void array_hexstr(char *strbuf, const void *bin, unsigned int len) {
         bin = (const void *)((unsigned int)bin + 1);
     }
     *strbuf = 0; // EOS
+}
+
+uint32_t set_result_get_publicKey(publicKeyContext_t *pub_key_ctx) {
+    uint32_t tx = 0;
+    uint32_t addressLength = BASE58CHECK_ADDRESS_SIZE;
+    G_io_apdu_buffer[tx++] = 65;
+    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->publicKey.W, 65);
+    tx += 65;
+    G_io_apdu_buffer[tx++] = addressLength;
+    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->address58,
+               addressLength);
+    tx += addressLength;
+    if (pub_key_ctx->getChaincode) {
+	memcpy(G_io_apdu_buffer + tx, pub_key_ctx->chainCode, 32);
+	tx += 32;
+    }
+    return tx;
 }
