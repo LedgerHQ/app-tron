@@ -24,21 +24,22 @@
 #ifdef HAVE_BAGL
 #define VOTE_ADDRESS_SIZE 15
 #else
-#define VOTE_ADDRESS_SIZE BASE58CHECK_ADDRESS_SIZE+1
+#define VOTE_ADDRESS_SIZE BASE58CHECK_ADDRESS_SIZE + 1
 #endif
-#define VOTE_AMOUNT VOTE_ADDRESS_SIZE
-#define VOTE_AMOUNT_SIZE 15
-#define VOTE_PACK (VOTE_ADDRESS_SIZE+VOTE_AMOUNT_SIZE)
-#define voteSlot(index, type) ( (index*VOTE_PACK)+type )
+#define VOTE_AMOUNT           VOTE_ADDRESS_SIZE
+#define VOTE_AMOUNT_SIZE      15
+#define VOTE_PACK             (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
+#define voteSlot(index, type) ((index * VOTE_PACK) + type)
 
 extern volatile uint8_t customContractField;
-extern char fromAddress[BASE58CHECK_ADDRESS_SIZE+1+5]; // 5 extra bytes used to inform MultSign ID
+extern char
+    fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
 extern char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
 extern char addressSummary[40];
 extern char fullContract[MAX_TOKEN_LENGTH];
 extern char TRC20Action[9];
 extern char TRC20ActionSendAllow[8];
-extern char fullHash[HASH_SIZE*2+1];
+extern char fullHash[HASH_SIZE * 2 + 1];
 extern int8_t votes_count;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;

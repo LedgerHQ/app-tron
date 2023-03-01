@@ -22,13 +22,13 @@
 #include "ui_idle_menu.h"
 
 volatile uint8_t customContractField;
-char fromAddress[BASE58CHECK_ADDRESS_SIZE+1+5]; // 5 extra bytes used to inform MultSign ID
+char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
 char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
 char addressSummary[40];
 char fullContract[MAX_TOKEN_LENGTH];
 char TRC20Action[9];
 char TRC20ActionSendAllow[8];
-char fullHash[HASH_SIZE*2+1];
+char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
@@ -47,7 +47,7 @@ unsigned int io_seproxyhal_touch_address_ok(const void *e) {
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
-    return 0; // do not redraw the widget
+    return 0;  // do not redraw the widget
 }
 
 unsigned int io_seproxyhal_touch_signMessage_ok(const void *e) {
@@ -58,7 +58,7 @@ unsigned int io_seproxyhal_touch_signMessage_ok(const void *e) {
     signTransaction(&transactionContext);
     // send to output buffer
     memcpy(G_io_apdu_buffer, transactionContext.signature, transactionContext.signatureLength);
-    tx=transactionContext.signatureLength;
+    tx = transactionContext.signatureLength;
     // E_OK
     G_io_apdu_buffer[tx++] = 0x90;
     G_io_apdu_buffer[tx++] = 0x00;
@@ -69,7 +69,7 @@ unsigned int io_seproxyhal_touch_signMessage_ok(const void *e) {
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
-    return 0; // do not redraw the widget
+    return 0;  // do not redraw the widget
 }
 
 unsigned int io_seproxyhal_touch_cancel(const void *e) {
@@ -84,7 +84,7 @@ unsigned int io_seproxyhal_touch_cancel(const void *e) {
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
-    return 0; // do not redraw the widget
+    return 0;  // do not redraw the widget
 }
 
 unsigned int io_seproxyhal_touch_tx_ok(const void *e) {
@@ -95,7 +95,7 @@ unsigned int io_seproxyhal_touch_tx_ok(const void *e) {
     signTransaction(&transactionContext);
     // send to output buffer
     memcpy(G_io_apdu_buffer, transactionContext.signature, transactionContext.signatureLength);
-    tx=transactionContext.signatureLength;
+    tx = transactionContext.signatureLength;
     // E_OK
     G_io_apdu_buffer[tx++] = 0x90;
     G_io_apdu_buffer[tx++] = 0x00;
@@ -106,7 +106,7 @@ unsigned int io_seproxyhal_touch_tx_ok(const void *e) {
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
-    return 0; // do not redraw the widget
+    return 0;  // do not redraw the widget
 }
 
 unsigned int io_seproxyhal_touch_ecdh_ok(const void *e) {
@@ -117,13 +117,19 @@ unsigned int io_seproxyhal_touch_ecdh_ok(const void *e) {
     uint32_t tx = 0;
 
     // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1, transactionContext.bip32_path.indices,
-            transactionContext.bip32_path.length, privateKeyData, NULL);
+    os_perso_derive_node_bip32(CX_CURVE_256K1,
+                               transactionContext.bip32_path.indices,
+                               transactionContext.bip32_path.length,
+                               privateKeyData,
+                               NULL);
     cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
 
-    tx = cx_ecdh(&privateKey, CX_ECDH_POINT,
-                    transactionContext.signature, 65,
-                    G_io_apdu_buffer, 160);
+    tx = cx_ecdh(&privateKey,
+                 CX_ECDH_POINT,
+                 transactionContext.signature,
+                 65,
+                 G_io_apdu_buffer,
+                 160);
 
     // Clear tmp buffer data
     explicit_bzero(&privateKey, sizeof(privateKey));
@@ -139,5 +145,5 @@ unsigned int io_seproxyhal_touch_ecdh_ok(const void *e) {
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
-    return 0; // do not redraw the widget
+    return 0;  // do not redraw the widget
 }
