@@ -20,16 +20,16 @@
 #include <string.h>
 #include <stdint.h>
 
+#include "app_errors.h"
 #include "ux.h"
-#include "nbgl_page.h"
 #include "nbgl_use_case.h"
-#include "os_io_seproxyhal.h"
 #include "ui_globals.h"
 #include "ui_review_menu.h"
 #include "ui_idle_menu.h"
 
 // Macros
 #define WARNING_TYPES_NUMBER 2
+#define MAX_TX_FIELDS        20
 
 // Enums and structs
 enum {
@@ -38,7 +38,7 @@ enum {
 };
 
 typedef struct {
-    nbgl_layoutTagValue_t fields[20];
+    nbgl_layoutTagValue_t fields[MAX_TX_FIELDS];
     bool warnings[WARNING_TYPES_NUMBER];
     char *flowTitle;
     char *flowSubtitle;
@@ -150,8 +150,8 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
 
     txInfos.warnings[DATA_WARNING] = data_warning;
     txInfos.flowTitle = "Review Transaction";
-    txInfos.confirmCb = (nbgl_callback_t) io_seproxyhal_touch_tx_ok;
-    txInfos.rejectCb = (nbgl_callback_t) io_seproxyhal_touch_cancel;
+    txInfos.rejectCb = (nbgl_callback_t) ui_callback_tx_cancel;
+    txInfos.confirmCb = (nbgl_callback_t) ui_callback_tx_ok;
 
     infoLongPress.text = "Confirm Transaction";
     infoLongPress.longPressText = "Hold to confirm";
@@ -232,6 +232,9 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             break;
         case APPROVAL_WITNESSVOTE_TRANSACTION:
             uint8_t i;
+            if(votes_count > MAX_TX_FIELDS - 2) {
+                THROW(E_INCORRECT_DATA);
+            }
             for (i = 0; i < votes_count; i++) {
                 txInfos.fields[i].item = (char *) (G_io_apdu_buffer + voteSlot(i, VOTE_ADDRESS));
                 txInfos.fields[i].value = (char *) (G_io_apdu_buffer + voteSlot(i, VOTE_AMOUNT));
@@ -275,7 +278,7 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowSubtitle = "Claim Rewards";
             break;
         case APPROVAL_SIGN_PERSONAL_MESSAGE:
-            txInfos.confirmCb = (nbgl_callback_t) io_seproxyhal_touch_signMessage_ok;
+            txInfos.confirmCb = (nbgl_callback_t) ui_callback_signMessage_ok;
             txInfos.fields[0].item = "Message hash";
             txInfos.fields[0].value = fullContract;
             txInfos.fields[1].item = "Sign with";
@@ -300,7 +303,7 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowTitle = "Review Contract";
             break;
         case APPROVAL_SHARED_ECDH_SECRET:
-            txInfos.confirmCb = (nbgl_callback_t) io_seproxyhal_touch_ecdh_ok;
+            txInfos.confirmCb = (nbgl_callback_t) ui_callback_ecdh_ok;
             txInfos.fields[0].item = "ECDH Address";
             txInfos.fields[0].value = fromAddress;
             txInfos.fields[1].item = "Shared With";
@@ -310,7 +313,7 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowSubtitle = "Shared Secret";
             break;
         case APPROVAL_VERIFY_ADDRESS:
-            txInfos.confirmCb = (nbgl_callback_t) io_seproxyhal_touch_address_ok;
+            txInfos.confirmCb = (nbgl_callback_t) ui_callback_address_ok;
             txInfos.fields[0].item = "Address";
             txInfos.fields[0].value = toAddress;
             pairList.nbPairs = 1;

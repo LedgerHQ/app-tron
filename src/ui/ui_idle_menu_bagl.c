@@ -21,8 +21,6 @@
 #include "ux.h"
 #include "settings.h"
 
-#if defined(HAVE_UX_FLOW)
-
 static void display_settings(const ux_flow_step_t* const);
 static void switch_settings_contract_data();
 static void switch_settings_custom_contracts();
@@ -201,15 +199,12 @@ UX_DEF(ux_idle_flow,
   &ux_idle_flow_3_step,
   &ux_idle_flow_4_step
 );
-#endif // HAVE_UX_FLOW
 
 void ui_idle(void) {
-#if defined(HAVE_UX_FLOW)
     // reserve a display stack slot if none yet
     if(G_ux.stack_count == 0) {
         ux_stack_push();
     }
     ux_flow_init(0, ux_idle_flow, NULL);
-#endif // #if TARGET_ID
 }
 #endif // HAVE_BAGL

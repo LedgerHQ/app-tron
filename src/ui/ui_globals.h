@@ -43,8 +43,8 @@ extern int8_t votes_count;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;
 
-unsigned int io_seproxyhal_touch_tx_ok(const void *e);
-unsigned int io_seproxyhal_touch_cancel(const void *e);
-unsigned int io_seproxyhal_touch_address_ok(const void *e);
-unsigned int io_seproxyhal_touch_signMessage_ok(const void *e);
-unsigned int io_seproxyhal_touch_ecdh_ok(const void *e);
+unsigned int ui_callback_tx_ok(void);
+unsigned int ui_callback_tx_cancel(void);
+unsigned int ui_callback_address_ok(void);
+unsigned int ui_callback_signMessage_ok(void);
+unsigned int ui_callback_ecdh_ok(void);

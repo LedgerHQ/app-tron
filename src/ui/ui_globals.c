@@ -18,8 +18,11 @@
 #include "helpers.h"
 #include "os_io_seproxyhal.h"
 #include "os.h"
-
+#include "ux.h"
 #include "ui_idle_menu.h"
+
+bolos_ux_params_t G_ux_params;
+ux_state_t G_ux;
 
 volatile uint8_t customContractField;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE+1+5]; // 5 extra bytes used to inform MultSign ID
@@ -33,9 +36,7 @@ int8_t votes_count;
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 
-unsigned int io_seproxyhal_touch_address_ok(const void *e) {
-    UNUSED(e);
-
+unsigned int ui_callback_address_ok(void) {
     uint32_t tx = set_result_get_publicKey(&publicKeyContext);
     // E_OK
     G_io_apdu_buffer[tx++] = 0x90;
@@ -50,9 +51,7 @@ unsigned int io_seproxyhal_touch_address_ok(const void *e) {
     return 0; // do not redraw the widget
 }
 
-unsigned int io_seproxyhal_touch_signMessage_ok(const void *e) {
-    UNUSED(e);
-
+unsigned int ui_callback_signMessage_ok(void) {
     uint32_t tx = 0;
 
     signTransaction(&transactionContext);
@@ -72,9 +71,7 @@ unsigned int io_seproxyhal_touch_signMessage_ok(const void *e) {
     return 0; // do not redraw the widget
 }
 
-unsigned int io_seproxyhal_touch_cancel(const void *e) {
-    UNUSED(e);
-
+unsigned int ui_callback_tx_cancel(void) {
     // E_CONDITIONS_OF_USE_NOT_SATISFIED
     G_io_apdu_buffer[0] = 0x69;
     G_io_apdu_buffer[1] = 0x85;
@@ -87,9 +84,7 @@ unsigned int io_seproxyhal_touch_cancel(const void *e) {
     return 0; // do not redraw the widget
 }
 
-unsigned int io_seproxyhal_touch_tx_ok(const void *e) {
-    UNUSED(e);
-
+unsigned int ui_callback_tx_ok(void) {
     uint32_t tx = 0;
 
     signTransaction(&transactionContext);
@@ -109,9 +104,7 @@ unsigned int io_seproxyhal_touch_tx_ok(const void *e) {
     return 0; // do not redraw the widget
 }
 
-unsigned int io_seproxyhal_touch_ecdh_ok(const void *e) {
-    UNUSED(e);
-
+unsigned int ui_callback_ecdh_ok(void) {
     uint8_t privateKeyData[32];
     cx_ecfp_private_key_t privateKey;
     uint32_t tx = 0;

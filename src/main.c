@@ -33,7 +33,7 @@
 #include "parse.h"
 #include "uint256.h"
 #include "tokens.h"
-#include "errors.h"
+#include "app_errors.h"
 
 unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 
@@ -69,9 +69,6 @@ unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
 #define OFFSET_P2 3
 #define OFFSET_LC 4
 #define OFFSET_CDATA 5
-
-bolos_ux_params_t G_ux_params;
-ux_state_t G_ux;
 
 // The settings, stored in NVRAM.
 const internal_storage_t N_storage_real;
@@ -999,7 +996,9 @@ unsigned char io_event(unsigned char channel) {
     // can't have more than one tag in the reply, not supported yet.
     switch (G_io_seproxyhal_spi_buffer[0]) {
     case SEPROXYHAL_TAG_FINGER_EVENT:
+#ifdef HAVE_NBGL
         UX_FINGER_EVENT(G_io_seproxyhal_spi_buffer);
+#endif  // HAVE_NBGL
         break;
 
     case SEPROXYHAL_TAG_BUTTON_PUSH_EVENT:
@@ -1023,6 +1022,9 @@ unsigned char io_event(unsigned char channel) {
 #ifdef HAVE_BAGL
         UX_DISPLAYED_EVENT({});
 #endif // HAVE_BAGL
+#ifdef HAVE_NBGL
+        UX_DEFAULT_EVENT();
+#endif  // HAVE_NBGL
         break;
 
     case SEPROXYHAL_TAG_TICKER_EVENT:

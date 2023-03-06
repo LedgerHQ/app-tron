@@ -23,7 +23,7 @@
 #include "parse.h"
 #include "settings.h"
 #include "tokens.h"
-#include "errors.h"
+#include "app_errors.h"
 
 tokenDefinition_t* getKnownToken(txContent_t *context) {
     uint16_t i;

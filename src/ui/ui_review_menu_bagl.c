@@ -45,7 +45,7 @@ UX_STEP_NOCB(
 UX_STEP_VALID(
     ux_approval_confirm_step,
     pbb,
-    io_seproxyhal_touch_tx_ok(NULL),
+    ui_callback_tx_ok(),
     {
       &C_icon_validate_14,
       "Sign",
@@ -55,7 +55,7 @@ UX_STEP_VALID(
 UX_STEP_VALID(
     ux_approval_reject_step,
     pbb,
-    io_seproxyhal_touch_cancel(NULL),
+    ui_callback_tx_cancel(),
     {
       &C_icon_crossmark,
       "Cancel",
@@ -81,7 +81,7 @@ UX_STEP_NOCB(
 UX_STEP_VALID(
     ux_display_public_flow_3_step,
     pb,
-    io_seproxyhal_touch_address_ok(NULL),
+    ui_callback_address_ok(),
     {
       &C_icon_validate_14,
       "Approve",
@@ -223,7 +223,7 @@ UX_STEP_NOCB(
 UX_STEP_VALID(
     ux_approval_exchange_create_confirm_step,
     pbb,
-    io_seproxyhal_touch_tx_ok(NULL),
+    ui_callback_tx_ok(),
     {
       &C_icon_validate_14,
       "Accept",
@@ -578,7 +578,7 @@ UX_STEP_NOCB(
 UX_STEP_VALID(
     ux_approval_pgp_ecdh_4_step,
     pb,
-    io_seproxyhal_touch_ecdh_ok(NULL),
+    ui_callback_ecdh_ok(),
     {
       &C_icon_validate_14,
       "Accept",
@@ -586,7 +586,7 @@ UX_STEP_VALID(
 UX_STEP_VALID(
     ux_approval_pgp_ecdh_5_step,
     pb,
-    io_seproxyhal_touch_cancel(NULL),
+    ui_callback_tx_cancel(),
     {
       &C_icon_crossmark,
       "Reject",
@@ -627,7 +627,7 @@ UX_STEP_NOCB(
 UX_STEP_VALID(
     ux_sign_flow_4_step,
     pbb,
-    io_seproxyhal_touch_signMessage_ok(NULL),
+    ui_callback_signMessage_ok(),
     {
       &C_icon_validate_14,
       "Sign",
@@ -636,7 +636,7 @@ UX_STEP_VALID(
 UX_STEP_VALID(
     ux_sign_flow_5_step,
     pbb,
-    io_seproxyhal_touch_cancel(NULL),
+    ui_callback_tx_cancel(),
     {
       &C_icon_crossmark,
       "Cancel",

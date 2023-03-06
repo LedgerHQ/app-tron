@@ -113,7 +113,7 @@ void array_hexstr(char *strbuf, const void *bin, unsigned int len) {
     *strbuf = 0; // EOS
 }
 
-uint32_t set_result_get_publicKey(publicKeyContext_t *pub_key_ctx) {
+uint32_t set_result_get_publicKey(const publicKeyContext_t *pub_key_ctx) {
     uint32_t tx = 0;
     uint32_t addressLength = BASE58CHECK_ADDRESS_SIZE;
     G_io_apdu_buffer[tx++] = 65;

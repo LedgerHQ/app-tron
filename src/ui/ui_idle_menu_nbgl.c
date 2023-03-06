@@ -17,11 +17,9 @@
 #ifdef HAVE_NBGL
 
 #include "os.h"
-#include "os_io_seproxyhal.h"
 #include "ui_idle_menu.h"
 #include "glyphs.h"
 #include "ux.h"
-#include "nbgl_page.h"
 #include "nbgl_use_case.h"
 #include "settings.h"
 
