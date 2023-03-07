@@ -21,3 +21,7 @@ examples/protocol
 
 # Temporary test snapshots
 tests/snapshots-tmp
+
+# Generated proto files
+proto/*/*.pb.*
+proto/*/*/*.pb.*

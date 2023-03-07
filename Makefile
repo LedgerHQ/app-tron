@@ -64,17 +64,14 @@ APPVERSION_P=$(call splitVersion, $(APPVERSION), 3)
 #prepare hsm generation
 ifeq ($(TARGET_NAME), TARGET_NANOS)
 ICONNAME=icons/nanos_app_tron.gif
-else 
+else
 ifeq ($(TARGET_NAME),TARGET_STAX)
 ICONNAME=icons/stax_app_tron.bmp
 else
 ICONNAME=icons/nanox_app_tron.gif
 endif
 endif
-################
-# Default rule #
-################
-all: default
+
 
 ############
 # Platform #
@@ -156,32 +153,26 @@ DEFINES   += U2F_PROXY_MAGIC=\"TRX\"
 DEFINES   += HAVE_IO_U2F HAVE_U2F
 DEFINES   += U2F_REQUEST_TIMEOUT=28000 # 28 seconds
 
-.DEFAULT_GOAL := build_with_proto
-.PHONY: build_with_proto
-build_with_proto: proto
-	$(MAKE) bin/app.elf
 
-all: proto
-proto:
-	$(MAKE) -C $@
+############
+# proto    #
+############
+include proto/Makefile.proto
 
-.PHONY: all proto
-
-# nanopb
-include nanopb/extra/nanopb.mk
-
-CFLAGS += "-I$(NANOPB_DIR)" -Iproto
+CFLAGS += "-I$(NANOPB_DIR)" -I.
 DEFINES   += PB_NO_ERRMSG=1
 SOURCE_FILES += $(NANOPB_CORE)
-APP_SOURCE_PATH += proto
+APP_SOURCE_FILES += ${PROTO_SOURCE_FILES}
+
+
+################
+# Default rule #
+################
+all: default
 
 # target to also clean generated proto c files
 .SILENT : cleanall
-cleanall : clean
-	-@rm -rf \
-		proto/core/*.pb.c proto/core/*.pb.h \
-		proto/google/protobuf/*.pb.c proto/google/protobuf/*.pb.h \
-		proto/misc/*.pb.c proto/misc/*.pb.h
+cleanall : clean cleanproto
 
 load: all
 	python -m ledgerblue.loadApp $(APP_LOAD_PARAMS)
@@ -192,8 +183,11 @@ delete:
 # import generic rules from the sdk
 include $(BOLOS_SDK)/Makefile.rules
 
-#add dependency on custom makefile filename
-dep/%.d: %.c Makefile.genericwallet
+# Ensure proto header files are generated before building app source files.
+# This can be done by adding them as a dependency on Makefile which is
+# a dependency of other source files.
+.PHONY: Makefile
+Makefile: ${PROTO_HEADER_FILES}
 
 listvariants:
 	@echo VARIANTS COIN tron

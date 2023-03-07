@@ -1,6 +1,7 @@
 #!/bin/sh
 mkdir -p protocol/googleapis/google/api
 mkdir proto
+make -C .. proto
 cp -r ../proto/* proto
 
 git clone https://github.com/tronprotocol/protocol.git protocol/tron
