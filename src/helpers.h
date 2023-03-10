@@ -18,7 +18,7 @@
 #include "os.h"
 #include "cx.h"
 
-#include "parse.h"
+#include "globals.h"
 
 #ifndef HELPER_H
 #define HELPER_H

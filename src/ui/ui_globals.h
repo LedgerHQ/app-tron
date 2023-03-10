@@ -18,7 +18,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "../parse.h"
+#include "../globals.h"
 
 #define VOTE_ADDRESS 0
 #ifdef HAVE_BAGL

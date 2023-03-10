@@ -18,9 +18,9 @@
 #include <string.h>
 
 #include "pb.h"
-#include "proto/misc/TronApp.pb.h"
 
 #include "parse.h"
+#include "globals.h"
 #include "settings.h"
 #include "tokens.h"
 #include "app_errors.h"

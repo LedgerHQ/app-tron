@@ -183,11 +183,13 @@ delete:
 # import generic rules from the sdk
 include $(BOLOS_SDK)/Makefile.rules
 
-# Ensure proto header files are generated before building app source files.
-# This can be done by adding them as a dependency on Makefile which is
-# a dependency of other source files.
-.PHONY: Makefile
-Makefile: ${PROTO_HEADER_FILES}
+# Ensure proto header files are generated before building app source files
+# that need parse.h.
+# This can be done by adding the proto header files as a dependency for
+# files needing them.
+#.PHONY: src/parse.c src/main.c
+src/parse.c: ${PROTO_HEADER_FILES}
+src/main.c: ${PROTO_HEADER_FILES}
 
 listvariants:
 	@echo VARIANTS COIN tron

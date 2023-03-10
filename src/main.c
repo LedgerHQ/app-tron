@@ -30,6 +30,7 @@
 
 #include "helpers.h"
 #include "settings.h"
+#include "globals.h"
 #include "parse.h"
 #include "uint256.h"
 #include "tokens.h"

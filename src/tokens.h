@@ -16,7 +16,7 @@
  ********************************************************************************/
 
 #include "os.h"
-#include "parse.h"
+#include "globals.h"
 
 int verifyTokenNameID(const char *tokenId,
                       const char *tokenName,
