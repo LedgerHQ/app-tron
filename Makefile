@@ -157,11 +157,12 @@ proto:
 .PHONY: proto
 
 # nanopb
-include nanopb/extra/nanopb.mk
+#include nanopb/extra/nanopb.mk
+NANOPB_DIR = nanopb
 
 CFLAGS += "-I$(NANOPB_DIR)" -Iproto
 DEFINES   += PB_NO_ERRMSG=1
-SOURCE_FILES += $(NANOPB_CORE)
+SOURCE_FILES += $(NANOPB_DIR)/pb_encode.c $(NANOPB_DIR)/pb_decode.c $(NANOPB_DIR)/pb_common.c
 APP_SOURCE_PATH += proto
 
 # target to also clean generated proto c files
