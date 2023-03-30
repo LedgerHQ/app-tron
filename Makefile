@@ -151,6 +151,11 @@ DEFINES   += U2F_PROXY_MAGIC=\"TRX\"
 DEFINES   += HAVE_IO_U2F HAVE_U2F
 DEFINES   += U2F_REQUEST_TIMEOUT=28000 # 28 seconds
 
+.DEFAULT_GOAL := build_with_proto
+.PHONY: build_with_proto
+build_with_proto: proto
+	$(MAKE) bin/app.elf
+
 all: proto
 proto:
 	$(MAKE) -C $@
