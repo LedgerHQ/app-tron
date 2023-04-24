@@ -21,9 +21,6 @@
 #include "ux.h"
 #include "ui_idle_menu.h"
 
-bolos_ux_params_t G_ux_params;
-ux_state_t G_ux;
-
 volatile uint8_t customContractField;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
 char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
