@@ -16,10 +16,11 @@
  ********************************************************************************/
 #include "ui_globals.h"
 #include "helpers.h"
-#include "os_io_seproxyhal.h"
+#include "io.h"
 #include "os.h"
 #include "ux.h"
 #include "ui_idle_menu.h"
+#include "app_errors.h"
 
 volatile uint8_t customContractField;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
@@ -34,46 +35,31 @@ transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 
 unsigned int ui_callback_address_ok(void) {
-    uint32_t tx = set_result_get_publicKey(&publicKeyContext);
-    // E_OK
-    G_io_apdu_buffer[tx++] = 0x90;
-    G_io_apdu_buffer[tx++] = 0x00;
+    helper_send_response_pubkey(&publicKeyContext);
 
-    // Send back the response, do not restart the event loop
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
     // Display back the original UX
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
+
     return 0;  // do not redraw the widget
 }
 
 unsigned int ui_callback_signMessage_ok(void) {
-    uint32_t tx = 0;
-
     signTransaction(&transactionContext);
-    // send to output buffer
-    memcpy(G_io_apdu_buffer, transactionContext.signature, transactionContext.signatureLength);
-    tx = transactionContext.signatureLength;
-    // E_OK
-    G_io_apdu_buffer[tx++] = 0x90;
-    G_io_apdu_buffer[tx++] = 0x00;
+    io_send_response_pointer(transactionContext.signature, transactionContext.signatureLength, E_OK);
 
-    // Send back the response, do not restart the event loop
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
     // Display back the original UX
 #ifndef HAVE_NBGL
     ui_idle();
 #endif
+
     return 0;  // do not redraw the widget
 }
 
 unsigned int ui_callback_tx_cancel(void) {
-    // E_CONDITIONS_OF_USE_NOT_SATISFIED
-    G_io_apdu_buffer[0] = 0x69;
-    G_io_apdu_buffer[1] = 0x85;
-    // Send back the response, do not restart the event loop
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, 2);
+    io_send_sw(E_CONDITIONS_OF_USE_NOT_SATISFIED);
+
     // Display back the original UX
 #ifndef HAVE_NBGL
     ui_idle();
@@ -82,18 +68,9 @@ unsigned int ui_callback_tx_cancel(void) {
 }
 
 unsigned int ui_callback_tx_ok(void) {
-    uint32_t tx = 0;
-
     signTransaction(&transactionContext);
-    // send to output buffer
-    memcpy(G_io_apdu_buffer, transactionContext.signature, transactionContext.signatureLength);
-    tx = transactionContext.signatureLength;
-    // E_OK
-    G_io_apdu_buffer[tx++] = 0x90;
-    G_io_apdu_buffer[tx++] = 0x00;
+    io_send_response_pointer(transactionContext.signature, transactionContext.signatureLength, E_OK);
 
-    // Send back the response, do not restart the event loop
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
     // Display back the original UX
 #ifndef HAVE_NBGL
     ui_idle();
@@ -125,12 +102,8 @@ unsigned int ui_callback_ecdh_ok(void) {
     explicit_bzero(&privateKey, sizeof(privateKey));
     explicit_bzero(privateKeyData, sizeof(privateKeyData));
 
-    // E_OK
-    G_io_apdu_buffer[tx++] = 0x90;
-    G_io_apdu_buffer[tx++] = 0x00;
+    io_send_response_pointer(G_io_apdu_buffer, tx, E_OK);
 
-    // Send back the response, do not restart the event loop
-    io_exchange(CHANNEL_APDU | IO_RETURN_AFTER_TX, tx);
     // Display back the original UX
 #ifndef HAVE_NBGL
     ui_idle();

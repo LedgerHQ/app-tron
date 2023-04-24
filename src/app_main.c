@@ -22,6 +22,8 @@
 #include "os.h"
 #include "cx.h"
 #include "os_io_seproxyhal.h"
+#include "io.h"
+#include "parser.h"
 
 #include "ux.h"
 #include "ui_idle_menu.h"
@@ -57,13 +59,6 @@
 
 #define P2_NO_CHAINCODE 0x00
 #define P2_CHAINCODE    0x01
-
-#define OFFSET_CLA   0
-#define OFFSET_INS   1
-#define OFFSET_P1    2
-#define OFFSET_P2    3
-#define OFFSET_LC    4
-#define OFFSET_CDATA 5
 
 // The settings, stored in NVRAM.
 const internal_storage_t N_storage_real;
@@ -143,12 +138,10 @@ void initPublicKeyContext(bip32_path_t *bip32_path) {
 }
 
 // APDU public key
-void handleGetPublicKey(uint8_t p1,
-                        uint8_t p2,
-                        uint8_t *dataBuffer,
-                        uint16_t dataLength,
-                        volatile unsigned int *flags,
-                        volatile unsigned int *tx) {
+int handleGetPublicKey(uint8_t p1,
+                       uint8_t p2,
+                       uint8_t *dataBuffer,
+                       uint16_t dataLength) {
     // Get private key data
     uint8_t privateKeyData[33];
     bip32_path_t bip32_path;
@@ -157,10 +150,10 @@ void handleGetPublicKey(uint8_t p1,
     uint8_t p2Chain = p2 & 0x3F;
 
     if ((p1 != P1_CONFIRM) && (p1 != P1_NON_CONFIRM)) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
     if ((p2Chain != P2_CHAINCODE) && (p2Chain != P2_NO_CHAINCODE)) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     publicKeyContext.getChaincode = (p2Chain == P2_CHAINCODE);
@@ -168,7 +161,7 @@ void handleGetPublicKey(uint8_t p1,
     // Add requested BIP path to tmp array
     if (read_bip32_path(dataBuffer, dataLength, &bip32_path) < 0) {
         PRINTF("read_bip32_path failed\n");
-        THROW(E_INCORRECT_BIP32_PATH);
+        return io_send_sw(E_INCORRECT_BIP32_PATH);
     }
 
     // Get private key
@@ -195,13 +188,11 @@ void handleGetPublicKey(uint8_t p1,
     toAddress[BASE58CHECK_ADDRESS_SIZE] = '\0';
 
     if (p1 == P1_NON_CONFIRM) {
-        *tx = set_result_get_publicKey(&publicKeyContext);
-        THROW(E_OK);
+        return helper_send_response_pubkey(&publicKeyContext);
     } else {
         // prepare for a UI based reply
         ux_flow_display(APPROVAL_VERIFY_ADDRESS, false);
-
-        *flags |= IO_ASYNCH_REPLY;
+        return 0;
     }
 }
 
@@ -212,24 +203,21 @@ void convertUint256BE(uint8_t *data, uint32_t length, uint256_t *target) {
 }
 
 // APDU Sign
-void handleSign(uint8_t p1,
-                uint8_t p2,
-                uint8_t *workBuffer,
-                uint16_t dataLength,
-                volatile unsigned int *flags,
-                volatile unsigned int *tx) {
-    UNUSED(tx);
+int handleSign(uint8_t p1,
+               uint8_t p2,
+               uint8_t *workBuffer,
+               uint16_t dataLength) {
     uint256_t uint256;
 
     if (p2 != 0x00) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     // initialize context
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
         off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
         if (ret < 0) {
-            THROW(E_INCORRECT_BIP32_PATH);
+            return io_send_sw(E_INCORRECT_BIP32_PATH);
         }
         workBuffer += ret;
         dataLength -= ret;
@@ -244,14 +232,18 @@ void handleSign(uint8_t p1,
             case TRANSFERASSETCONTRACT:
             case EXCHANGECREATECONTRACT:
                 // Max 2 Tokens Name
-                if ((p1 & 0x07) > 1) THROW(E_INCORRECT_P1_P2);
+                if ((p1 & 0x07) > 1) {
+                    return io_send_sw(E_INCORRECT_P1_P2);
+                }
                 // Decode Token name and validate signature
                 if (!parseTokenName((p1 & 0x07), workBuffer, dataLength, &txContent)) {
                     PRINTF("Unexpected parser status\n");
-                    THROW(E_INCORRECT_DATA);
+                    return io_send_sw(E_INCORRECT_DATA);
                 }
                 // if not last token name, return
-                if (!(p1 & 0x08)) THROW(E_OK);
+                if (!(p1 & 0x08)) {
+                    return io_send_sw(E_OK);
+                }
                 dataLength = 0;
 
                 break;
@@ -259,30 +251,34 @@ void handleSign(uint8_t p1,
             case EXCHANGEWITHDRAWCONTRACT:
             case EXCHANGETRANSACTIONCONTRACT:
                 // Max 1 pair set
-                if ((p1 & 0x07) > 0) THROW(E_INCORRECT_P1_P2);
+                if ((p1 & 0x07) > 0) {
+                    return io_send_sw(E_INCORRECT_P1_P2);
+                }
                 // error if not last
-                if (!(p1 & 0x08)) THROW(E_INCORRECT_P1_P2);
+                if (!(p1 & 0x08)) {
+                    return io_send_sw(E_INCORRECT_P1_P2);
+                }
                 PRINTF("Decoding Exchange\n");
                 // Decode Token name and validate signature
                 if (!parseExchange(workBuffer, dataLength, &txContent)) {
                     PRINTF("Unexpected parser status\n");
-                    THROW(E_INCORRECT_DATA);
+                    return io_send_sw(E_INCORRECT_DATA);
                 }
                 dataLength = 0;
                 break;
             default:
                 // Error if any other contract
-                THROW(E_INCORRECT_DATA);
+                return io_send_sw(E_INCORRECT_DATA);
         }
     } else if ((p1 != P1_MORE) && (p1 != P1_LAST)) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     // Context must be initialized first
     if (!txContext.initialized) {
         PRINTF("Context not initialized\n");
         // NOTE: if txContext is not initialized, then there must be seq errors in P1/P2.
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
     // hash data
     cx_hash((cx_hash_t *) txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
@@ -293,15 +289,17 @@ void handleSign(uint8_t p1,
     switch (txResult) {
         case USTREAM_PROCESSING:
             // Last data should not return
-            if (p1 == P1_LAST || p1 == P1_SIGN) break;
-            THROW(E_OK);
+            if (p1 == P1_LAST || p1 == P1_SIGN) {
+                break;
+            }
+            return io_send_sw(E_OK);
         case USTREAM_FINISHED:
             break;
         case USTREAM_FAULT:
-            THROW(E_INCORRECT_DATA);
+            return io_send_sw(E_INCORRECT_DATA);
         default:
             PRINTF("Unexpected parser status\n");
-            THROW(txResult);
+            return io_send_sw(txResult);
     }
 
     // Last data hash
@@ -335,7 +333,9 @@ void handleSign(uint8_t p1,
                     strcpy(TRC20ActionSendAllow, "Allow");
                     strcpy(TRC20Action, "Approve");
                 } else {
-                    if (!HAS_SETTING(S_CUSTOM_CONTRACT)) THROW(E_MISSING_SETTING_CUSTOM_CONTRACT);
+                    if (!HAS_SETTING(S_CUSTOM_CONTRACT)) {
+                        return io_send_sw(E_MISSING_SETTING_CUSTOM_CONTRACT);
+                    }
                     customContractField = 1;
 
                     getBase58FromAddress(txContent.contractAddress,
@@ -349,7 +349,9 @@ void handleSign(uint8_t p1,
                     G_io_apdu_buffer[0] = '\0';
                     G_io_apdu_buffer[100] = '\0';
                     toAddress[0] = '\0';
-                    if (txContent.amount[0] > 0 && txContent.amount[1] > 0) THROW(E_INCORRECT_DATA);
+                    if (txContent.amount[0] > 0 && txContent.amount[1] > 0) {
+                        return io_send_sw(E_INCORRECT_DATA);
+                    }
                     // call has value
                     if (txContent.amount[0] > 0) {
                         strcpy(toAddress, "TRX");
@@ -382,7 +384,7 @@ void handleSign(uint8_t p1,
                                     (char *) G_io_apdu_buffer,
                                     100,
                                     txContent.decimals[0]))
-                    THROW(E_INCORRECT_LENGTH);
+                    return io_send_sw(E_INCORRECT_LENGTH);
             } else
                 print_amount(
                     txContent.amount[0],
@@ -436,7 +438,7 @@ void handleSign(uint8_t p1,
             if (!setExchangeContractDetail(txContent.contractType,
                                            (char *) G_io_apdu_buffer + 100,
                                            sizeof(G_io_apdu_buffer) - 100)) {
-                THROW(E_INCORRECT_DATA);
+                return io_send_sw(E_INCORRECT_DATA);
             }
 
             ux_flow_display(APPROVAL_EXCHANGE_WITHDRAW_INJECT,
@@ -638,30 +640,30 @@ void handleSign(uint8_t p1,
             break;
         case ACCOUNTPERMISSIONUPDATECONTRACT:
             if (!HAS_SETTING(S_SIGN_BY_HASH)) {
-                THROW(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
+                return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
             }
             // Write fullHash
             array_hexstr((char *) fullHash, transactionContext.hash, 32);
             // write contract type
             if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
-                THROW(E_INCORRECT_DATA);
+                return io_send_sw(E_INCORRECT_DATA);
             }
 
             ux_flow_display(APPROVAL_PERMISSION_UPDATE, ((txContent.dataBytes > 0) ? true : false));
 
             break;
         case INVALID_CONTRACT:
-            THROW(E_INCORRECT_DATA);  // Contract not initialized
+            return io_send_sw(E_INCORRECT_DATA);  // Contract not initialized
             break;
         default:
             if (!HAS_SETTING(S_SIGN_BY_HASH)) {
-                THROW(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
+                return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
             }
             // Write fullHash
             array_hexstr((char *) fullHash, transactionContext.hash, 32);
             // write contract type
             if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
-                THROW(E_INCORRECT_DATA);
+                return io_send_sw(E_INCORRECT_DATA);
             }
 
             ux_flow_display(APPROVAL_SIMPLE_TRANSACTION,
@@ -670,29 +672,26 @@ void handleSign(uint8_t p1,
             break;
     }
 
-    *flags |= IO_ASYNCH_REPLY;
+    return 0;
 }
 
 // APDU Sign by transaction hash
-void handleSignByHash(uint8_t p1,
-                      uint8_t p2,
-                      uint8_t *workBuffer,
-                      uint16_t dataLength,
-                      volatile unsigned int *flags,
-                      volatile unsigned int *tx) {
-    UNUSED(tx);
+int handleSignByHash(uint8_t p1,
+                     uint8_t p2,
+                     uint8_t *workBuffer,
+                     uint16_t dataLength) {
 
     if (p1 != 0x00 || p2 != 0x00) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     if (!HAS_SETTING(S_SIGN_BY_HASH)) {
-        THROW(E_MISSING_SETTING_SIGN_BY_HASH);
+        return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);
     }
 
     off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
     if (ret < 0) {
-        THROW(E_INCORRECT_BIP32_PATH);
+        return io_send_sw(E_INCORRECT_BIP32_PATH);
     }
     workBuffer += ret;
     dataLength -= ret;
@@ -704,7 +703,7 @@ void handleSignByHash(uint8_t p1,
 
     // Transaction hash
     if (dataLength != 32) {
-        THROW(E_INCORRECT_LENGTH);
+        return io_send_sw(E_INCORRECT_LENGTH);
     }
     memcpy(transactionContext.hash, workBuffer, 32);
     // Write fullHash
@@ -715,55 +714,49 @@ void handleSignByHash(uint8_t p1,
 
     ux_flow_display(APPROVAL_SIMPLE_TRANSACTION, false);
 
-    *flags |= IO_ASYNCH_REPLY;
+    return 0;
 }
 
 // APDU App Config and Version
-void handleGetAppConfiguration(uint8_t p1,
-                               uint8_t p2,
-                               uint8_t *workBuffer,
-                               uint16_t dataLength,
-                               volatile unsigned int *flags,
-                               volatile unsigned int *tx) {
-    // Clear buffer
+int handleGetAppConfiguration(uint8_t p1,
+                              uint8_t p2,
+                              uint8_t *workBuffer,
+                              uint16_t dataLength) {
     UNUSED(p1);
     UNUSED(p2);
     UNUSED(workBuffer);
     UNUSED(dataLength);
-    UNUSED(flags);
+
     // Add info to buffer
-    G_io_apdu_buffer[0] = N_settings & 0x0f;
-    G_io_apdu_buffer[1] = MAJOR_VERSION;
-    G_io_apdu_buffer[2] = MINOR_VERSION;
-    G_io_apdu_buffer[3] = PATCH_VERSION;
-    *tx = 4;  // Set return size
-    THROW(E_OK);
+    uint8_t resp[4] = {0};
+    resp[0] = N_settings & 0x0f;
+    resp[1] = MAJOR_VERSION;
+    resp[2] = MINOR_VERSION;
+    resp[3] = PATCH_VERSION;
+    return io_send_response_pointer(resp, 4, E_OK);
 }
 
 // APDU Sign
-void handleECDHSecret(uint8_t p1,
-                      uint8_t p2,
-                      uint8_t *workBuffer,
-                      uint16_t dataLength,
-                      volatile unsigned int *flags,
-                      volatile unsigned int *tx) {
-    UNUSED(tx);
+int handleECDHSecret(uint8_t p1,
+                     uint8_t p2,
+                     uint8_t *workBuffer,
+                     uint16_t dataLength) {
     uint8_t privateKeyData[32];
     cx_ecfp_private_key_t privateKey;
 
     if ((p1 != 0x00) || (p2 != 0x01)) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
     if (ret < 0) {
-        THROW(E_INCORRECT_BIP32_PATH);
+        return io_send_sw(E_INCORRECT_BIP32_PATH);
     }
     workBuffer += ret;
     dataLength -= ret;
     if (dataLength != 65) {
         PRINTF("Public key length error!");
-        THROW(E_INCORRECT_LENGTH);
+        return io_send_sw(E_INCORRECT_LENGTH);
     }
 
     // Load raw Data
@@ -795,16 +788,13 @@ void handleECDHSecret(uint8_t p1,
 
     ux_flow_display(APPROVAL_SHARED_ECDH_SECRET, false);
 
-    *flags |= IO_ASYNCH_REPLY;
+    return 0;
 }
 
-void handleSignPersonalMessage(uint8_t p1,
-                               uint8_t p2,
-                               uint8_t *workBuffer,
-                               uint16_t dataLength,
-                               volatile unsigned int *flags,
-                               volatile unsigned int *tx) {
-    UNUSED(tx);
+int handleSignPersonalMessage(uint8_t p1,
+                              uint8_t p2,
+                              uint8_t *workBuffer,
+                              uint16_t dataLength) {
     uint8_t privateKeyData[32];
     cx_ecfp_private_key_t privateKey;
     cx_sha3_t sha3;
@@ -812,7 +802,7 @@ void handleSignPersonalMessage(uint8_t p1,
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
         off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
         if (ret < 0) {
-            THROW(E_INCORRECT_BIP32_PATH);
+            return io_send_sw(E_INCORRECT_BIP32_PATH);
         }
         workBuffer += ret;
         dataLength -= ret;
@@ -836,14 +826,14 @@ void handleSignPersonalMessage(uint8_t p1,
         cx_hash((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 32);
 
     } else if (p1 != P1_MORE) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
 
     if (p2 != 0) {
-        THROW(E_INCORRECT_P1_P2);
+        return io_send_sw(E_INCORRECT_P1_P2);
     }
     if (dataLength > txContent.dataBytes) {
-        THROW(E_INCORRECT_LENGTH);
+        return io_send_sw(E_INCORRECT_LENGTH);
     }
 
     cx_hash((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 32);
@@ -887,116 +877,66 @@ void handleSignPersonalMessage(uint8_t p1,
 
         ux_flow_display(APPROVAL_SIGN_PERSONAL_MESSAGE, false);
 
-        *flags |= IO_ASYNCH_REPLY;
-
     } else {
-        THROW(E_OK);
+        return io_send_sw(E_OK);
     }
+
+    return 0;
 }
 
 // Check ADPU and process the assigned task
-void handleApdu(volatile unsigned int *flags, volatile unsigned int *tx) {
-    unsigned short sw = 0;
-
-    BEGIN_TRY {
-        TRY {
-            if (G_io_apdu_buffer[OFFSET_CLA] != CLA) {
-                THROW(E_CLA_NOT_SUPPORTED);
-            }
-
-            switch (G_io_apdu_buffer[OFFSET_INS]) {
-                case INS_GET_PUBLIC_KEY:
-                    // Request Publick Key
-                    handleGetPublicKey(G_io_apdu_buffer[OFFSET_P1],
-                                       G_io_apdu_buffer[OFFSET_P2],
-                                       G_io_apdu_buffer + OFFSET_CDATA,
-                                       G_io_apdu_buffer[OFFSET_LC],
-                                       flags,
-                                       tx);
-                    break;
-
-                case INS_SIGN:
-                    // Request Signature
-                    handleSign(G_io_apdu_buffer[OFFSET_P1],
-                               G_io_apdu_buffer[OFFSET_P2],
-                               G_io_apdu_buffer + OFFSET_CDATA,
-                               G_io_apdu_buffer[OFFSET_LC],
-                               flags,
-                               tx);
-                    break;
-
-                case INS_SIGN_TXN_HASH:
-                    // Request signature via transaction id
-                    handleSignByHash(G_io_apdu_buffer[OFFSET_P1],
-                                     G_io_apdu_buffer[OFFSET_P2],
-                                     G_io_apdu_buffer + OFFSET_CDATA,
-                                     G_io_apdu_buffer[OFFSET_LC],
-                                     flags,
-                                     tx);
-                    break;
-
-                case INS_GET_APP_CONFIGURATION:
-                    // Request App configuration
-                    handleGetAppConfiguration(G_io_apdu_buffer[OFFSET_P1],
-                                              G_io_apdu_buffer[OFFSET_P2],
-                                              G_io_apdu_buffer + OFFSET_CDATA,
-                                              G_io_apdu_buffer[OFFSET_LC],
-                                              flags,
-                                              tx);
-                    break;
-
-                case INS_GET_ECDH_SECRET:
-                    // Request Signature
-                    handleECDHSecret(G_io_apdu_buffer[OFFSET_P1],
-                                     G_io_apdu_buffer[OFFSET_P2],
-                                     G_io_apdu_buffer + OFFSET_CDATA,
-                                     G_io_apdu_buffer[OFFSET_LC],
-                                     flags,
-                                     tx);
-                    break;
-
-                case INS_SIGN_PERSONAL_MESSAGE:
-                    handleSignPersonalMessage(G_io_apdu_buffer[OFFSET_P1],
-                                              G_io_apdu_buffer[OFFSET_P2],
-                                              G_io_apdu_buffer + OFFSET_CDATA,
-                                              G_io_apdu_buffer[OFFSET_LC],
-                                              flags,
-                                              tx);
-                    break;
-
-                default:
-                    THROW(E_INS_NOT_SUPPORTED);
-                    break;
-            }
-        }
-        CATCH(EXCEPTION_IO_RESET) {
-            THROW(EXCEPTION_IO_RESET);
-        }
-        CATCH_OTHER(e) {
-            switch (e & 0xF000) {
-                case 0x6000:
-                    // Wipe the transaction context and report the exception
-                    sw = e;
-                    memset(&txContent, 0, sizeof(txContent));
-                    break;
-                case 0x9000:
-                    // All is well
-                    sw = e;
-                    break;
-                default:
-                    // Internal error
-                    sw = 0x6800 | (e & 0x7FF);
-                    break;
-            }
-            // Unexpected exception => report
-            G_io_apdu_buffer[*tx] = sw >> 8;
-            G_io_apdu_buffer[*tx + 1] = sw;
-            *tx += 2;
-        }
-        FINALLY {
-        }
+int apdu_dispatcher(const command_t *cmd) {
+    if (cmd->cla != CLA) {
+        return io_send_sw(E_CLA_NOT_SUPPORTED);
     }
-    END_TRY;
+
+    switch (cmd->ins) {
+        case INS_GET_PUBLIC_KEY:
+            // Request Publick Key
+            return handleGetPublicKey(cmd->p1,
+                                      cmd->p2,
+                                      cmd->data,
+                                      cmd->lc);
+
+        case INS_SIGN:
+            // Request Signature
+            return handleSign(cmd->p1,
+                              cmd->p2,
+                              cmd->data,
+                              cmd->lc);
+
+        case INS_SIGN_TXN_HASH:
+            // Request signature via transaction id
+            return handleSignByHash(cmd->p1,
+                                    cmd->p2,
+                                    cmd->data,
+                                    cmd->lc);
+
+        case INS_GET_APP_CONFIGURATION:
+            // Request App configuration
+            return handleGetAppConfiguration(cmd->p1,
+                                             cmd->p2,
+                                             cmd->data,
+                                             cmd->lc);
+
+        case INS_GET_ECDH_SECRET:
+            // Request Signature
+            return handleECDHSecret(cmd->p1,
+                                    cmd->p2,
+                                    cmd->data,
+                                    cmd->lc);
+
+        case INS_SIGN_PERSONAL_MESSAGE:
+            return handleSignPersonalMessage(cmd->p1,
+                                             cmd->p2,
+                                             cmd->data,
+                                             cmd->lc);
+
+        default:
+            return io_send_sw(E_INS_NOT_SUPPORTED);
+    }
+
+    return 0;
 }
 
 static void nv_app_state_init(void) {
@@ -1009,67 +949,60 @@ static void nv_app_state_init(void) {
 
 // App main loop
 void app_main(void) {
-    volatile unsigned int rx = 0;
-    volatile unsigned int tx = 0;
-    volatile unsigned int flags = 0;
+    // Length of APDU command received in G_io_apdu_buffer
+    int input_len = 0;
+    // Structured APDU command
+    command_t cmd;
 
     nv_app_state_init();
+
+    io_init();
 
     ui_idle();
 
     // Reset context
     explicit_bzero(&txContent, sizeof(txContent));
 
-    // DESIGN NOTE: the bootloader ignores the way APDU are fetched. The only
-    // goal is to retrieve APDU.
-    // When APDU are to be fetched from multiple IOs, like NFC+USB+BLE, make
-    // sure the io_event is called with a
-    // switch event, before the apdu is replied to the bootloader. This avoid
-    // APDU injection faults.
     for (;;) {
-        volatile unsigned short sw = 0;
-
         BEGIN_TRY {
             TRY {
-                rx = tx;
-                tx = 0;  // ensure no race in catch_other if io_exchange throws
-                         // an error
-                rx = io_exchange(CHANNEL_APDU | flags, rx);
-                flags = 0;
+                // Reset structured APDU command
+                memset(&cmd, 0, sizeof(cmd));
 
-                // no apdu received, well, reset the session, and reset the
-                // bootloader configuration
-                if (rx == 0) {
-                    THROW(E_SECURITY_STATUS_NOT_SATISFIED);
+                // Receive command bytes in G_io_apdu_buffer
+                if ((input_len = io_recv_command()) < 0) {
+                    CLOSE_TRY;
+                    return;
                 }
 
-                PRINTF("New APDU received:\n%.*H\n", rx, G_io_apdu_buffer);
+                // Parse APDU command from G_io_apdu_buffer
+                if (!apdu_parser(&cmd, G_io_apdu_buffer, input_len)) {
+                    PRINTF("=> /!\\ BAD LENGTH: %.*H\n", input_len, G_io_apdu_buffer);
+                    io_send_sw(E_WRONG_DATA_LENGTH);
+                    CLOSE_TRY;
+                    continue;
+                }
 
-                handleApdu(&flags, &tx);
+                PRINTF("=> CLA=%02X | INS=%02X | P1=%02X | P2=%02X | Lc=%02X | CData=%.*H\n",
+                       cmd.cla,
+                       cmd.ins,
+                       cmd.p1,
+                       cmd.p2,
+                       cmd.lc,
+                       cmd.lc,
+                       cmd.data);
+
+                // Dispatch structured APDU command to handler
+                if (apdu_dispatcher(&cmd) < 0) {
+                    CLOSE_TRY;
+                    return;
+                }
             }
             CATCH(EXCEPTION_IO_RESET) {
                 THROW(EXCEPTION_IO_RESET);
             }
             CATCH_OTHER(e) {
-                switch (e & 0xF000) {
-                    case 0x6000:
-                        // Wipe the transaction context and report the exception
-                        sw = e;
-                        memset(&txContent, 0, sizeof(txContent));
-                        break;
-                    case 0x9000:
-                        // All is well
-                        sw = e;
-                        break;
-                    default:
-                        // Internal error
-                        sw = 0x6800 | (e & 0x7FF);
-                        break;
-                }
-                // Unexpected exception => report
-                G_io_apdu_buffer[tx] = sw >> 8;
-                G_io_apdu_buffer[tx + 1] = sw;
-                tx += 2;
+                io_send_sw(e);
             }
             FINALLY {
             }
