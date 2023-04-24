@@ -35,6 +35,6 @@ void signTransaction(transactionContext_t *transactionContext);
 
 void array_hexstr(char *strbuf, const void *bin, unsigned int len);
 
-uint32_t set_result_get_publicKey(const publicKeyContext_t *pub_key_ctx);
+int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx);
 
 #endif
