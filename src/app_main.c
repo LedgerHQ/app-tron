@@ -35,8 +35,6 @@
 #include "tokens.h"
 #include "app_errors.h"
 
-unsigned char G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
-
 // Define command events
 #define CLA 0xE0  // Start byte for any communications
 
@@ -95,31 +93,6 @@ void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
 void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index) {
     print_amount(value, destination + voteSlot(index, VOTE_AMOUNT), VOTE_AMOUNT_SIZE, 0);
     PRINTF("Amount: %d - %s\n", index, destination + (voteSlot(index, VOTE_AMOUNT)));
-}
-
-unsigned short io_exchange_al(unsigned char channel, unsigned short tx_len) {
-    switch (channel & ~(IO_FLAGS)) {
-        case CHANNEL_KEYBOARD:
-            break;
-
-        // multiplexed io exchange over a SPI channel and TLV encapsulated protocol
-        case CHANNEL_SPI:
-            if (tx_len) {
-                io_seproxyhal_spi_send(G_io_apdu_buffer, tx_len);
-
-                if (channel & IO_RESET_AFTER_REPLIED) {
-                    reset();
-                }
-                return 0;  // nothing received from the master so far (it's a tx
-                           // transaction)
-            } else {
-                return io_seproxyhal_spi_recv(G_io_apdu_buffer, sizeof(G_io_apdu_buffer), 0);
-            }
-
-        default:
-            THROW(INVALID_PARAMETER);
-    }
-    return 0;
 }
 
 off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path) {
@@ -760,9 +733,9 @@ void handleGetAppConfiguration(uint8_t p1,
     UNUSED(flags);
     // Add info to buffer
     G_io_apdu_buffer[0] = N_settings & 0x0f;
-    G_io_apdu_buffer[1] = LEDGER_MAJOR_VERSION;
-    G_io_apdu_buffer[2] = LEDGER_MINOR_VERSION;
-    G_io_apdu_buffer[3] = LEDGER_PATCH_VERSION;
+    G_io_apdu_buffer[1] = MAJOR_VERSION;
+    G_io_apdu_buffer[2] = MINOR_VERSION;
+    G_io_apdu_buffer[3] = PATCH_VERSION;
     *tx = 4;  // Set return size
     THROW(E_OK);
 }
@@ -1026,13 +999,26 @@ void handleApdu(volatile unsigned int *flags, volatile unsigned int *tx) {
     END_TRY;
 }
 
-#include "usbd_core.h"
+static void nv_app_state_init(void) {
+    if (!HAS_SETTING(S_INITIALIZED)) {
+        internal_storage_t storage = 0x00;
+        storage |= 0x80;
+        nvm_write((void *) &N_settings, (void *) &storage, sizeof(internal_storage_t));
+    }
+}
 
 // App main loop
-void tron_main(void) {
+void app_main(void) {
     volatile unsigned int rx = 0;
     volatile unsigned int tx = 0;
     volatile unsigned int flags = 0;
+
+    nv_app_state_init();
+
+    ui_idle();
+
+    // Reset context
+    explicit_bzero(&txContent, sizeof(txContent));
 
     // DESIGN NOTE: the bootloader ignores the way APDU are fetched. The only
     // goal is to retrieve APDU.
@@ -1093,133 +1079,4 @@ void tron_main(void) {
 
     // return_to_dashboard:
     return;
-}
-
-#ifdef HAVE_BAGL
-// override point, but nothing more to do
-void io_seproxyhal_display(const bagl_element_t *element) {
-    io_seproxyhal_display_default((bagl_element_t *) element);
-}
-#endif  // HAVE_BAGL
-
-unsigned char io_event(unsigned char channel) {
-    UNUSED(channel);
-
-    // nothing done with the event, throw an error on the transport layer if
-    // needed
-
-    // can't have more than one tag in the reply, not supported yet.
-    switch (G_io_seproxyhal_spi_buffer[0]) {
-        case SEPROXYHAL_TAG_FINGER_EVENT:
-#ifdef HAVE_NBGL
-            UX_FINGER_EVENT(G_io_seproxyhal_spi_buffer);
-#endif  // HAVE_NBGL
-            break;
-
-        case SEPROXYHAL_TAG_BUTTON_PUSH_EVENT:
-#ifdef HAVE_BAGL
-            UX_BUTTON_PUSH_EVENT(G_io_seproxyhal_spi_buffer);
-#endif  // HAVE_BAGL
-            break;
-
-        case SEPROXYHAL_TAG_STATUS_EVENT:
-            if (G_io_apdu_media == IO_APDU_MEDIA_USB_HID &&
-                !(U4BE(G_io_seproxyhal_spi_buffer, 3) &
-                  SEPROXYHAL_TAG_STATUS_EVENT_FLAG_USB_POWERED)) {
-                THROW(EXCEPTION_IO_RESET);
-            }
-
-            __attribute__((fallthrough));
-        // no break is intentional
-        default:
-            UX_DEFAULT_EVENT();
-            break;
-
-        case SEPROXYHAL_TAG_DISPLAY_PROCESSED_EVENT:
-#ifdef HAVE_BAGL
-            UX_DISPLAYED_EVENT({});
-#endif  // HAVE_BAGL
-#ifdef HAVE_NBGL
-            UX_DEFAULT_EVENT();
-#endif  // HAVE_NBGL
-            break;
-
-        case SEPROXYHAL_TAG_TICKER_EVENT:
-            UX_TICKER_EVENT(G_io_seproxyhal_spi_buffer, {});
-            break;
-    }
-
-    // close the event if not done previously (by a display or whatever)
-    if (!io_seproxyhal_spi_is_status_sent()) {
-        io_seproxyhal_general_status();
-    }
-
-    // command has been processed, DO NOT reset the current APDU transport
-    return 1;
-}
-
-// Exit application
-void app_exit(void) {
-    BEGIN_TRY_L(exit) {
-        TRY_L(exit) {
-            os_sched_exit(-1);
-        }
-        FINALLY_L(exit) {
-        }
-    }
-    END_TRY_L(exit);
-}
-
-// App boot loop
-__attribute__((section(".boot"))) int main(void) {
-    // exit critical section
-    __asm volatile("cpsie i");
-
-    // ensure exception will work as planned
-    os_boot();
-
-    for (;;) {
-        memset(&txContent, 0, sizeof(txContent));
-
-        UX_INIT();
-        BEGIN_TRY {
-            TRY {
-                io_seproxyhal_init();
-#ifdef HAVE_BLE
-                // grab the current plane mode setting
-                G_io_app.plane_mode = os_setting_get(OS_SETTING_PLANEMODE, NULL, 0);
-#endif  // TARGET_NANOX
-
-                if (!HAS_SETTING(S_INITIALIZED)) {
-                    internal_storage_t storage = 0x00;
-                    storage |= 0x80;
-                    nvm_write((void *) &N_settings, (void *) &storage, sizeof(internal_storage_t));
-                }
-
-                USB_power(1);
-                ui_idle();
-
-#ifdef HAVE_BLE
-                BLE_power(0, NULL);
-                BLE_power(1, NULL);
-#endif  // HAVE_BLE
-
-                // Call Tron main Loop
-                tron_main();
-            }
-            CATCH(EXCEPTION_IO_RESET) {
-                // reset IO and UX
-                continue;
-            }
-            CATCH_ALL {
-                break;
-            }
-            FINALLY {
-            }
-        }
-        END_TRY;
-    }
-    app_exit();
-
-    return 0;
 }
