@@ -309,13 +309,13 @@ int handleSign(uint8_t p1,
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 5, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account,
-                             (void *) (fromAddress + 4),
+                             fromAddress + 4,
                              &sha2,
                              HAS_SETTING(S_TRUNCATE_ADDRESS));
     } else {
         PRINTF("Regular transaction...\n");
         getBase58FromAddress(txContent.account,
-                             (void *) fromAddress,
+                             fromAddress,
                              &sha2,
                              HAS_SETTING(S_TRUNCATE_ADDRESS));
     }
@@ -339,7 +339,7 @@ int handleSign(uint8_t p1,
                     customContractField = 1;
 
                     getBase58FromAddress(txContent.contractAddress,
-                                         (uint8_t *) fullContract,
+                                         fullContract,
                                          &sha2,
                                          HAS_SETTING(S_TRUNCATE_ADDRESS));
                     snprintf((char *) TRC20Action,
@@ -393,7 +393,7 @@ int handleSign(uint8_t p1,
                     (txContent.contractType == TRANSFERCONTRACT) ? SUN_DIG : txContent.decimals[0]);
 
             getBase58FromAddress(txContent.destination,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -482,7 +482,7 @@ int handleSign(uint8_t p1,
 
             for (int i = 0; i < contract->votes_count; i++) {
                 getBase58FromAddress(contract->votes[i].vote_address,
-                                     (uint8_t *) fullContract,
+                                     fullContract,
                                      &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
 #if defined(HAVE_NBGL)
@@ -513,12 +513,12 @@ int handleSign(uint8_t p1,
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             if (strlen((const char *) txContent.destination) > 0) {
                 getBase58FromAddress(txContent.destination,
-                                     (uint8_t *) toAddress,
+                                     toAddress,
                                      &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
                 getBase58FromAddress(txContent.account,
-                                     (uint8_t *) toAddress,
+                                     toAddress,
                                      &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
@@ -535,12 +535,12 @@ int handleSign(uint8_t p1,
 
             if (strlen((const char *) txContent.destination) > 0) {
                 getBase58FromAddress(txContent.destination,
-                                     (uint8_t *) toAddress,
+                                     toAddress,
                                      &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
                 getBase58FromAddress(txContent.account,
-                                     (uint8_t *) toAddress,
+                                     toAddress,
                                      &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
@@ -557,7 +557,7 @@ int handleSign(uint8_t p1,
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.account,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -572,7 +572,7 @@ int handleSign(uint8_t p1,
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.account,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -594,7 +594,7 @@ int handleSign(uint8_t p1,
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.destination,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -610,7 +610,7 @@ int handleSign(uint8_t p1,
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.destination,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -620,7 +620,7 @@ int handleSign(uint8_t p1,
             break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
             getBase58FromAddress(txContent.account,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -630,7 +630,7 @@ int handleSign(uint8_t p1,
             break;
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
             getBase58FromAddress(txContent.account,
-                                 (uint8_t *) toAddress,
+                                 toAddress,
                                  &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
@@ -779,12 +779,12 @@ int handleECDHSecret(uint8_t p1,
     // Get address from PK
     getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
     // Get Base58
-    getBase58FromAddress(publicKeyContext.address, (uint8_t *) fromAddress, &sha2, false);
+    getBase58FromAddress(publicKeyContext.address, fromAddress, &sha2, false);
 
     // Get address from PK
     getAddressFromPublicKey(transactionContext.signature, publicKeyContext.address);
     // Get Base58
-    getBase58FromAddress(publicKeyContext.address, (uint8_t *) toAddress, &sha2, false);
+    getBase58FromAddress(publicKeyContext.address, toAddress, &sha2, false);
 
     ux_flow_display(APPROVAL_SHARED_ECDH_SECRET, false);
 
@@ -871,7 +871,7 @@ int handleSignPersonalMessage(uint8_t p1,
         // Get address from PK
         getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
         // Get Base58
-        getBase58FromAddress(publicKeyContext.address, (uint8_t *) fromAddress, &sha2, false);
+        getBase58FromAddress(publicKeyContext.address, fromAddress, &sha2, false);
 
         fromAddress[BASE58CHECK_ADDRESS_SIZE] = '\0';
 

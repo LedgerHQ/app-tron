@@ -36,7 +36,7 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;
 }
 
-void getBase58FromAddress(uint8_t *address, uint8_t *out, cx_sha256_t *sha2, bool truncate) {
+void getBase58FromAddress(uint8_t *address, char *out, cx_sha256_t *sha2, bool truncate) {
     uint8_t sha256[32];
     uint8_t addchecksum[ADDRESS_SIZE + 4];
 
@@ -48,7 +48,7 @@ void getBase58FromAddress(uint8_t *address, uint8_t *out, cx_sha256_t *sha2, boo
     memmove(addchecksum, address, ADDRESS_SIZE);
     memmove(addchecksum + ADDRESS_SIZE, sha256, 4);
 
-    base58_encode(&addchecksum[0], 25, (char *) out, BASE58CHECK_ADDRESS_SIZE);
+    base58_encode(&addchecksum[0], 25, out, BASE58CHECK_ADDRESS_SIZE);
     out[BASE58CHECK_ADDRESS_SIZE] = '\0';
     if (truncate) {
         memmove((void *) out + 5, "...", 3);
