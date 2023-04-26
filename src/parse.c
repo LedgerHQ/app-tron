@@ -236,8 +236,7 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
                           details.name,
                           details.precision,
                           details.signature.bytes,
-                          details.signature.size,
-                          content->publicKeyContext) != 1) {
+                          details.signature.size) != 1) {
         return false;
     }
 
@@ -333,8 +332,7 @@ bool parseExchange(const uint8_t *data, size_t length, txContent_t *content) {
     if (!verifyExchangeID((uint8_t *) buffer,
                           msg_size,
                           details.signature.bytes,
-                          details.signature.size,
-                          content->publicKeyContext)) {
+                          details.signature.size)) {
         return false;
     }
 
