@@ -24,6 +24,7 @@
 #include "os_io_seproxyhal.h"
 #include "io.h"
 #include "parser.h"
+#include "crypto_helpers.h"
 
 #include "ux.h"
 #include "ui_idle_menu.h"
@@ -112,29 +113,23 @@ off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path) 
     return 1 + 4 * path_length;
 }
 
-void initPublicKeyContext(bip32_path_t *bip32_path) {
-    uint8_t privateKeyData[33];
-    cx_ecfp_private_key_t privateKey;
+int initPublicKeyContext(bip32_path_t *bip32_path, char *address58) {
+    if (bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+                                    bip32_path->indices,
+                                    bip32_path->length,
+                                    publicKeyContext.publicKey,
+                                    publicKeyContext.chainCode,
+                                    CX_SHA512) != CX_OK) {
+        return -1;
+    }
 
-    // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               bip32_path->indices,
-                               bip32_path->length,
-                               privateKeyData,
-                               NULL);
+    // Get address from public key
+    getAddressFromPublicKey(publicKeyContext.publicKey, publicKeyContext.address);
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
+    // Get base58 address
+    getBase58FromAddress(publicKeyContext.address, address58, &sha2, false);
 
-    // Clear tmp buffer data
-    explicit_bzero(&privateKey, sizeof(privateKey));
-    explicit_bzero(privateKeyData, sizeof(privateKeyData));
-
-    // Get address from PK
-    getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
-
-    // Get base58check
-    getBase58FromAddress(publicKeyContext.address, publicKeyContext.address58, &sha2, false);
+    return 0;
 }
 
 // APDU public key
@@ -143,9 +138,7 @@ int handleGetPublicKey(uint8_t p1,
                        uint8_t *dataBuffer,
                        uint16_t dataLength) {
     // Get private key data
-    uint8_t privateKeyData[33];
     bip32_path_t bip32_path;
-    cx_ecfp_private_key_t privateKey;
 
     uint8_t p2Chain = p2 & 0x3F;
 
@@ -164,28 +157,11 @@ int handleGetPublicKey(uint8_t p1,
         return io_send_sw(E_INCORRECT_BIP32_PATH);
     }
 
-    // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               bip32_path.indices,
-                               bip32_path.length,
-                               privateKeyData,
-                               publicKeyContext.chainCode);
+    if (initPublicKeyContext(&bip32_path, publicKeyContext.address58) != 0) {
+        return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
+    }
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
-
-    // Clear tmp buffer data
-    explicit_bzero(&privateKey, sizeof(privateKey));
-    explicit_bzero(privateKeyData, sizeof(privateKeyData));
-
-    // Get address from PK
-    getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
-
-    // Get Base58
-    getBase58FromAddress(publicKeyContext.address, publicKeyContext.address58, &sha2, false);
-
-    memcpy(toAddress, publicKeyContext.address58, BASE58CHECK_ADDRESS_SIZE);
-    toAddress[BASE58CHECK_ADDRESS_SIZE] = '\0';
+    memcpy(toAddress, publicKeyContext.address58, BASE58CHECK_ADDRESS_SIZE + 1);
 
     if (p1 == P1_NON_CONFIRM) {
         return helper_send_response_pubkey(&publicKeyContext);
@@ -224,7 +200,6 @@ int handleSign(uint8_t p1,
 
         initTx(&txContext, &sha2, &txContent);
         customContractField = 0;
-        txContent.publicKeyContext = &publicKeyContext;
 
     } else if ((p1 & 0xF0) == P1_TRC10_NAME) {
         PRINTF("Setting token name\nContract type: %d\n", txContent.contractType);
@@ -697,9 +672,9 @@ int handleSignByHash(uint8_t p1,
     dataLength -= ret;
 
     // fromAddress
-    initPublicKeyContext(&transactionContext.bip32_path);
-    memcpy(fromAddress, publicKeyContext.address58, 34);
-    fromAddress[34] = '\0';
+    if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
+        return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
+    }
 
     // Transaction hash
     if (dataLength != 32) {
@@ -741,8 +716,6 @@ int handleECDHSecret(uint8_t p1,
                      uint8_t p2,
                      uint8_t *workBuffer,
                      uint16_t dataLength) {
-    uint8_t privateKeyData[32];
-    cx_ecfp_private_key_t privateKey;
 
     if ((p1 != 0x00) || (p2 != 0x01)) {
         return io_send_sw(E_INCORRECT_P1_P2);
@@ -762,27 +735,12 @@ int handleECDHSecret(uint8_t p1,
     // Load raw Data
     memcpy(transactionContext.signature, workBuffer, dataLength);
 
-    // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               transactionContext.bip32_path.indices,
-                               transactionContext.bip32_path.length,
-                               privateKeyData,
-                               NULL);
+    if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
+        return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
+    }
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
-
-    // Clear tmp buffer data
-    explicit_bzero(&privateKey, sizeof(privateKey));
-    explicit_bzero(privateKeyData, sizeof(privateKeyData));
-
-    // Get address from PK
-    getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
-    // Get Base58
-    getBase58FromAddress(publicKeyContext.address, fromAddress, &sha2, false);
-
-    // Get address from PK
-    getAddressFromPublicKey(transactionContext.signature, publicKeyContext.address);
+    // Get address from workBuffer public key
+    getAddressFromPublicKey(workBuffer, publicKeyContext.address);
     // Get Base58
     getBase58FromAddress(publicKeyContext.address, toAddress, &sha2, false);
 
@@ -795,8 +753,6 @@ int handleSignPersonalMessage(uint8_t p1,
                               uint8_t p2,
                               uint8_t *workBuffer,
                               uint16_t dataLength) {
-    uint8_t privateKeyData[32];
-    cx_ecfp_private_key_t privateKey;
     cx_sha3_t sha3;
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
@@ -854,26 +810,9 @@ int handleSignPersonalMessage(uint8_t p1,
                      transactionContext.hash,
                      sizeof(transactionContext.hash));
 #endif
-        // Get private key
-        os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                   transactionContext.bip32_path.indices,
-                                   transactionContext.bip32_path.length,
-                                   privateKeyData,
-                                   NULL);
-
-        cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-        cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
-
-        // Clear tmp buffer data
-        explicit_bzero(&privateKey, sizeof(privateKey));
-        explicit_bzero(privateKeyData, sizeof(privateKeyData));
-
-        // Get address from PK
-        getAddressFromKey(&publicKeyContext.publicKey, publicKeyContext.address);
-        // Get Base58
-        getBase58FromAddress(publicKeyContext.address, fromAddress, &sha2, false);
-
-        fromAddress[BASE58CHECK_ADDRESS_SIZE] = '\0';
+        if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
+            return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
+        }
 
         ux_flow_display(APPROVAL_SIGN_PERSONAL_MESSAGE, false);
 

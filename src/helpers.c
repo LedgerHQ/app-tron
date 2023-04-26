@@ -17,13 +17,10 @@
 
 #include "base58.h"
 #include "io.h"
+#include "crypto_helpers.h"
 
 #include "helpers.h"
 #include "app_errors.h"
-
-void getAddressFromKey(cx_ecfp_public_key_t *publicKey, uint8_t *address) {
-    return getAddressFromPublicKey(publicKey->W, address);
-}
 
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
     uint8_t hashAddress[32];
@@ -63,35 +60,27 @@ void transactionHash(uint8_t *raw, uint16_t dataLength, uint8_t *out, cx_sha256_
     cx_hash((cx_hash_t *) sha2, CX_LAST, raw, dataLength, out, 32);
 }
 
-void signTransaction(transactionContext_t *transactionContext) {
-    uint8_t privateKeyData[32];
-    cx_ecfp_private_key_t privateKey;
+int signTransaction(transactionContext_t *transactionContext) {
+    cx_err_t err;
     uint8_t rLength, sLength, rOffset, sOffset;
     uint8_t signature[100];
+    size_t sigLen = sizeof(signature);
     unsigned int info = 0;
 
-    // Get Private key from BIP32 path
-    io_seproxyhal_io_heartbeat();
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               transactionContext->bip32_path.indices,
-                               transactionContext->bip32_path.length,
-                               privateKeyData,
-                               NULL);
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    explicit_bzero(privateKeyData, sizeof(privateKeyData));
-    // Sign transaction hash
-    io_seproxyhal_io_heartbeat();
-    cx_ecdsa_sign(&privateKey,
-                  CX_RND_RFC6979 | CX_LAST,
-                  CX_SHA256,
-                  transactionContext->hash,
-                  sizeof(transactionContext->hash),
-                  signature,
-                  sizeof(signature),
-                  &info);
+    err = bip32_derive_ecdsa_sign_hash_256(CX_CURVE_256K1,
+                                           transactionContext->bip32_path.indices,
+                                           transactionContext->bip32_path.length,
+                                           CX_RND_RFC6979 | CX_LAST,
+                                           CX_SHA256,
+                                           transactionContext->hash,
+                                           sizeof(transactionContext->hash),
+                                           signature,
+                                           &sigLen,
+                                           &info);
+    if (err != CX_OK) {
+        return -1;
+    }
 
-    io_seproxyhal_io_heartbeat();
-    explicit_bzero(&privateKey, sizeof(privateKey));
     // recover signature
     rLength = signature[3];
     sLength = signature[4 + rLength + 1];
@@ -105,7 +94,7 @@ void signTransaction(transactionContext_t *transactionContext) {
     }
     transactionContext->signatureLength = 65;
 
-    return;
+    return 0;
 }
 const unsigned char hex_digits[] =
     {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
@@ -123,7 +112,7 @@ int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx) {
     uint32_t tx = 0;
     uint32_t addressLength = BASE58CHECK_ADDRESS_SIZE;
     G_io_apdu_buffer[tx++] = 65;
-    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->publicKey.W, 65);
+    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->publicKey, 65);
     tx += 65;
     G_io_apdu_buffer[tx++] = addressLength;
     memcpy(G_io_apdu_buffer + tx, pub_key_ctx->address58, addressLength);

@@ -100,7 +100,7 @@ typedef struct txContext_t {
 } txContext_t;
 
 typedef struct publicKeyContext_t {
-    cx_ecfp_public_key_t publicKey;
+    uint8_t publicKey[65];
     uint8_t address[ADDRESS_SIZE];
     char address58[BASE58CHECK_ADDRESS_SIZE + 1];
     uint8_t chainCode[32];
@@ -136,7 +136,6 @@ typedef struct txContent_t {
     uint64_t dataBytes;
     uint8_t permission_id;
     uint32_t customData;
-    publicKeyContext_t *publicKeyContext;
 } txContent_t;
 
 bool setContractType(contractType_e type, char *out, size_t outlen);
