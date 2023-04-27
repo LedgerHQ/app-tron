@@ -67,8 +67,6 @@ const internal_storage_t N_storage_real;
 txContent_t txContent;
 txContext_t txContext;
 
-cx_sha256_t sha2;
-
 static const char SIGN_MAGIC[] = "\x19TRON Signed Message:\n";
 
 void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
@@ -127,7 +125,7 @@ int initPublicKeyContext(bip32_path_t *bip32_path, char *address58) {
     getAddressFromPublicKey(publicKeyContext.publicKey, publicKeyContext.address);
 
     // Get base58 address
-    getBase58FromAddress(publicKeyContext.address, address58, &sha2, false);
+    getBase58FromAddress(publicKeyContext.address, address58, false);
 
     return 0;
 }
@@ -198,7 +196,7 @@ int handleSign(uint8_t p1,
         workBuffer += ret;
         dataLength -= ret;
 
-        initTx(&txContext, &sha2, &txContent);
+        initTx(&txContext, &txContent);
         customContractField = 0;
 
     } else if ((p1 & 0xF0) == P1_TRC10_NAME) {
@@ -256,7 +254,7 @@ int handleSign(uint8_t p1,
         return io_send_sw(E_INCORRECT_P1_P2);
     }
     // hash data
-    cx_hash((cx_hash_t *) txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
+    cx_hash((cx_hash_t *) &txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
 
     // process buffer
     uint16_t txResult = processTx(workBuffer, dataLength, &txContent);
@@ -278,20 +276,18 @@ int handleSign(uint8_t p1,
     }
 
     // Last data hash
-    cx_hash((cx_hash_t *) txContext.sha2, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
+    cx_hash((cx_hash_t *) &txContext.sha2, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
 
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 5, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account,
                              fromAddress + 4,
-                             &sha2,
                              HAS_SETTING(S_TRUNCATE_ADDRESS));
     } else {
         PRINTF("Regular transaction...\n");
         getBase58FromAddress(txContent.account,
                              fromAddress,
-                             &sha2,
                              HAS_SETTING(S_TRUNCATE_ADDRESS));
     }
 
@@ -315,7 +311,6 @@ int handleSign(uint8_t p1,
 
                     getBase58FromAddress(txContent.contractAddress,
                                          fullContract,
-                                         &sha2,
                                          HAS_SETTING(S_TRUNCATE_ADDRESS));
                     snprintf((char *) TRC20Action,
                              sizeof(TRC20Action),
@@ -369,7 +364,6 @@ int handleSign(uint8_t p1,
 
             getBase58FromAddress(txContent.destination,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             // get token name if any
@@ -458,7 +452,6 @@ int handleSign(uint8_t p1,
             for (int i = 0; i < contract->votes_count; i++) {
                 getBase58FromAddress(contract->votes[i].vote_address,
                                      fullContract,
-                                     &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
 #if defined(HAVE_NBGL)
                 total_votes += (unsigned int) contract->votes[i].vote_count;
@@ -489,12 +482,10 @@ int handleSign(uint8_t p1,
             if (strlen((const char *) txContent.destination) > 0) {
                 getBase58FromAddress(txContent.destination,
                                      toAddress,
-                                     &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
                 getBase58FromAddress(txContent.account,
                                      toAddress,
-                                     &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
 
@@ -511,12 +502,10 @@ int handleSign(uint8_t p1,
             if (strlen((const char *) txContent.destination) > 0) {
                 getBase58FromAddress(txContent.destination,
                                      toAddress,
-                                     &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
                 getBase58FromAddress(txContent.account,
                                      toAddress,
-                                     &sha2,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
 
@@ -533,7 +522,6 @@ int handleSign(uint8_t p1,
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.account,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION,
@@ -548,7 +536,6 @@ int handleSign(uint8_t p1,
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.account,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION,
@@ -570,7 +557,6 @@ int handleSign(uint8_t p1,
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.destination,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION,
@@ -586,7 +572,6 @@ int handleSign(uint8_t p1,
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             getBase58FromAddress(txContent.destination,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION,
@@ -596,7 +581,6 @@ int handleSign(uint8_t p1,
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
             getBase58FromAddress(txContent.account,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION,
@@ -606,7 +590,6 @@ int handleSign(uint8_t p1,
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
             getBase58FromAddress(txContent.account,
                                  toAddress,
-                                 &sha2,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION,
@@ -742,7 +725,7 @@ int handleECDHSecret(uint8_t p1,
     // Get address from workBuffer public key
     getAddressFromPublicKey(workBuffer, publicKeyContext.address);
     // Get Base58
-    getBase58FromAddress(publicKeyContext.address, toAddress, &sha2, false);
+    getBase58FromAddress(publicKeyContext.address, toAddress, false);
 
     ux_flow_display(APPROVAL_SHARED_ECDH_SECRET, false);
 

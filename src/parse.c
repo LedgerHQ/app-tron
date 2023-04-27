@@ -366,13 +366,12 @@ bool parseExchange(const uint8_t *data, size_t length, txContent_t *content) {
     return true;
 }
 
-void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content) {
+void initTx(txContext_t *context, txContent_t *content) {
     memset(context, 0, sizeof(txContext_t));
     memset(content, 0, sizeof(txContent_t));
-    context->sha2 = sha2;
     context->initialized = true;
     content->contractType = INVALID_CONTRACT;
-    cx_sha256_init(sha2);  // init sha
+    cx_sha256_init(&context->sha2);  // init sha
 }
 
 #define COPY_ADDRESS(a, b) memcpy((a), (b), ADDRESS_SIZE)

@@ -95,7 +95,7 @@ typedef struct stage_t {
 } stage_t;
 
 typedef struct txContext_t {
-    cx_sha256_t *sha2;
+    cx_sha256_t sha2;
     bool initialized;
 } txContext_t;
 
@@ -151,7 +151,7 @@ bool adjustDecimals(const char *src,
                     uint32_t targetLength,
                     uint8_t decimals);
 
-void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content);
+void initTx(txContext_t *context, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
 

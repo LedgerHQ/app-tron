@@ -33,14 +33,12 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;
 }
 
-void getBase58FromAddress(uint8_t *address, char *out, cx_sha256_t *sha2, bool truncate) {
+void getBase58FromAddress(uint8_t *address, char *out, bool truncate) {
     uint8_t sha256[32];
     uint8_t addchecksum[ADDRESS_SIZE + 4];
 
-    cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, address, 21, sha256, 32);
-    cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, sha256, 32, sha256, 32);
+    cx_hash_sha256(address, 21, sha256, 32);
+    cx_hash_sha256(sha256, 32, sha256, 32);
 
     memmove(addchecksum, address, ADDRESS_SIZE);
     memmove(addchecksum + ADDRESS_SIZE, sha256, 4);
@@ -53,11 +51,6 @@ void getBase58FromAddress(uint8_t *address, char *out, cx_sha256_t *sha2, bool t
                 (const void *) (out + BASE58CHECK_ADDRESS_SIZE - 5),
                 6);  // include \0 char
     }
-}
-
-void transactionHash(uint8_t *raw, uint16_t dataLength, uint8_t *out, cx_sha256_t *sha2) {
-    cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, raw, dataLength, out, 32);
 }
 
 int signTransaction(transactionContext_t *transactionContext) {
