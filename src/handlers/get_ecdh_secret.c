@@ -39,13 +39,13 @@ int handleECDHSecret(uint8_t p1,
     }
     workBuffer += ret;
     dataLength -= ret;
-    if (dataLength != 65) {
+    if (dataLength != PUBLIC_KEY_SIZE) {
         PRINTF("Public key length error!");
         return io_send_sw(E_INCORRECT_LENGTH);
     }
 
     // Load raw Data
-    memcpy(transactionContext.signature, workBuffer, dataLength);
+    memcpy(transactionContext.signature, workBuffer, PUBLIC_KEY_SIZE);
 
     if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
         return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);

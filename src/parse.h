@@ -12,7 +12,8 @@
 #define ADDRESS_SIZE             21
 #define TOKENID_SIZE             7
 #define BASE58CHECK_ADDRESS_SIZE 34
-#define BASE58CHECK_PK_SIZE      64
+#define PUBLIC_KEY_SIZE          65
+#define CHAIN_CODE_SIZE          32
 #define HASH_SIZE                32
 
 #define TRC20_DATA_FIELD_SIZE 68
@@ -100,10 +101,10 @@ typedef struct txContext_t {
 } txContext_t;
 
 typedef struct publicKeyContext_t {
-    uint8_t publicKey[65];
+    uint8_t publicKey[PUBLIC_KEY_SIZE];
     uint8_t address[ADDRESS_SIZE];
     char address58[BASE58CHECK_ADDRESS_SIZE + 1];
-    uint8_t chainCode[32];
+    uint8_t chainCode[CHAIN_CODE_SIZE];
     bool getChaincode;
 } publicKeyContext_t;
 

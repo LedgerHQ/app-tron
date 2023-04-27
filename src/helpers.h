@@ -23,9 +23,9 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address);
+void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static ADDRESS_SIZE]);
 
-void getBase58FromAddress(uint8_t *address, char *out, bool truncate);
+void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate);
 
 int signTransaction(transactionContext_t *transactionContext);
 
