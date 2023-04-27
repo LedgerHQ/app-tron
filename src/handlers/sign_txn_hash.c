@@ -51,12 +51,12 @@ int handleSignByHash(uint8_t p1,
     }
 
     // Transaction hash
-    if (dataLength != 32) {
+    if (dataLength != HASH_SIZE) {
         return io_send_sw(E_INCORRECT_LENGTH);
     }
-    memcpy(transactionContext.hash, workBuffer, 32);
+    memcpy(transactionContext.hash, workBuffer, HASH_SIZE);
     // Write fullHash
-    array_hexstr((char *) fullHash, transactionContext.hash, 32);
+    array_hexstr((char *) fullHash, transactionContext.hash, HASH_SIZE);
 
     // Contract Type = Unknown Type
     setContractType(UNKNOWN_CONTRACT, fullContract, sizeof(fullContract));

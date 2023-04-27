@@ -24,28 +24,33 @@
 
 extern publicKeyContext_t publicKeyContext;
 
-void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
-    uint8_t hashAddress[32];
+void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static ADDRESS_SIZE]) {
+    uint8_t hashAddress[HASH_SIZE];
     cx_sha3_t sha3;
 
     cx_keccak_init(&sha3, 256);
-    cx_hash((cx_hash_t *) &sha3, CX_LAST, publicKey + 1, 64, hashAddress, 32);
+    cx_hash((cx_hash_t *) &sha3,
+            CX_LAST,
+            publicKey + 1,
+            PUBLIC_KEY_SIZE - 1,
+            hashAddress,
+            HASH_SIZE);
 
     memmove(address, hashAddress + 11, ADDRESS_SIZE);
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;
 }
 
-void getBase58FromAddress(uint8_t *address, char *out, bool truncate) {
-    uint8_t sha256[32];
+void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate) {
+    uint8_t sha256[HASH_SIZE];
     uint8_t addchecksum[ADDRESS_SIZE + 4];
 
-    cx_hash_sha256(address, 21, sha256, 32);
-    cx_hash_sha256(sha256, 32, sha256, 32);
+    cx_hash_sha256(address, ADDRESS_SIZE, sha256, HASH_SIZE);
+    cx_hash_sha256(sha256, HASH_SIZE, sha256, HASH_SIZE);
 
     memmove(addchecksum, address, ADDRESS_SIZE);
     memmove(addchecksum + ADDRESS_SIZE, sha256, 4);
 
-    base58_encode(&addchecksum[0], 25, out, BASE58CHECK_ADDRESS_SIZE);
+    base58_encode(addchecksum, sizeof(addchecksum), out, BASE58CHECK_ADDRESS_SIZE);
     out[BASE58CHECK_ADDRESS_SIZE] = '\0';
     if (truncate) {
         memmove((void *) out + 5, "...", 3);
@@ -106,15 +111,15 @@ void array_hexstr(char *strbuf, const void *bin, unsigned int len) {
 int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx) {
     uint32_t tx = 0;
     uint32_t addressLength = BASE58CHECK_ADDRESS_SIZE;
-    G_io_apdu_buffer[tx++] = 65;
-    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->publicKey, 65);
-    tx += 65;
+    G_io_apdu_buffer[tx++] = PUBLIC_KEY_SIZE;
+    memcpy(G_io_apdu_buffer + tx, pub_key_ctx->publicKey, PUBLIC_KEY_SIZE);
+    tx += PUBLIC_KEY_SIZE;
     G_io_apdu_buffer[tx++] = addressLength;
     memcpy(G_io_apdu_buffer + tx, pub_key_ctx->address58, addressLength);
     tx += addressLength;
     if (pub_key_ctx->getChaincode) {
-        memcpy(G_io_apdu_buffer + tx, pub_key_ctx->chainCode, 32);
-        tx += 32;
+        memcpy(G_io_apdu_buffer + tx, pub_key_ctx->chainCode, CHAIN_CODE_SIZE);
+        tx += CHAIN_CODE_SIZE;
     }
     return io_send_response_pointer(G_io_apdu_buffer, tx, E_OK);
 }
