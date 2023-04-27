@@ -1,6 +1,6 @@
 /*******************************************************************************
- *   TRON Ledger
- *   (c) 2018 Ledger
+ *   Tron Ledger Wallet
+ *   (c) 2023 Ledger
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -14,27 +14,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ********************************************************************************/
+#include <stdint.h>
 
-#include "os.h"
-#include "cx.h"
+#include "io.h"
 
-#include "parse.h"
+#include "settings.h"
+#include "app_errors.h"
 
-#ifndef HELPER_H
-#define HELPER_H
+int handleGetAppConfiguration(uint8_t p1,
+                              uint8_t p2,
+                              uint8_t *workBuffer,
+                              uint16_t dataLength) {
+    UNUSED(p1);
+    UNUSED(p2);
+    UNUSED(workBuffer);
+    UNUSED(dataLength);
 
-void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address);
-
-void getBase58FromAddress(uint8_t *address, char *out, bool truncate);
-
-int signTransaction(transactionContext_t *transactionContext);
-
-void array_hexstr(char *strbuf, const void *bin, unsigned int len);
-
-int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx);
-
-off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path);
-
-int initPublicKeyContext(bip32_path_t *bip32_path, char *address58);
-
-#endif
+    // Add info to buffer
+    uint8_t resp[4] = {0};
+    resp[0] = N_settings & 0x0f;
+    resp[1] = MAJOR_VERSION;
+    resp[2] = MINOR_VERSION;
+    resp[3] = PATCH_VERSION;
+    return io_send_response_pointer(resp, 4, E_OK);
+}
