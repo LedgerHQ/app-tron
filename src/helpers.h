@@ -25,9 +25,7 @@
 
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address);
 
-void getBase58FromAddress(uint8_t *address, char *out, cx_sha256_t *sha2, bool truncate);
-
-void transactionHash(uint8_t *raw, uint16_t dataLength, uint8_t *out, cx_sha256_t *sha2);
+void getBase58FromAddress(uint8_t *address, char *out, bool truncate);
 
 int signTransaction(transactionContext_t *transactionContext);
 
