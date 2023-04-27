@@ -155,4 +155,7 @@ void initTx(txContext_t *context, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
 
+extern txContent_t txContent;
+extern txContext_t txContext;
+
 #endif

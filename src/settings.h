@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "os.h"
+
 typedef uint8_t internal_storage_t;
 
 #define N_settings (*(volatile internal_storage_t *) PIC(&N_storage_real))

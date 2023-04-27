@@ -22,6 +22,8 @@
 #include "helpers.h"
 #include "app_errors.h"
 
+extern publicKeyContext_t publicKeyContext;
+
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
     uint8_t hashAddress[32];
     cx_sha3_t sha3;
@@ -115,4 +117,45 @@ int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx) {
         tx += 32;
     }
     return io_send_response_pointer(G_io_apdu_buffer, tx, E_OK);
+}
+
+off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path) {
+    if (length < 1) {
+        return -1;
+    }
+    unsigned int path_length = *buffer++;
+
+    if (path_length < 1 || path_length > MAX_BIP32_PATH) {
+        PRINTF("Invalid path\n");
+        return -1;
+    }
+
+    if (length < 1 + 4 * path_length) {
+        return -1;
+    }
+    path->length = path_length;
+    for (unsigned int i = 0; i < path_length; i++) {
+        path->indices[i] = U4BE(buffer, 0);
+        buffer += 4;
+    }
+    return 1 + 4 * path_length;
+}
+
+int initPublicKeyContext(bip32_path_t *bip32_path, char *address58) {
+    if (bip32_derive_get_pubkey_256(CX_CURVE_256K1,
+                                    bip32_path->indices,
+                                    bip32_path->length,
+                                    publicKeyContext.publicKey,
+                                    publicKeyContext.chainCode,
+                                    CX_SHA512) != CX_OK) {
+        return -1;
+    }
+
+    // Get address from public key
+    getAddressFromPublicKey(publicKeyContext.publicKey, publicKeyContext.address);
+
+    // Get base58 address
+    getBase58FromAddress(publicKeyContext.address, address58, false);
+
+    return 0;
 }
