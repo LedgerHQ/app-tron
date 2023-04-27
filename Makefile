@@ -38,7 +38,7 @@ endif
 
 CC       := $(CLANGPATH)clang
 
-CFLAGS   += -O3 -Os -Isrc/include
+CFLAGS   += -O3 -Os
 
 AS     := $(GCCPATH)arm-none-eabi-gcc
 
@@ -62,17 +62,15 @@ APPVERSION_N=$(call splitVersion, $(APPVERSION), 2)
 APPVERSION_P=$(call splitVersion, $(APPVERSION), 3)
 
 #prepare hsm generation
-ifeq ($(TARGET_NAME),TARGET_BLUE)
-ICONNAME=icons/icon_blue.gif            # Name compatible w/ Blue SDK v2.1.1
-else
 ifeq ($(TARGET_NAME), TARGET_NANOS)
 ICONNAME=icons/nanos_app_tron.gif
+else
+ifeq ($(TARGET_NAME),TARGET_STAX)
+ICONNAME=icons/stax_app_tron.gif
 else
 ICONNAME=icons/nanox_app_tron.gif
 endif
 endif
-
-
 ################
 # Default rule #
 ################
@@ -82,8 +80,12 @@ all: default
 # Platform #
 ############
 
+ifneq ($(TARGET_NAME),TARGET_STAX)
+    DEFINES   += HAVE_BAGL HAVE_UX_FLOW
+endif
+
 DEFINES   += OS_IO_SEPROXYHAL
-DEFINES   += HAVE_BAGL HAVE_SPRINTF
+DEFINES   += HAVE_SPRINTF HAVE_SNPRINTF_FORMAT_U
 DEFINES   += HAVE_IO_USB HAVE_L4_USBLIB IO_USB_MAX_ENDPOINTS=6 IO_HID_EP_LENGTH=64 HAVE_USB_APDU
 DEFINES   +=  LEDGER_MAJOR_VERSION=$(APPVERSION_M) LEDGER_MINOR_VERSION=$(APPVERSION_N) LEDGER_PATCH_VERSION=$(APPVERSION_P)
 
@@ -92,17 +94,21 @@ DEFINES   += BLE_SEGMENT_SIZE=32 #max MTU, min 20
 DEFINES   += UNUSED\(x\)=\(void\)x
 DEFINES   += APPVERSION=\"$(APPVERSION)\"
 
-ifeq ($(TARGET_NAME),TARGET_NANOX)
 # BLE
-DEFINES   += HAVE_BLE BLE_COMMAND_TIMEOUT_MS=2000
-DEFINES   += HAVE_BLE_APDU # basic ledger apdu transport over BLE
+ifeq ($(TARGET_NAME),TARGET_NANOX)
+DEFINES   += HAVE_BLE BLE_COMMAND_TIMEOUT_MS=2000 HAVE_BLE_APDU
+else ifeq ($(TARGET_NAME),TARGET_STAX)
+DEFINES   += HAVE_BLE BLE_COMMAND_TIMEOUT_MS=2000 HAVE_BLE_APDU
 endif
 
 ifeq ($(TARGET_NAME),TARGET_NANOS)
 DEFINES   += IO_SEPROXYHAL_BUFFER_SIZE_B=128
+else ifeq ($(TARGET_NAME),TARGET_STAX)
+DEFINES       += IO_SEPROXYHAL_BUFFER_SIZE_B=300
+DEFINES       += NBGL_QRCODE
 else
 DEFINES   += IO_SEPROXYHAL_BUFFER_SIZE_B=300
-DEFINES   += HAVE_GLO096 HAVE_UX_FLOW
+DEFINES   += HAVE_GLO096
 DEFINES   += HAVE_BAGL BAGL_WIDTH=128 BAGL_HEIGHT=64
 DEFINES   += HAVE_BAGL_ELLIPSIS # long label truncation feature
 DEFINES   += HAVE_BAGL_FONT_OPEN_SANS_REGULAR_11PX
@@ -129,21 +135,20 @@ include $(BOLOS_SDK)/Makefile.glyphs
 ### computed variables
 APP_SOURCE_PATH  += src
 SDK_SOURCE_PATH  += lib_u2f lib_stusb_impl lib_stusb
-SDK_SOURCE_PATH  += lib_ux
+
+ifneq ($(TARGET_NAME),TARGET_STAX)
+SDK_SOURCE_PATH += lib_ux
+endif
+
 ifeq ($(TARGET_NAME),TARGET_NANOX)
+SDK_SOURCE_PATH  += lib_blewbxx lib_blewbxx_impl
+else ifeq ($(TARGET_NAME),TARGET_STAX)
 SDK_SOURCE_PATH  += lib_blewbxx lib_blewbxx_impl
 endif
 
 # If the SDK supports Flow for Nano S, build for it
-
 ifeq ($(TARGET_NAME),TARGET_NANOS)
-
-	ifneq "$(wildcard $(BOLOS_SDK)/lib_ux/src/ux_flow_engine.c)" ""
-		SDK_SOURCE_PATH  += lib_ux
-		DEFINES		       += HAVE_UX_FLOW
-		DEFINES += HAVE_WALLET_ID_SDK
-	endif
-
+DEFINES += HAVE_WALLET_ID_SDK
 endif
 
 # U2F

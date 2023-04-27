@@ -76,6 +76,14 @@ typedef struct _protocol_AssetIssueContract_FrozenSupply {
     int64_t frozen_days; 
 } protocol_AssetIssueContract_FrozenSupply;
 
+typedef struct _protocol_DelegateResourceContract { 
+    pb_byte_t owner_address[21]; 
+    protocol_ResourceCode resource; 
+    int64_t balance; 
+    pb_byte_t receiver_address[21]; 
+    bool lock; 
+} protocol_DelegateResourceContract;
+
 typedef PB_BYTES_ARRAY_T(8) protocol_ExchangeCreateContract_first_token_id_t;
 typedef PB_BYTES_ARRAY_T(8) protocol_ExchangeCreateContract_second_token_id_t;
 typedef struct _protocol_ExchangeCreateContract { 
@@ -118,6 +126,12 @@ typedef struct _protocol_FreezeBalanceContract {
     protocol_ResourceCode resource; 
     pb_byte_t receiver_address[21]; 
 } protocol_FreezeBalanceContract;
+
+typedef struct _protocol_FreezeBalanceV2Contract { 
+    pb_byte_t owner_address[21]; 
+    int64_t frozen_balance; 
+    protocol_ResourceCode resource; 
+} protocol_FreezeBalanceV2Contract;
 
 typedef struct _protocol_ParticipateAssetIssueContract { 
     pb_callback_t owner_address; 
@@ -165,11 +179,24 @@ typedef struct _protocol_TriggerSmartContract {
     int64_t token_id; 
 } protocol_TriggerSmartContract;
 
+typedef struct _protocol_UnDelegateResourceContract { 
+    pb_byte_t owner_address[21]; 
+    protocol_ResourceCode resource; 
+    int64_t balance; 
+    pb_byte_t receiver_address[21]; 
+} protocol_UnDelegateResourceContract;
+
 typedef struct _protocol_UnfreezeBalanceContract { 
     pb_byte_t owner_address[21]; 
     protocol_ResourceCode resource; 
     pb_byte_t receiver_address[21]; 
 } protocol_UnfreezeBalanceContract;
+
+typedef struct _protocol_UnfreezeBalanceV2Contract { 
+    pb_byte_t owner_address[21]; 
+    int64_t unfreeze_balance; 
+    protocol_ResourceCode resource; 
+} protocol_UnfreezeBalanceV2Contract;
 
 typedef struct _protocol_UpdateAssetContract { 
     pb_callback_t owner_address; 
@@ -194,6 +221,10 @@ typedef struct _protocol_VoteWitnessContract_Vote {
 typedef struct _protocol_WithdrawBalanceContract { 
     pb_byte_t owner_address[21]; 
 } protocol_WithdrawBalanceContract;
+
+typedef struct _protocol_WithdrawExpireUnfreezeContract { 
+    pb_byte_t owner_address[21]; 
+} protocol_WithdrawExpireUnfreezeContract;
 
 typedef struct _protocol_ProposalCreateContract { 
     pb_byte_t owner_address[21]; 
@@ -234,6 +265,11 @@ extern "C" {
 #define protocol_DeployContract_init_default     {{{NULL}, NULL}, {{NULL}, NULL}}
 #define protocol_FreezeBalanceContract_init_default {{0}, 0, 0, _protocol_ResourceCode_MIN, {0}}
 #define protocol_UnfreezeBalanceContract_init_default {{0}, _protocol_ResourceCode_MIN, {0}}
+#define protocol_FreezeBalanceV2Contract_init_default {{0}, 0, _protocol_ResourceCode_MIN}
+#define protocol_UnfreezeBalanceV2Contract_init_default {{0}, 0, _protocol_ResourceCode_MIN}
+#define protocol_WithdrawExpireUnfreezeContract_init_default {{0}}
+#define protocol_DelegateResourceContract_init_default {{0}, _protocol_ResourceCode_MIN, 0, {0}, 0}
+#define protocol_UnDelegateResourceContract_init_default {{0}, _protocol_ResourceCode_MIN, 0, {0}}
 #define protocol_UnfreezeAssetContract_init_default {{{NULL}, NULL}}
 #define protocol_WithdrawBalanceContract_init_default {{0}}
 #define protocol_UpdateAssetContract_init_default {{{NULL}, NULL}, {{NULL}, NULL}, {{NULL}, NULL}, 0, 0}
@@ -262,6 +298,11 @@ extern "C" {
 #define protocol_DeployContract_init_zero        {{{NULL}, NULL}, {{NULL}, NULL}}
 #define protocol_FreezeBalanceContract_init_zero {{0}, 0, 0, _protocol_ResourceCode_MIN, {0}}
 #define protocol_UnfreezeBalanceContract_init_zero {{0}, _protocol_ResourceCode_MIN, {0}}
+#define protocol_FreezeBalanceV2Contract_init_zero {{0}, 0, _protocol_ResourceCode_MIN}
+#define protocol_UnfreezeBalanceV2Contract_init_zero {{0}, 0, _protocol_ResourceCode_MIN}
+#define protocol_WithdrawExpireUnfreezeContract_init_zero {{0}}
+#define protocol_DelegateResourceContract_init_zero {{0}, _protocol_ResourceCode_MIN, 0, {0}, 0}
+#define protocol_UnDelegateResourceContract_init_zero {{0}, _protocol_ResourceCode_MIN, 0, {0}}
 #define protocol_UnfreezeAssetContract_init_zero {{{NULL}, NULL}}
 #define protocol_WithdrawBalanceContract_init_zero {{0}}
 #define protocol_UpdateAssetContract_init_zero   {{{NULL}, NULL}, {{NULL}, NULL}, {{NULL}, NULL}, 0, 0}
@@ -308,6 +349,11 @@ extern "C" {
 #define protocol_AssetIssueContract_public_latest_free_net_time_tag 25
 #define protocol_AssetIssueContract_FrozenSupply_frozen_amount_tag 1
 #define protocol_AssetIssueContract_FrozenSupply_frozen_days_tag 2
+#define protocol_DelegateResourceContract_owner_address_tag 1
+#define protocol_DelegateResourceContract_resource_tag 2
+#define protocol_DelegateResourceContract_balance_tag 3
+#define protocol_DelegateResourceContract_receiver_address_tag 4
+#define protocol_DelegateResourceContract_lock_tag 5
 #define protocol_ExchangeCreateContract_owner_address_tag 1
 #define protocol_ExchangeCreateContract_first_token_id_tag 2
 #define protocol_ExchangeCreateContract_first_token_balance_tag 3
@@ -331,6 +377,9 @@ extern "C" {
 #define protocol_FreezeBalanceContract_frozen_duration_tag 3
 #define protocol_FreezeBalanceContract_resource_tag 10
 #define protocol_FreezeBalanceContract_receiver_address_tag 15
+#define protocol_FreezeBalanceV2Contract_owner_address_tag 1
+#define protocol_FreezeBalanceV2Contract_frozen_balance_tag 2
+#define protocol_FreezeBalanceV2Contract_resource_tag 3
 #define protocol_ParticipateAssetIssueContract_owner_address_tag 1
 #define protocol_ParticipateAssetIssueContract_to_address_tag 2
 #define protocol_ParticipateAssetIssueContract_asset_name_tag 3
@@ -355,9 +404,16 @@ extern "C" {
 #define protocol_TriggerSmartContract_data_tag   4
 #define protocol_TriggerSmartContract_call_token_value_tag 5
 #define protocol_TriggerSmartContract_token_id_tag 6
+#define protocol_UnDelegateResourceContract_owner_address_tag 1
+#define protocol_UnDelegateResourceContract_resource_tag 2
+#define protocol_UnDelegateResourceContract_balance_tag 3
+#define protocol_UnDelegateResourceContract_receiver_address_tag 4
 #define protocol_UnfreezeBalanceContract_owner_address_tag 1
 #define protocol_UnfreezeBalanceContract_resource_tag 10
 #define protocol_UnfreezeBalanceContract_receiver_address_tag 15
+#define protocol_UnfreezeBalanceV2Contract_owner_address_tag 1
+#define protocol_UnfreezeBalanceV2Contract_unfreeze_balance_tag 2
+#define protocol_UnfreezeBalanceV2Contract_resource_tag 3
 #define protocol_UpdateAssetContract_owner_address_tag 1
 #define protocol_UpdateAssetContract_description_tag 2
 #define protocol_UpdateAssetContract_url_tag     3
@@ -370,6 +426,7 @@ extern "C" {
 #define protocol_VoteWitnessContract_Vote_vote_address_tag 1
 #define protocol_VoteWitnessContract_Vote_vote_count_tag 2
 #define protocol_WithdrawBalanceContract_owner_address_tag 1
+#define protocol_WithdrawExpireUnfreezeContract_owner_address_tag 1
 #define protocol_ProposalCreateContract_owner_address_tag 1
 #define protocol_ProposalCreateContract_parameters_tag 2
 #define protocol_VoteWitnessContract_owner_address_tag 1
@@ -494,6 +551,42 @@ X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, receiver_address,  15)
 #define protocol_UnfreezeBalanceContract_CALLBACK NULL
 #define protocol_UnfreezeBalanceContract_DEFAULT NULL
 
+#define protocol_FreezeBalanceV2Contract_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1) \
+X(a, STATIC,   SINGULAR, INT64,    frozen_balance,    2) \
+X(a, STATIC,   SINGULAR, UENUM,    resource,          3)
+#define protocol_FreezeBalanceV2Contract_CALLBACK NULL
+#define protocol_FreezeBalanceV2Contract_DEFAULT NULL
+
+#define protocol_UnfreezeBalanceV2Contract_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1) \
+X(a, STATIC,   SINGULAR, INT64,    unfreeze_balance,   2) \
+X(a, STATIC,   SINGULAR, UENUM,    resource,          3)
+#define protocol_UnfreezeBalanceV2Contract_CALLBACK NULL
+#define protocol_UnfreezeBalanceV2Contract_DEFAULT NULL
+
+#define protocol_WithdrawExpireUnfreezeContract_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1)
+#define protocol_WithdrawExpireUnfreezeContract_CALLBACK NULL
+#define protocol_WithdrawExpireUnfreezeContract_DEFAULT NULL
+
+#define protocol_DelegateResourceContract_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1) \
+X(a, STATIC,   SINGULAR, UENUM,    resource,          2) \
+X(a, STATIC,   SINGULAR, INT64,    balance,           3) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, receiver_address,   4) \
+X(a, STATIC,   SINGULAR, BOOL,     lock,              5)
+#define protocol_DelegateResourceContract_CALLBACK NULL
+#define protocol_DelegateResourceContract_DEFAULT NULL
+
+#define protocol_UnDelegateResourceContract_FIELDLIST(X, a) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1) \
+X(a, STATIC,   SINGULAR, UENUM,    resource,          2) \
+X(a, STATIC,   SINGULAR, INT64,    balance,           3) \
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, receiver_address,   4)
+#define protocol_UnDelegateResourceContract_CALLBACK NULL
+#define protocol_UnDelegateResourceContract_DEFAULT NULL
+
 #define protocol_UnfreezeAssetContract_FIELDLIST(X, a) \
 X(a, CALLBACK, SINGULAR, BYTES,    owner_address,     1)
 #define protocol_UnfreezeAssetContract_CALLBACK pb_default_field_callback
@@ -603,6 +696,11 @@ extern const pb_msgdesc_t protocol_ParticipateAssetIssueContract_msg;
 extern const pb_msgdesc_t protocol_DeployContract_msg;
 extern const pb_msgdesc_t protocol_FreezeBalanceContract_msg;
 extern const pb_msgdesc_t protocol_UnfreezeBalanceContract_msg;
+extern const pb_msgdesc_t protocol_FreezeBalanceV2Contract_msg;
+extern const pb_msgdesc_t protocol_UnfreezeBalanceV2Contract_msg;
+extern const pb_msgdesc_t protocol_WithdrawExpireUnfreezeContract_msg;
+extern const pb_msgdesc_t protocol_DelegateResourceContract_msg;
+extern const pb_msgdesc_t protocol_UnDelegateResourceContract_msg;
 extern const pb_msgdesc_t protocol_UnfreezeAssetContract_msg;
 extern const pb_msgdesc_t protocol_WithdrawBalanceContract_msg;
 extern const pb_msgdesc_t protocol_UpdateAssetContract_msg;
@@ -633,6 +731,11 @@ extern const pb_msgdesc_t protocol_AccountPermissionUpdateContract_msg;
 #define protocol_DeployContract_fields &protocol_DeployContract_msg
 #define protocol_FreezeBalanceContract_fields &protocol_FreezeBalanceContract_msg
 #define protocol_UnfreezeBalanceContract_fields &protocol_UnfreezeBalanceContract_msg
+#define protocol_FreezeBalanceV2Contract_fields &protocol_FreezeBalanceV2Contract_msg
+#define protocol_UnfreezeBalanceV2Contract_fields &protocol_UnfreezeBalanceV2Contract_msg
+#define protocol_WithdrawExpireUnfreezeContract_fields &protocol_WithdrawExpireUnfreezeContract_msg
+#define protocol_DelegateResourceContract_fields &protocol_DelegateResourceContract_msg
+#define protocol_UnDelegateResourceContract_fields &protocol_UnDelegateResourceContract_msg
 #define protocol_UnfreezeAssetContract_fields &protocol_UnfreezeAssetContract_msg
 #define protocol_WithdrawBalanceContract_fields &protocol_WithdrawBalanceContract_msg
 #define protocol_UpdateAssetContract_fields &protocol_UpdateAssetContract_msg
@@ -661,21 +764,26 @@ extern const pb_msgdesc_t protocol_AccountPermissionUpdateContract_msg;
 /* protocol_TriggerSmartContract_size depends on runtime parameters */
 #define protocol_AccountPermissionUpdateContract_size 23
 #define protocol_AssetIssueContract_FrozenSupply_size 22
+#define protocol_DelegateResourceContract_size   61
 #define protocol_ExchangeCreateContract_size     65
 #define protocol_ExchangeInjectContract_size     55
 #define protocol_ExchangeTransactionContract_size 66
 #define protocol_ExchangeWithdrawContract_size   55
 #define protocol_FreezeBalanceContract_size      70
+#define protocol_FreezeBalanceV2Contract_size    36
 #define protocol_ProposalApproveContract_size    36
 #define protocol_ProposalCreateContract_ParametersEntry_size 22
 #define protocol_ProposalCreateContract_size     263
 #define protocol_ProposalDeleteContract_size     34
 #define protocol_TransferAssetContract_size      75
 #define protocol_TransferContract_size           57
+#define protocol_UnDelegateResourceContract_size 59
 #define protocol_UnfreezeBalanceContract_size    48
+#define protocol_UnfreezeBalanceV2Contract_size  36
 #define protocol_VoteWitnessContract_Vote_size   34
 #define protocol_VoteWitnessContract_size        203
 #define protocol_WithdrawBalanceContract_size    23
+#define protocol_WithdrawExpireUnfreezeContract_size 23
 
 #ifdef __cplusplus
 } /* extern "C" */

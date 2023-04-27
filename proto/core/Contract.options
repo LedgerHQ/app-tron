@@ -20,6 +20,17 @@ protocol.FreezeBalanceContract.receiver_address     max_size: 21, fixed_length: 
 protocol.UnfreezeBalanceContract.owner_address      max_size: 21, fixed_length: true
 protocol.UnfreezeBalanceContract.receiver_address   max_size: 21, fixed_length: true
 
+protocol.FreezeBalanceV2Contract.owner_address      max_size: 21, fixed_length: true
+protocol.UnfreezeBalanceV2Contract.owner_address    max_size: 21, fixed_length: true
+
+protocol.WithdrawExpireUnfreezeContract.owner_address  max_size: 21, fixed_length: true
+
+protocol.DelegateResourceContract.owner_address     max_size: 21, fixed_length: true
+protocol.DelegateResourceContract.receiver_address  max_size: 21, fixed_length: true
+
+protocol.UnDelegateResourceContract.owner_address   max_size: 21, fixed_length: true
+protocol.UnDelegateResourceContract.receiver_address   max_size: 21, fixed_length: true
+
 protocol.WithdrawBalanceContract.owner_address      max_size: 21, fixed_length: true
 
 protocol.ProposalCreateContract.owner_address       max_size: 21, fixed_length: true

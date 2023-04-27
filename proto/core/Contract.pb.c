@@ -51,6 +51,21 @@ PB_BIND(protocol_FreezeBalanceContract, protocol_FreezeBalanceContract, AUTO)
 PB_BIND(protocol_UnfreezeBalanceContract, protocol_UnfreezeBalanceContract, AUTO)
 
 
+PB_BIND(protocol_FreezeBalanceV2Contract, protocol_FreezeBalanceV2Contract, AUTO)
+
+
+PB_BIND(protocol_UnfreezeBalanceV2Contract, protocol_UnfreezeBalanceV2Contract, AUTO)
+
+
+PB_BIND(protocol_WithdrawExpireUnfreezeContract, protocol_WithdrawExpireUnfreezeContract, AUTO)
+
+
+PB_BIND(protocol_DelegateResourceContract, protocol_DelegateResourceContract, AUTO)
+
+
+PB_BIND(protocol_UnDelegateResourceContract, protocol_UnDelegateResourceContract, AUTO)
+
+
 PB_BIND(protocol_UnfreezeAssetContract, protocol_UnfreezeAssetContract, AUTO)
 
 

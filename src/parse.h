@@ -8,46 +8,47 @@
 
 #define MAX_BIP32_PATH 10
 
-#define ADD_PRE_FIX_STRING "T"
-#define ADDRESS_SIZE 21
-#define TOKENID_SIZE 7
+#define ADD_PRE_FIX_STRING       "T"
+#define ADDRESS_SIZE             21
+#define TOKENID_SIZE             7
 #define BASE58CHECK_ADDRESS_SIZE 34
-#define BASE58CHECK_PK_SIZE 64
-#define HASH_SIZE 32
+#define BASE58CHECK_PK_SIZE      64
+#define HASH_SIZE                32
 
 #define TRC20_DATA_FIELD_SIZE 68
 
-#define SUN_DIG 6
+#define SUN_DIG                  6
 #define ADD_PRE_FIX_BYTE_MAINNET 0x41
-#define MAX_RAW_SIGNATURE 65
-#define MAX_TOKEN_LENGTH 67
+#define MAX_RAW_SIGNATURE        65
+#define MAX_TOKEN_LENGTH         67
 
 typedef union {
-  protocol_TransferContract transfer_contract;
-  protocol_TransferAssetContract transfer_asset_contract;
-  protocol_TriggerSmartContract trigger_smart_contract;
-  protocol_VoteWitnessContract vote_witness_contract;
-  protocol_ProposalCreateContract proposal_create_contract;
-  protocol_ExchangeCreateContract exchange_create_contract;
-  protocol_ExchangeInjectContract exchange_inject_contract;
-  protocol_ExchangeWithdrawContract exchange_withdraw_contract;
-  protocol_ExchangeTransactionContract exchange_transaction_contract;
-  protocol_AccountUpdateContract account_update_contract;
-  protocol_ProposalApproveContract proposal_approve_contract;
-  protocol_ProposalDeleteContract proposal_delete_contract;
-  protocol_WithdrawBalanceContract withdraw_balance_contract;
-  protocol_FreezeBalanceContract freeze_balance_contract;
-  protocol_UnfreezeBalanceContract unfreeze_balance_contract;
-  protocol_AccountPermissionUpdateContract account_permission_update_contract;
+    protocol_TransferContract transfer_contract;
+    protocol_TransferAssetContract transfer_asset_contract;
+    protocol_TriggerSmartContract trigger_smart_contract;
+    protocol_VoteWitnessContract vote_witness_contract;
+    protocol_ProposalCreateContract proposal_create_contract;
+    protocol_ExchangeCreateContract exchange_create_contract;
+    protocol_ExchangeInjectContract exchange_inject_contract;
+    protocol_ExchangeWithdrawContract exchange_withdraw_contract;
+    protocol_ExchangeTransactionContract exchange_transaction_contract;
+    protocol_AccountUpdateContract account_update_contract;
+    protocol_ProposalApproveContract proposal_approve_contract;
+    protocol_ProposalDeleteContract proposal_delete_contract;
+    protocol_WithdrawBalanceContract withdraw_balance_contract;
+    protocol_FreezeBalanceContract freeze_balance_contract;
+    protocol_UnfreezeBalanceContract unfreeze_balance_contract;
+    protocol_AccountPermissionUpdateContract account_permission_update_contract;
+    protocol_FreezeBalanceV2Contract freeze_balance_v2_contract;
+    protocol_UnfreezeBalanceV2Contract unfreeze_balance_v2_contract;
+    protocol_WithdrawExpireUnfreezeContract withdraw_expire_unfreeze_contract;
+    protocol_DelegateResourceContract delegate_resource_contract;
+    protocol_UnDelegateResourceContract undelegate_resource_contract;
 } contract_t;
 
 extern contract_t msg;
 
-typedef enum parserStatus_e {
-    USTREAM_PROCESSING,
-    USTREAM_FINISHED,
-    USTREAM_FAULT
-} parserStatus_e;
+typedef enum parserStatus_e { USTREAM_PROCESSING, USTREAM_FINISHED, USTREAM_FAULT } parserStatus_e;
 
 typedef enum contractType_e {
     ACCOUNTCREATECONTRACT = 0,
@@ -78,6 +79,12 @@ typedef enum contractType_e {
     EXCHANGETRANSACTIONCONTRACT,
     UPDATEENERGYLIMITCONTRACT,
     ACCOUNTPERMISSIONUPDATECONTRACT,
+    FREEZEBALANCEV2CONTRACT = 54,
+    UNFREEZEBALANCEV2CONTRACT,
+    WITHDRAWEXPIREUNFREEZECONTRACT,
+    DELEGATERESOURCECONTRACT,
+    UNDELEGATERESOURCECONTRACT,
+
     UNKNOWN_CONTRACT = 254,
     INVALID_CONTRACT = 255
 } contractType_e;
@@ -101,8 +108,8 @@ typedef struct publicKeyContext_t {
 } publicKeyContext_t;
 
 typedef struct {
-  uint32_t indices[MAX_BIP32_PATH];
-  uint8_t length;
+    uint32_t indices[MAX_BIP32_PATH];
+    uint8_t length;
 } bip32_path_t;
 
 typedef struct transactionContext_t {
@@ -128,6 +135,7 @@ typedef struct txContent_t {
     contractType_e contractType;
     uint64_t dataBytes;
     uint8_t permission_id;
+    uint32_t customData;
     publicKeyContext_t *publicKeyContext;
 } txContent_t;
 
@@ -137,12 +145,12 @@ bool setExchangeContractDetail(contractType_e type, char *out, size_t outlen);
 bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txContent_t *context);
 bool parseExchange(const uint8_t *data, size_t dataLength, txContent_t *context);
 
-unsigned short print_amount(uint64_t amount, char *out,
-                            uint32_t outlen, uint8_t sun);
-bool adjustDecimals(const char *src, uint32_t srcLength, char *target,
-                    uint32_t targetLength, uint8_t decimals);
-
-
+unsigned short print_amount(uint64_t amount, char *out, uint32_t outlen, uint8_t sun);
+bool adjustDecimals(const char *src,
+                    uint32_t srcLength,
+                    char *target,
+                    uint32_t targetLength,
+                    uint8_t decimals);
 
 void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content);
 

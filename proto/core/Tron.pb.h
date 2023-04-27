@@ -49,7 +49,12 @@ typedef enum _protocol_Transaction_Contract_ContractType {
     protocol_Transaction_Contract_ContractType_UpdateEnergyLimitContract = 45, 
     protocol_Transaction_Contract_ContractType_AccountPermissionUpdateContract = 46, 
     protocol_Transaction_Contract_ContractType_ClearABIContract = 48, 
-    protocol_Transaction_Contract_ContractType_UpdateBrokerageContract = 49 
+    protocol_Transaction_Contract_ContractType_UpdateBrokerageContract = 49, 
+    protocol_Transaction_Contract_ContractType_FreezeBalanceV2Contract = 54, 
+    protocol_Transaction_Contract_ContractType_UnfreezeBalanceV2Contract = 55, 
+    protocol_Transaction_Contract_ContractType_WithdrawExpireUnfreezeContract = 56, 
+    protocol_Transaction_Contract_ContractType_DelegateResourceContract = 57, 
+    protocol_Transaction_Contract_ContractType_UnDelegateResourceContract = 58 
 } protocol_Transaction_Contract_ContractType;
 
 typedef enum _protocol_Transaction_Result_code { 
@@ -165,8 +170,8 @@ typedef struct _protocol_Transaction {
 #define _protocol_AccountType_ARRAYSIZE ((protocol_AccountType)(protocol_AccountType_Contract+1))
 
 #define _protocol_Transaction_Contract_ContractType_MIN protocol_Transaction_Contract_ContractType_AccountCreateContract
-#define _protocol_Transaction_Contract_ContractType_MAX protocol_Transaction_Contract_ContractType_UpdateBrokerageContract
-#define _protocol_Transaction_Contract_ContractType_ARRAYSIZE ((protocol_Transaction_Contract_ContractType)(protocol_Transaction_Contract_ContractType_UpdateBrokerageContract+1))
+#define _protocol_Transaction_Contract_ContractType_MAX protocol_Transaction_Contract_ContractType_UnDelegateResourceContract
+#define _protocol_Transaction_Contract_ContractType_ARRAYSIZE ((protocol_Transaction_Contract_ContractType)(protocol_Transaction_Contract_ContractType_UnDelegateResourceContract+1))
 
 #define _protocol_Transaction_Result_code_MIN protocol_Transaction_Result_code_SUCESS
 #define _protocol_Transaction_Result_code_MAX protocol_Transaction_Result_code_FAILED
