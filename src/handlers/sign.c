@@ -61,6 +61,7 @@ int handleSign(uint8_t p1,
                uint8_t *workBuffer,
                uint16_t dataLength) {
     uint256_t uint256;
+    bool data_warning;
 
     if (p2 != 0x00) {
         return io_send_sw(E_INCORRECT_P1_P2);
@@ -170,6 +171,8 @@ int handleSign(uint8_t p1,
                              HAS_SETTING(S_TRUNCATE_ADDRESS));
     }
 
+    data_warning = ((txContent.dataBytes > 0) ? true : false);
+
     switch (txContent.contractType) {
         case TRANSFERCONTRACT:       // TRX Transfer
         case TRANSFERASSETCONTRACT:  // TRC10 Transfer
@@ -221,7 +224,7 @@ int handleSign(uint8_t p1,
 
                     // approve custom contract
                     ux_flow_display(APPROVAL_CUSTOM_CONTRACT,
-                                    ((txContent.dataBytes > 0) ? true : false));
+                                    data_warning);
 
                     break;
                 }
@@ -248,7 +251,7 @@ int handleSign(uint8_t p1,
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
 
-            ux_flow_display(APPROVAL_TRANSFER, ((txContent.dataBytes > 0) ? true : false));
+            ux_flow_display(APPROVAL_TRANSFER, data_warning);
 
             break;
         case EXCHANGECREATECONTRACT:
@@ -268,7 +271,7 @@ int handleSign(uint8_t p1,
                              ? SUN_DIG
                              : txContent.decimals[1]);
 
-            ux_flow_display(APPROVAL_EXCHANGE_CREATE, ((txContent.dataBytes > 0) ? true : false));
+            ux_flow_display(APPROVAL_EXCHANGE_CREATE, data_warning);
 
             break;
         case EXCHANGEINJECTCONTRACT:
@@ -289,8 +292,7 @@ int handleSign(uint8_t p1,
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
-            ux_flow_display(APPROVAL_EXCHANGE_WITHDRAW_INJECT,
-                            ((txContent.dataBytes > 0) ? true : false));
+            ux_flow_display(APPROVAL_EXCHANGE_WITHDRAW_INJECT, data_warning);
 
             break;
         case EXCHANGETRANSACTIONCONTRACT:
@@ -311,8 +313,7 @@ int handleSign(uint8_t p1,
                          100,
                          txContent.decimals[1]);
 
-            ux_flow_display(APPROVAL_EXCHANGE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+            ux_flow_display(APPROVAL_EXCHANGE_TRANSACTION,  data_warning);
 
             break;
         case VOTEWITNESSCONTRACT: {
@@ -348,7 +349,7 @@ int handleSign(uint8_t p1,
 #endif
 
             ux_flow_display(APPROVAL_WITNESSVOTE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
         } break;
         case FREEZEBALANCECONTRACT:  // Freeze TRX
@@ -369,7 +370,7 @@ int handleSign(uint8_t p1,
             }
 
             ux_flow_display(APPROVAL_FREEZEASSET_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case UNFREEZEBALANCECONTRACT:  // unreeze TRX
@@ -389,7 +390,7 @@ int handleSign(uint8_t p1,
             }
 
             ux_flow_display(APPROVAL_UNFREEZEASSET_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case FREEZEBALANCEV2CONTRACT:  // Freeze TRX
@@ -404,7 +405,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
             break;
         case UNFREEZEBALANCEV2CONTRACT:  // unreeze TRX
             if (txContent.resource == 0)
@@ -418,7 +419,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case DELEGATERESOURCECONTRACT:  // Delegate resource
@@ -439,7 +440,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case UNDELEGATERESOURCECONTRACT:  // Undelegate resource
@@ -454,7 +455,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
@@ -463,7 +464,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
@@ -472,7 +473,7 @@ int handleSign(uint8_t p1,
                                  HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
         case ACCOUNTPERMISSIONUPDATECONTRACT:
@@ -486,7 +487,7 @@ int handleSign(uint8_t p1,
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
-            ux_flow_display(APPROVAL_PERMISSION_UPDATE, ((txContent.dataBytes > 0) ? true : false));
+            ux_flow_display(APPROVAL_PERMISSION_UPDATE, data_warning);
 
             break;
         case INVALID_CONTRACT:
@@ -504,7 +505,7 @@ int handleSign(uint8_t p1,
             }
 
             ux_flow_display(APPROVAL_SIMPLE_TRANSACTION,
-                            ((txContent.dataBytes > 0) ? true : false));
+                            data_warning);
 
             break;
     }
