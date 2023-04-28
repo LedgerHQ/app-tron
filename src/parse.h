@@ -102,7 +102,6 @@ typedef struct txContext_t {
 
 typedef struct publicKeyContext_t {
     uint8_t publicKey[PUBLIC_KEY_SIZE];
-    uint8_t address[ADDRESS_SIZE];
     char address58[BASE58CHECK_ADDRESS_SIZE + 1];
     uint8_t chainCode[CHAIN_CODE_SIZE];
     bool getChaincode;

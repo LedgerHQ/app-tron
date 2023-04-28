@@ -27,6 +27,8 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static AD
 
 void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate);
 
+void getBase58FromPublicKey(const uint8_t *publicKey, char *address58, bool truncate);
+
 int signTransaction(transactionContext_t *transactionContext);
 
 void array_hexstr(char *strbuf, const void *bin, unsigned int len);
