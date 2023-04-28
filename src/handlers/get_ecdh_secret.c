@@ -51,10 +51,8 @@ int handleECDHSecret(uint8_t p1,
         return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
     }
 
-    // Get address from workBuffer public key
-    getAddressFromPublicKey(workBuffer, publicKeyContext.address);
-    // Get Base58
-    getBase58FromAddress(publicKeyContext.address, toAddress, false);
+    // Get base58 address from workBuffer public key
+    getBase58FromPublicKey(workBuffer, toAddress, false);
 
     ux_flow_display(APPROVAL_SHARED_ECDH_SECRET, false);
 

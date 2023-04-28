@@ -60,6 +60,16 @@ void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out,
     }
 }
 
+void getBase58FromPublicKey(const uint8_t *publicKey, char *address58, bool truncate) {
+    uint8_t address[ADDRESS_SIZE];
+
+    // Get address from public key
+    getAddressFromPublicKey(publicKey, address);
+
+    // Get base58 address
+    getBase58FromAddress(address, address58, truncate);
+}
+
 int signTransaction(transactionContext_t *transactionContext) {
     cx_err_t err;
     uint8_t rLength, sLength, rOffset, sOffset;
@@ -156,11 +166,8 @@ int initPublicKeyContext(bip32_path_t *bip32_path, char *address58) {
         return -1;
     }
 
-    // Get address from public key
-    getAddressFromPublicKey(publicKeyContext.publicKey, publicKeyContext.address);
-
-    // Get base58 address
-    getBase58FromAddress(publicKeyContext.address, address58, false);
+    // Get base58 address from public key
+    getBase58FromPublicKey(publicKeyContext.publicKey, address58, false);
 
     return 0;
 }
