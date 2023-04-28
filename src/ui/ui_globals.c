@@ -35,18 +35,18 @@ int8_t votes_count;
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 
-unsigned int ui_callback_address_ok(void) {
+unsigned int ui_callback_address_ok(bool display_menu) {
     helper_send_response_pubkey(&publicKeyContext);
 
-    // Display back the original UX
-#ifndef HAVE_NBGL
-    ui_idle();
-#endif
+    if (display_menu) {
+        // Display back the original UX
+        ui_idle();
+    }
 
     return 0;  // do not redraw the widget
 }
 
-unsigned int ui_callback_signMessage_ok(void) {
+unsigned int ui_callback_signMessage_ok(bool display_menu) {
     if (signTransaction(&transactionContext) != 0) {
         io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
     } else {
@@ -55,25 +55,26 @@ unsigned int ui_callback_signMessage_ok(void) {
                                  E_OK);
     }
 
-    // Display back the original UX
-#ifndef HAVE_NBGL
-    ui_idle();
-#endif
+    if (display_menu) {
+        // Display back the original UX
+        ui_idle();
+    }
 
     return 0;  // do not redraw the widget
 }
 
-unsigned int ui_callback_tx_cancel(void) {
+unsigned int ui_callback_tx_cancel(bool display_menu) {
     io_send_sw(E_CONDITIONS_OF_USE_NOT_SATISFIED);
 
-    // Display back the original UX
-#ifndef HAVE_NBGL
-    ui_idle();
-#endif
+    if (display_menu) {
+        // Display back the original UX
+        ui_idle();
+    }
+
     return 0;  // do not redraw the widget
 }
 
-unsigned int ui_callback_tx_ok(void) {
+unsigned int ui_callback_tx_ok(bool display_menu) {
     if (signTransaction(&transactionContext) != 0) {
         io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
     } else {
@@ -82,14 +83,15 @@ unsigned int ui_callback_tx_ok(void) {
                                  E_OK);
     }
 
-    // Display back the original UX
-#ifndef HAVE_NBGL
-    ui_idle();
-#endif
+    if (display_menu) {
+        // Display back the original UX
+        ui_idle();
+    }
+
     return 0;  // do not redraw the widget
 }
 
-unsigned int ui_callback_ecdh_ok(void) {
+unsigned int ui_callback_ecdh_ok(bool display_menu) {
     cx_err_t err;
     cx_ecfp_private_key_t privateKey;
     uint32_t tx = 0;
@@ -128,9 +130,10 @@ end:
         io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
     }
 
-    // Display back the original UX
-#ifndef HAVE_NBGL
-    ui_idle();
-#endif
+    if (display_menu) {
+        // Display back the original UX
+        ui_idle();
+    }
+
     return 0;  // do not redraw the widget
 }

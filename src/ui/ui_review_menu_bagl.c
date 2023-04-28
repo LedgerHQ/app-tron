@@ -40,7 +40,7 @@ UX_STEP_NOCB(ux_approval_from_address_step,
 
 UX_STEP_VALID(ux_approval_confirm_step,
               pbb,
-              ui_callback_tx_ok(),
+              ui_callback_tx_ok(true),
               {
                   &C_icon_validate_14,
                   "Sign",
@@ -49,7 +49,7 @@ UX_STEP_VALID(ux_approval_confirm_step,
 
 UX_STEP_VALID(ux_approval_reject_step,
               pbb,
-              ui_callback_tx_cancel(),
+              ui_callback_tx_cancel(true),
               {
                   &C_icon_crossmark,
                   "Cancel",
@@ -72,7 +72,7 @@ UX_STEP_NOCB(ux_display_public_flow_2_step,
              });
 UX_STEP_VALID(ux_display_public_flow_3_step,
               pb,
-              ui_callback_address_ok(),
+              ui_callback_address_ok(true),
               {
                   &C_icon_validate_14,
                   "Approve",
@@ -180,7 +180,7 @@ UX_STEP_NOCB(ux_approval_exchange_create_5_step,
              });
 UX_STEP_VALID(ux_approval_exchange_create_confirm_step,
               pbb,
-              ui_callback_tx_ok(),
+              ui_callback_tx_ok(true),
               {
                   &C_icon_validate_14,
                   "Accept",
@@ -691,14 +691,14 @@ UX_STEP_NOCB(ux_approval_pgp_ecdh_3_step,
 
 UX_STEP_VALID(ux_approval_pgp_ecdh_4_step,
               pb,
-              ui_callback_ecdh_ok(),
+              ui_callback_ecdh_ok(true),
               {
                   &C_icon_validate_14,
                   "Accept",
               });
 UX_STEP_VALID(ux_approval_pgp_ecdh_5_step,
               pb,
-              ui_callback_tx_cancel(),
+              ui_callback_tx_cancel(true),
               {
                   &C_icon_crossmark,
                   "Reject",
@@ -734,7 +734,7 @@ UX_STEP_NOCB(ux_sign_flow_3_step,
              });
 UX_STEP_VALID(ux_sign_flow_4_step,
               pbb,
-              ui_callback_signMessage_ok(),
+              ui_callback_signMessage_ok(true),
               {
                   &C_icon_validate_14,
                   "Sign",
@@ -742,7 +742,7 @@ UX_STEP_VALID(ux_sign_flow_4_step,
               });
 UX_STEP_VALID(ux_sign_flow_5_step,
               pbb,
-              ui_callback_tx_cancel(),
+              ui_callback_tx_cancel(true),
               {
                   &C_icon_crossmark,
                   "Cancel",
