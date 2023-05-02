@@ -25,6 +25,10 @@
 #include "ui_globals.h"
 #include "app_errors.h"
 
+#ifdef HAVE_SWAP
+#include "swap.h"
+#endif  // HAVE_SWAP
+
 int handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength) {
     // Get private key data
     bip32_path_t bip32_path;
@@ -55,6 +59,13 @@ int handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dat
     if (p1 == P1_NON_CONFIRM) {
         return helper_send_response_pubkey(&publicKeyContext);
     } else {
+#ifdef HAVE_SWAP
+        if (G_called_from_swap) {
+            PRINTF("Refused GET_PUBLIC_KEY mode when in SWAP mode\n");
+            return io_send_sw(E_SWAP_CHECKING_FAIL);
+        }
+#endif  // HAVE_SWAP
+
         // prepare for a UI based reply
         ux_flow_display(APPROVAL_VERIFY_ADDRESS, false);
         return 0;
