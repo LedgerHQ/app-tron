@@ -32,6 +32,10 @@
 #include "parse.h"
 #include "app_errors.h"
 
+#ifdef HAVE_SWAP
+#include "swap.h"
+#endif  // HAVE_SWAP
+
 // The settings, stored in NVRAM.
 const internal_storage_t N_storage_real;
 
@@ -57,7 +61,11 @@ void app_main(void) {
 
     io_init();
 
-    ui_idle();
+#ifdef HAVE_SWAP
+    if (!G_called_from_swap) {
+        ui_idle();
+    }
+#endif  // HAVE_SWAP
 
     // Reset context
     explicit_bzero(&txContent, sizeof(txContent));

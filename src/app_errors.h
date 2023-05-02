@@ -26,6 +26,7 @@
 #define E_MISSING_SETTING_DATA_ALLOWED    0x6a8b
 #define E_MISSING_SETTING_SIGN_BY_HASH    0x6a8c
 #define E_MISSING_SETTING_CUSTOM_CONTRACT 0x6a8d
+#define E_SWAP_CHECKING_FAIL              0x6a8e
 
 // Official:
 #define E_PIN_REMAINING_ATTEMPTS              0x63c0

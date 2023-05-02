@@ -14,17 +14,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  ********************************************************************************/
+#include "os.h"
 #include "io.h"
 #include "parser.h"
 
 #include "handlers.h"
 #include "app_errors.h"
 
+#ifdef HAVE_SWAP
+#include "swap.h"
+#endif  // HAVE_SWAP
+
 // Check ADPU and process the assigned task
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {
         return io_send_sw(E_CLA_NOT_SUPPORTED);
     }
+
+#ifdef HAVE_SWAP
+    if (G_called_from_swap) {
+        if ((cmd->ins != INS_GET_PUBLIC_KEY) && (cmd->ins != INS_SIGN)) {
+            PRINTF("Refused INS when in SWAP mode\n");
+            return io_send_sw(E_SWAP_CHECKING_FAIL);
+        }
+    }
+#endif  // HAVE_SWAP
 
     switch (cmd->ins) {
         case INS_GET_PUBLIC_KEY:

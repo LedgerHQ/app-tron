@@ -27,7 +27,10 @@
 #include "app_errors.h"
 #include "parse.h"
 #include "settings.h"
-
+#ifdef HAVE_SWAP
+#include "swap.h"
+#include "handle_swap_sign_transaction.h"
+#endif  // HAVE_SWAP
 
 static void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
 #ifdef HAVE_BAGL
@@ -165,6 +168,25 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
     data_warning = ((txContent.dataBytes > 0) ? true : false);
 
+#ifdef HAVE_SWAP
+    if (G_called_from_swap) {
+        if ((txContent.contractType != TRANSFERCONTRACT) &&       // TRX Transfer
+            (txContent.contractType != TRANSFERASSETCONTRACT) &&  // TRC10 Transfer
+            (txContent.contractType != TRIGGERSMARTCONTRACT)) {   // TRC20 Transfer
+            PRINTF("Refused contract type when in SWAP mode\n");
+            return io_send_sw(E_SWAP_CHECKING_FAIL);
+        }
+
+        if (txContent.contractType == TRIGGERSMARTCONTRACT) {
+            if (txContent.TRC20Method != 1) {
+                // Only transfer method allowed for TRC20
+                PRINTF("Refused method type when in SWAP mode\n");
+                return io_send_sw(E_SWAP_CHECKING_FAIL);
+            }
+        }
+    }
+#endif  // HAVE_SWAP
+
     switch (txContent.contractType) {
         case TRANSFERCONTRACT:       // TRX Transfer
         case TRANSFERASSETCONTRACT:  // TRC10 Transfer
@@ -228,19 +250,51 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                     100,
                                     txContent.decimals[0]))
                     return io_send_sw(E_INCORRECT_LENGTH);
-            } else
+            } else {
                 print_amount(
                     txContent.amount[0],
                     (void *) G_io_apdu_buffer,
                     100,
                     (txContent.contractType == TRANSFERCONTRACT) ? SUN_DIG : txContent.decimals[0]);
+            }
 
             getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
-
+#ifdef HAVE_SWAP
+            // If we are in swap context, do not redisplay the message data
+            // Instead, ensure they are identical with what was previously displayed
+            if (G_called_from_swap) {
+                if (G_swap_response_ready) {
+                    // Safety against trying to make the app sign multiple TX
+                    // This code should never be triggered as the app is supposed to exit after
+                    // sending the signed transaction
+                    PRINTF("Safety against double signing triggered\n");
+                    os_sched_exit(-1);
+                } else {
+                    // We will quit the app after this transaction, whether it succeeds or fails
+                    PRINTF("Swap response is ready, the app will quit after the next send\n");
+                    G_swap_response_ready = true;
+                }
+                if (swap_check_validity(data_warning,
+                                        (char *) G_io_apdu_buffer,  // Amount
+                                        fullContract,               // Token name
+                                        fromAddress,
+                                        TRC20ActionSendAllow,  // "Send To"
+                                        toAddress)) {
+                    PRINTF("Signing valid swap transaction\n");
+                    ui_callback_tx_ok(false);
+                } else {
+                    PRINTF("Refused signing incorrect Swap transaction\n");
+                    return io_send_sw(E_SWAP_CHECKING_FAIL);
+                }
+            } else {
+                ux_flow_display(APPROVAL_TRANSFER, data_warning);
+            }
+#else   // HAVE_SWAP
             ux_flow_display(APPROVAL_TRANSFER, data_warning);
+#endif  // HAVE_SWAP
 
             break;
         case EXCHANGECREATECONTRACT:
