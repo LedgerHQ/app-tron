@@ -11,7 +11,7 @@ on:
 
 jobs:
   job_functional_tests:
-    uses: LedgerHQ/app-exchange/.github/workflows/reusable_swap_functional_tests.yml@develop
+    uses: LedgerHQ/app-exchange/.github/workflows/reusable_swap_functional_tests.yml@xch/tron-swap
     with:
       branch_for_tron: ${{ github.ref }}
       test_filter: '"TRX or trx or Tron or tron"'
