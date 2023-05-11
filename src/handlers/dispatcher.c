@@ -29,44 +29,26 @@ int apdu_dispatcher(const command_t *cmd) {
     switch (cmd->ins) {
         case INS_GET_PUBLIC_KEY:
             // Request Publick Key
-            return handleGetPublicKey(cmd->p1,
-                                      cmd->p2,
-                                      cmd->data,
-                                      cmd->lc);
+            return handleGetPublicKey(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         case INS_SIGN:
             // Request Signature
-            return handleSign(cmd->p1,
-                              cmd->p2,
-                              cmd->data,
-                              cmd->lc);
+            return handleSign(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         case INS_SIGN_TXN_HASH:
             // Request signature via transaction id
-            return handleSignByHash(cmd->p1,
-                                    cmd->p2,
-                                    cmd->data,
-                                    cmd->lc);
+            return handleSignByHash(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         case INS_GET_APP_CONFIGURATION:
             // Request App configuration
-            return handleGetAppConfiguration(cmd->p1,
-                                             cmd->p2,
-                                             cmd->data,
-                                             cmd->lc);
+            return handleGetAppConfiguration(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         case INS_GET_ECDH_SECRET:
             // Request Signature
-            return handleECDHSecret(cmd->p1,
-                                    cmd->p2,
-                                    cmd->data,
-                                    cmd->lc);
+            return handleECDHSecret(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         case INS_SIGN_PERSONAL_MESSAGE:
-            return handleSignPersonalMessage(cmd->p1,
-                                             cmd->p2,
-                                             cmd->data,
-                                             cmd->lc);
+            return handleSignPersonalMessage(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
         default:
             return io_send_sw(E_INS_NOT_SUPPORTED);

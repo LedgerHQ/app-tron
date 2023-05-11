@@ -25,10 +25,7 @@
 #include "ui_globals.h"
 #include "app_errors.h"
 
-int handleGetPublicKey(uint8_t p1,
-                       uint8_t p2,
-                       uint8_t *dataBuffer,
-                       uint16_t dataLength) {
+int handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength) {
     // Get private key data
     bip32_path_t bip32_path;
 

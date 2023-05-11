@@ -55,11 +55,7 @@ static void convertUint256BE(uint8_t *data, uint32_t length, uint256_t *target) 
     readu256BE(tmp, target);
 }
 
-
-int handleSign(uint8_t p1,
-               uint8_t p2,
-               uint8_t *workBuffer,
-               uint16_t dataLength) {
+int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     uint256_t uint256;
     bool data_warning;
 
@@ -161,14 +157,10 @@ int handleSign(uint8_t p1,
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 5, "P%d - ", txContent.permission_id);
-        getBase58FromAddress(txContent.account,
-                             fromAddress + 4,
-                             HAS_SETTING(S_TRUNCATE_ADDRESS));
+        getBase58FromAddress(txContent.account, fromAddress + 4, HAS_SETTING(S_TRUNCATE_ADDRESS));
     } else {
         PRINTF("Regular transaction...\n");
-        getBase58FromAddress(txContent.account,
-                             fromAddress,
-                             HAS_SETTING(S_TRUNCATE_ADDRESS));
+        getBase58FromAddress(txContent.account, fromAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
     }
 
     data_warning = ((txContent.dataBytes > 0) ? true : false);
@@ -223,8 +215,7 @@ int handleSign(uint8_t p1,
                     }
 
                     // approve custom contract
-                    ux_flow_display(APPROVAL_CUSTOM_CONTRACT,
-                                    data_warning);
+                    ux_flow_display(APPROVAL_CUSTOM_CONTRACT, data_warning);
 
                     break;
                 }
@@ -244,9 +235,7 @@ int handleSign(uint8_t p1,
                     100,
                     (txContent.contractType == TRANSFERCONTRACT) ? SUN_DIG : txContent.decimals[0]);
 
-            getBase58FromAddress(txContent.destination,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
@@ -313,7 +302,7 @@ int handleSign(uint8_t p1,
                          100,
                          txContent.decimals[1]);
 
-            ux_flow_display(APPROVAL_EXCHANGE_TRANSACTION,  data_warning);
+            ux_flow_display(APPROVAL_EXCHANGE_TRANSACTION, data_warning);
 
             break;
         case VOTEWITNESSCONTRACT: {
@@ -348,8 +337,7 @@ int handleSign(uint8_t p1,
                      total_votes);
 #endif
 
-            ux_flow_display(APPROVAL_WITNESSVOTE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_WITNESSVOTE_TRANSACTION, data_warning);
 
         } break;
         case FREEZEBALANCECONTRACT:  // Freeze TRX
@@ -364,13 +352,10 @@ int handleSign(uint8_t p1,
                                      toAddress,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
-                getBase58FromAddress(txContent.account,
-                                     toAddress,
-                                     HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
 
-            ux_flow_display(APPROVAL_FREEZEASSET_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_FREEZEASSET_TRANSACTION, data_warning);
 
             break;
         case UNFREEZEBALANCECONTRACT:  // unreeze TRX
@@ -384,13 +369,10 @@ int handleSign(uint8_t p1,
                                      toAddress,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
             } else {
-                getBase58FromAddress(txContent.account,
-                                     toAddress,
-                                     HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
             }
 
-            ux_flow_display(APPROVAL_UNFREEZEASSET_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_UNFREEZEASSET_TRANSACTION, data_warning);
 
             break;
         case FREEZEBALANCEV2CONTRACT:  // Freeze TRX
@@ -400,12 +382,9 @@ int handleSign(uint8_t p1,
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION, data_warning);
             break;
         case UNFREEZEBALANCEV2CONTRACT:  // unreeze TRX
             if (txContent.resource == 0)
@@ -414,12 +393,9 @@ int handleSign(uint8_t p1,
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION, data_warning);
 
             break;
         case DELEGATERESOURCECONTRACT:  // Delegate resource
@@ -435,12 +411,9 @@ int handleSign(uint8_t p1,
             }
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION, data_warning);
 
             break;
         case UNDELEGATERESOURCECONTRACT:  // Undelegate resource
@@ -450,30 +423,21 @@ int handleSign(uint8_t p1,
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
-            getBase58FromAddress(txContent.account,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
-            getBase58FromAddress(txContent.account,
-                                 toAddress,
-                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
 
-            ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION, data_warning);
 
             break;
         case ACCOUNTPERMISSIONUPDATECONTRACT:
@@ -504,8 +468,7 @@ int handleSign(uint8_t p1,
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
-            ux_flow_display(APPROVAL_SIMPLE_TRANSACTION,
-                            data_warning);
+            ux_flow_display(APPROVAL_SIMPLE_TRANSACTION, data_warning);
 
             break;
     }
