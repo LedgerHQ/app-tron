@@ -29,10 +29,7 @@
 
 static const char SIGN_MAGIC[] = "\x19TRON Signed Message:\n";
 
-int handleSignPersonalMessage(uint8_t p1,
-                              uint8_t p2,
-                              uint8_t *workBuffer,
-                              uint16_t dataLength) {
+int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     cx_sha3_t sha3;
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {

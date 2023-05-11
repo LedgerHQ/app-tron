@@ -24,11 +24,7 @@
 #include "app_errors.h"
 #include "ui_globals.h"
 
-int handleECDHSecret(uint8_t p1,
-                     uint8_t p2,
-                     uint8_t *workBuffer,
-                     uint16_t dataLength) {
-
+int handleECDHSecret(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     if ((p1 != 0x00) || (p2 != 0x01)) {
         return io_send_sw(E_INCORRECT_P1_P2);
     }

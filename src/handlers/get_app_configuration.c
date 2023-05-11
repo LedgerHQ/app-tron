@@ -21,10 +21,7 @@
 #include "settings.h"
 #include "app_errors.h"
 
-int handleGetAppConfiguration(uint8_t p1,
-                              uint8_t p2,
-                              uint8_t *workBuffer,
-                              uint16_t dataLength) {
+int handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     UNUSED(p1);
     UNUSED(p2);
     UNUSED(workBuffer);
