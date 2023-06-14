@@ -161,6 +161,9 @@ bool swap_check_validity(bool data_warning,
 }
 
 void __attribute__((noreturn)) swap_finalize_exchange_sign_transaction(bool is_success) {
+    // For now exit the app until we work with an app-exchange that expects a return
+    os_sched_exit(-1);
+
     *G_swap_sign_return_value_address = is_success;
     os_lib_end();
 }
