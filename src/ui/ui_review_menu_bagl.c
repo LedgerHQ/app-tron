@@ -543,6 +543,29 @@ UX_DEF(ux_approval_withdraw_expire_unfreeze_data_warning_flow,
        &ux_approval_confirm_step,
        &ux_approval_reject_step);
 
+// CANCEL ALL UNFREEZE V2 TRANSACTION
+//////////////////////////////////////////////////////////////////////
+UX_STEP_NOCB(ux_approval_cancel_all_unfreeze_v2_flow_1_step,
+             pnn,
+             {
+                 &C_icon_eye,
+                 "Cancel",
+                 "Unfreeze",
+             });
+
+UX_DEF(ux_approval_cancel_all_unfreeze_v2_flow,
+       &ux_approval_cancel_all_unfreeze_v2_flow_1_step,
+       &ux_approval_from_address_step,
+       &ux_approval_confirm_step,
+       &ux_approval_reject_step);
+
+UX_DEF(ux_approval_cancel_all_unfreeze_v2_data_warning_flow,
+       &ux_approval_cancel_all_unfreeze_v2_flow_1_step,
+       &ux_approval_tx_data_warning_step,
+       &ux_approval_from_address_step,
+       &ux_approval_confirm_step,
+       &ux_approval_reject_step);
+
 // WITHDRAW BALANCE TRANSACTION
 //////////////////////////////////////////////////////////////////////
 UX_STEP_NOCB(ux_approval_withdraw_balance_flow_1_step,
@@ -967,6 +990,13 @@ void ux_flow_display(ui_approval_state_t state, bool data_warning) {
                 0,
                 ((data_warning == true) ? ux_approval_withdraw_expire_unfreeze_data_warning_flow
                                         : ux_approval_withdraw_expire_unfreeze_flow),
+                NULL);
+            break;
+        case APPROVAL_CANCELALLUNFREEZEV2_TRANSACTION:
+            ux_flow_init(
+                0,
+                ((data_warning == true) ? ux_approval_cancel_all_unfreeze_v2_data_warning_flow
+                                        : ux_approval_cancel_all_unfreeze_v2_flow),
                 NULL);
             break;
         default:
