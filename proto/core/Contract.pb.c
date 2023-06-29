@@ -66,6 +66,9 @@ PB_BIND(protocol_DelegateResourceContract, protocol_DelegateResourceContract, AU
 PB_BIND(protocol_UnDelegateResourceContract, protocol_UnDelegateResourceContract, AUTO)
 
 
+PB_BIND(protocol_CancelAllUnfreezeV2Contract, protocol_CancelAllUnfreezeV2Contract, AUTO)
+
+
 PB_BIND(protocol_UnfreezeAssetContract, protocol_UnfreezeAssetContract, AUTO)
 
 

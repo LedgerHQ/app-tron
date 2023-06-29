@@ -165,6 +165,9 @@ bool setContractType(contractType_e type, char *out, size_t outlen) {
         case WITHDRAWBALANCECONTRACT:
             strlcpy(out, "Claim Rewards", outlen);
             break;
+        case CANCELALLUNFREEZEV2CONTRACT:
+            strlcpy(out, "Cancel All Unfreeze", outlen);
+            break;
         case UNFREEZEASSETCONTRACT:
             strlcpy(out, "Unfreeze Asset", outlen);
             break;
@@ -477,6 +480,16 @@ static bool unfreeze_balance_v2_contract(txContent_t *content, pb_istream_t *str
 
     COPY_ADDRESS(content->account, &msg.unfreeze_balance_v2_contract.owner_address);
     COPY_ADDRESS(content->destination, &msg.unfreeze_balance_v2_contract.owner_address);
+    return true;
+}
+
+static bool cancel_all_unfreeze_v2_contract(txContent_t *content, pb_istream_t *stream) {
+    if (!pb_decode(stream,
+                   protocol_CancelAllUnfreezeV2Contract_fields,
+                   &msg.cancel_all_unfreeze_v2_contract)) {
+        return false;
+    }
+    COPY_ADDRESS(content->account, &msg.cancel_all_unfreeze_v2_contract.owner_address);
     return true;
 }
 
@@ -850,6 +863,9 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
                 break;
             case protocol_Transaction_Contract_ContractType_UnDelegateResourceContract:
                 ret = undelegate_resource_contrace(content, &tx_stream);
+                break;
+            case protocol_Transaction_Contract_ContractType_CancelAllUnfreezeV2Contract:
+                ret = cancel_all_unfreeze_v2_contract(content, &tx_stream);
                 break;
             case protocol_Transaction_Contract_ContractType_WithdrawBalanceContract:
                 ret = withdraw_balance_contract(content, &tx_stream);
