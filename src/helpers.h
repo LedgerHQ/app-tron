@@ -23,6 +23,14 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+#define CX_THROW(call)         \
+    do {                       \
+        cx_err_t error = call; \
+        if (error) {           \
+            THROW(error);      \
+        }                      \
+    } while (0)
+
 void getAddressFromKey(cx_ecfp_public_key_t *publicKey, uint8_t *out);
 
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address);

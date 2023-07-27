@@ -27,8 +27,8 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address) {
     uint8_t hashAddress[32];
     cx_sha3_t sha3;
 
-    cx_keccak_init(&sha3, 256);
-    cx_hash((cx_hash_t *) &sha3, CX_LAST, publicKey + 1, 64, hashAddress, 32);
+    cx_keccak_init_no_throw(&sha3, 256);
+    cx_hash_no_throw((cx_hash_t *) &sha3, CX_LAST, publicKey + 1, 64, hashAddress, 32);
 
     memmove(address, hashAddress + 11, ADDRESS_SIZE);
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;
@@ -39,9 +39,9 @@ void getBase58FromAddress(uint8_t *address, uint8_t *out, cx_sha256_t *sha2, boo
     uint8_t addchecksum[ADDRESS_SIZE + 4];
 
     cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, address, 21, sha256, 32);
+    cx_hash_no_throw((cx_hash_t *) sha2, CX_LAST, address, 21, sha256, 32);
     cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, sha256, 32, sha256, 32);
+    cx_hash_no_throw((cx_hash_t *) sha2, CX_LAST, sha256, 32, sha256, 32);
 
     memmove(addchecksum, address, ADDRESS_SIZE);
     memmove(addchecksum + ADDRESS_SIZE, sha256, 4);
@@ -58,11 +58,11 @@ void getBase58FromAddress(uint8_t *address, uint8_t *out, cx_sha256_t *sha2, boo
 
 void transactionHash(uint8_t *raw, uint16_t dataLength, uint8_t *out, cx_sha256_t *sha2) {
     cx_sha256_init(sha2);
-    cx_hash((cx_hash_t *) sha2, CX_LAST, raw, dataLength, out, 32);
+    cx_hash_no_throw((cx_hash_t *) sha2, CX_LAST, raw, dataLength, out, 32);
 }
 
 void signTransaction(transactionContext_t *transactionContext) {
-    uint8_t privateKeyData[32];
+    uint8_t privateKeyData[64];
     cx_ecfp_private_key_t privateKey;
     uint8_t rLength, sLength, rOffset, sOffset;
     uint8_t signature[100];
@@ -70,23 +70,25 @@ void signTransaction(transactionContext_t *transactionContext) {
 
     // Get Private key from BIP32 path
     io_seproxyhal_io_heartbeat();
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               transactionContext->bip32_path.indices,
-                               transactionContext->bip32_path.length,
-                               privateKeyData,
-                               NULL);
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                      transactionContext->bip32_path.indices,
+                                      transactionContext->bip32_path.length,
+                                      privateKeyData,
+                                      NULL));
+    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
     explicit_bzero(privateKeyData, sizeof(privateKeyData));
     // Sign transaction hash
     io_seproxyhal_io_heartbeat();
-    cx_ecdsa_sign(&privateKey,
-                  CX_RND_RFC6979 | CX_LAST,
-                  CX_SHA256,
-                  transactionContext->hash,
-                  sizeof(transactionContext->hash),
-                  signature,
-                  sizeof(signature),
-                  &info);
+
+    size_t signature_size = sizeof(signature);
+    cx_ecdsa_sign_no_throw(&privateKey,
+                           CX_RND_RFC6979 | CX_LAST,
+                           CX_SHA256,
+                           transactionContext->hash,
+                           sizeof(transactionContext->hash),
+                           signature,
+                           &signature_size,
+                           &info);
 
     io_seproxyhal_io_heartbeat();
     explicit_bzero(&privateKey, sizeof(privateKey));

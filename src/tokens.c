@@ -1576,17 +1576,17 @@ int verifyTokenNameID(const char *tokenId,
     snprintf((char *) buffer, sizeof(buffer), "%s%s%c", tokenId, tokenName, decimals);
 
     cx_sha256_init(&sha2);  // init sha
-    cx_hash((cx_hash_t *) &sha2,
-            CX_LAST,
-            buffer,
-            strlen(tokenId) + strlen(tokenName) + 1,
-            hash,
-            32);
+    cx_hash_no_throw((cx_hash_t *) &sha2,
+                     CX_LAST,
+                     buffer,
+                     strlen(tokenId) + strlen(tokenName) + 1,
+                     hash,
+                     32);
 
-    cx_ecfp_init_public_key(CX_CURVE_256K1,
-                            (uint8_t *) PIC(&token_public_key),
-                            65,
-                            &(publicKeyContext->publicKey));
+    cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
+                                     (uint8_t *) PIC(&token_public_key),
+                                     65,
+                                     &(publicKeyContext->publicKey));
 
     io_seproxyhal_io_heartbeat();
     int ret = cx_ecdsa_verify((cx_ecfp_public_key_t WIDE *) &(publicKeyContext->publicKey),
@@ -1610,12 +1610,12 @@ int verifyExchangeID(const unsigned char *exchangeValidation,
     uint8_t hash[32];
 
     cx_sha256_init(&sha2);  // init sha
-    cx_hash((cx_hash_t *) &sha2, CX_LAST, exchangeValidation, datLength, hash, 32);
+    cx_hash_no_throw((cx_hash_t *) &sha2, CX_LAST, exchangeValidation, datLength, hash, 32);
 
-    cx_ecfp_init_public_key(CX_CURVE_256K1,
-                            (uint8_t *) PIC(&token_public_key),
-                            65,
-                            &(publicKeyContext->publicKey));
+    cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
+                                     (uint8_t *) PIC(&token_public_key),
+                                     65,
+                                     &(publicKeyContext->publicKey));
 
     io_seproxyhal_io_heartbeat();
     int ret = cx_ecdsa_verify((cx_ecfp_public_key_t WIDE *) &(publicKeyContext->publicKey),

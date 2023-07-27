@@ -145,18 +145,18 @@ off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path) 
 }
 
 void initPublicKeyContext(bip32_path_t *bip32_path) {
-    uint8_t privateKeyData[33];
+    uint8_t privateKeyData[64];
     cx_ecfp_private_key_t privateKey;
 
     // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               bip32_path->indices,
-                               bip32_path->length,
-                               privateKeyData,
-                               NULL);
+    CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                      bip32_path->indices,
+                                      bip32_path->length,
+                                      privateKeyData,
+                                      NULL));
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
+    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
 
     // Clear tmp buffer data
     explicit_bzero(&privateKey, sizeof(privateKey));
@@ -177,7 +177,7 @@ void handleGetPublicKey(uint8_t p1,
                         volatile unsigned int *flags,
                         volatile unsigned int *tx) {
     // Get private key data
-    uint8_t privateKeyData[33];
+    uint8_t privateKeyData[64];
     bip32_path_t bip32_path;
     cx_ecfp_private_key_t privateKey;
 
@@ -199,14 +199,14 @@ void handleGetPublicKey(uint8_t p1,
     }
 
     // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               bip32_path.indices,
-                               bip32_path.length,
-                               privateKeyData,
-                               publicKeyContext.chainCode);
+    CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                      bip32_path.indices,
+                                      bip32_path.length,
+                                      privateKeyData,
+                                      publicKeyContext.chainCode));
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
+    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
 
     // Clear tmp buffer data
     explicit_bzero(&privateKey, sizeof(privateKey));
@@ -312,7 +312,7 @@ void handleSign(uint8_t p1,
         THROW(E_INCORRECT_P1_P2);
     }
     // hash data
-    cx_hash((cx_hash_t *) txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
+    cx_hash_no_throw((cx_hash_t *) txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
 
     // process buffer
     uint16_t txResult = processTx(workBuffer, dataLength, &txContent);
@@ -332,7 +332,12 @@ void handleSign(uint8_t p1,
     }
 
     // Last data hash
-    cx_hash((cx_hash_t *) txContext.sha2, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
+    cx_hash_no_throw((cx_hash_t *) txContext.sha2,
+                     CX_LAST,
+                     workBuffer,
+                     0,
+                     transactionContext.hash,
+                     32);
 
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");
@@ -775,7 +780,7 @@ void handleECDHSecret(uint8_t p1,
                       volatile unsigned int *flags,
                       volatile unsigned int *tx) {
     UNUSED(tx);
-    uint8_t privateKeyData[32];
+    uint8_t privateKeyData[64];
     cx_ecfp_private_key_t privateKey;
 
     if ((p1 != 0x00) || (p2 != 0x01)) {
@@ -797,14 +802,14 @@ void handleECDHSecret(uint8_t p1,
     memcpy(transactionContext.signature, workBuffer, dataLength);
 
     // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               transactionContext.bip32_path.indices,
-                               transactionContext.bip32_path.length,
-                               privateKeyData,
-                               NULL);
+    CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                      transactionContext.bip32_path.indices,
+                                      transactionContext.bip32_path.length,
+                                      privateKeyData,
+                                      NULL));
 
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-    cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
+    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
 
     // Clear tmp buffer data
     explicit_bzero(&privateKey, sizeof(privateKey));
@@ -832,7 +837,7 @@ void handleSignPersonalMessage(uint8_t p1,
                                volatile unsigned int *flags,
                                volatile unsigned int *tx) {
     UNUSED(tx);
-    uint8_t privateKeyData[32];
+    uint8_t privateKeyData[64];
     cx_ecfp_private_key_t privateKey;
     cx_sha3_t sha3;
 
@@ -850,17 +855,17 @@ void handleSignPersonalMessage(uint8_t p1,
         dataLength -= 4;
 
         // Initialize message header + length
-        cx_keccak_init(&sha3, 256);
-        cx_hash((cx_hash_t *) &sha3,
-                0,
-                (const uint8_t *) SIGN_MAGIC,
-                sizeof(SIGN_MAGIC) - 1,
-                NULL,
-                32);
+        cx_keccak_init_no_throw(&sha3, 256);
+        cx_hash_no_throw((cx_hash_t *) &sha3,
+                         0,
+                         (const uint8_t *) SIGN_MAGIC,
+                         sizeof(SIGN_MAGIC) - 1,
+                         NULL,
+                         32);
 
         char tmp[11];
         snprintf((char *) tmp, 11, "%d", (uint32_t) txContent.dataBytes);
-        cx_hash((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 32);
+        cx_hash_no_throw((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 32);
 
     } else if (p1 != P1_MORE) {
         THROW(E_INCORRECT_P1_P2);
@@ -873,10 +878,10 @@ void handleSignPersonalMessage(uint8_t p1,
         THROW(E_INCORRECT_LENGTH);
     }
 
-    cx_hash((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 32);
+    cx_hash_no_throw((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 32);
     txContent.dataBytes -= dataLength;
     if (txContent.dataBytes == 0) {
-        cx_hash((cx_hash_t *) &sha3, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
+        cx_hash_no_throw((cx_hash_t *) &sha3, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
 #ifdef HAVE_BAGL
 #define HASH_LENGTH 4
         array_hexstr((char *) fullContract, transactionContext.hash, HASH_LENGTH / 2);
@@ -892,14 +897,14 @@ void handleSignPersonalMessage(uint8_t p1,
                      sizeof(transactionContext.hash));
 #endif
         // Get private key
-        os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                   transactionContext.bip32_path.indices,
-                                   transactionContext.bip32_path.length,
-                                   privateKeyData,
-                                   NULL);
+        CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                          transactionContext.bip32_path.indices,
+                                          transactionContext.bip32_path.length,
+                                          privateKeyData,
+                                          NULL));
 
-        cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
-        cx_ecfp_generate_pair(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
+        cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+        cx_ecfp_generate_pair_no_throw(CX_CURVE_256K1, &publicKeyContext.publicKey, &privateKey, 1);
 
         // Clear tmp buffer data
         explicit_bzero(&privateKey, sizeof(privateKey));

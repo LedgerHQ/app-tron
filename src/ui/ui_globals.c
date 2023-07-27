@@ -104,25 +104,43 @@ unsigned int ui_callback_tx_ok(void) {
     return 0;  // do not redraw the widget
 }
 
+static int cx_ecdh_with_ret(const cx_ecfp_private_key_t* pvkey,
+                            int mode,
+                            const unsigned char* P,
+                            unsigned int P_len,
+                            unsigned char* secret,
+                            unsigned int secret_len) {
+    CX_THROW(cx_ecdh_no_throw(pvkey, mode, P, P_len, secret, secret_len));
+
+    size_t size;
+
+    CX_THROW(cx_ecdomain_parameters_length(pvkey->curve, &size));
+    if ((mode & CX_MASK_EC) == CX_ECDH_POINT) {
+        return 1 + 2 * size;
+    } else {
+        return size;
+    }
+}
+
 unsigned int ui_callback_ecdh_ok(void) {
-    uint8_t privateKeyData[32];
+    uint8_t privateKeyData[64];
     cx_ecfp_private_key_t privateKey;
     uint32_t tx = 0;
 
     // Get private key
-    os_perso_derive_node_bip32(CX_CURVE_256K1,
-                               transactionContext.bip32_path.indices,
-                               transactionContext.bip32_path.length,
-                               privateKeyData,
-                               NULL);
-    cx_ecfp_init_private_key(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
+    CX_THROW(os_derive_bip32_no_throw(CX_CURVE_256K1,
+                                      transactionContext.bip32_path.indices,
+                                      transactionContext.bip32_path.length,
+                                      privateKeyData,
+                                      NULL));
+    cx_ecfp_init_private_key_no_throw(CX_CURVE_256K1, privateKeyData, 32, &privateKey);
 
-    tx = cx_ecdh(&privateKey,
-                 CX_ECDH_POINT,
-                 transactionContext.signature,
-                 65,
-                 G_io_apdu_buffer,
-                 160);
+    tx = cx_ecdh_with_ret(&privateKey,
+                          CX_ECDH_POINT,
+                          transactionContext.signature,
+                          65,
+                          G_io_apdu_buffer,
+                          160);
 
     // Clear tmp buffer data
     explicit_bzero(&privateKey, sizeof(privateKey));
