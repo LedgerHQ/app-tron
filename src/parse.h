@@ -49,7 +49,12 @@ typedef union {
 
 extern contract_t msg;
 
-typedef enum parserStatus_e { USTREAM_PROCESSING, USTREAM_FINISHED, USTREAM_FAULT } parserStatus_e;
+typedef enum parserStatus_e {
+    USTREAM_PROCESSING,
+    USTREAM_FINISHED,
+    USTREAM_FAULT,
+    USTREAM_MISSING_SETTING_DATA_ALLOWED
+} parserStatus_e;
 
 typedef enum contractType_e {
     ACCOUNTCREATECONTRACT = 0,

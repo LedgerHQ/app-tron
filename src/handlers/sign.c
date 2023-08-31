@@ -146,6 +146,8 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             break;
         case USTREAM_FAULT:
             return io_send_sw(E_INCORRECT_DATA);
+        case USTREAM_MISSING_SETTING_DATA_ALLOWED:
+            return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
         default:
             PRINTF("Unexpected parser status\n");
             return io_send_sw(txResult);

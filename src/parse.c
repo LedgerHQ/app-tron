@@ -802,7 +802,7 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
     }
 
     if (!HAS_SETTING(S_DATA_ALLOWED) && content->dataBytes != 0) {
-        THROW(E_MISSING_SETTING_DATA_ALLOWED);
+        return USTREAM_MISSING_SETTING_DATA_ALLOWED;
     }
 
     /* Parse contract parameters if any...
