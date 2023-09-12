@@ -643,6 +643,16 @@ void handleSign(uint8_t p1,
                             ((txContent.dataBytes > 0) ? true : false));
 
             break;
+        case CANCELALLUNFREEZEV2CONTRACT:  // Cancel All Unfreeze Resource
+            getBase58FromAddress(txContent.account,
+                                 (uint8_t *) toAddress,
+                                 &sha2,
+                                 HAS_SETTING(S_TRUNCATE_ADDRESS));
+
+            ux_flow_display(APPROVAL_CANCELALLUNFREEZEV2_TRANSACTION,
+                            ((txContent.dataBytes > 0) ? true : false));
+
+            break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
             getBase58FromAddress(txContent.account,
                                  (uint8_t *) toAddress,

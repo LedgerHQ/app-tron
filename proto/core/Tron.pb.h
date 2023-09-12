@@ -54,7 +54,8 @@ typedef enum _protocol_Transaction_Contract_ContractType {
     protocol_Transaction_Contract_ContractType_UnfreezeBalanceV2Contract = 55, 
     protocol_Transaction_Contract_ContractType_WithdrawExpireUnfreezeContract = 56, 
     protocol_Transaction_Contract_ContractType_DelegateResourceContract = 57, 
-    protocol_Transaction_Contract_ContractType_UnDelegateResourceContract = 58 
+    protocol_Transaction_Contract_ContractType_UnDelegateResourceContract = 58, 
+    protocol_Transaction_Contract_ContractType_CancelAllUnfreezeV2Contract = 59 
 } protocol_Transaction_Contract_ContractType;
 
 typedef enum _protocol_Transaction_Result_code { 
@@ -170,8 +171,8 @@ typedef struct _protocol_Transaction {
 #define _protocol_AccountType_ARRAYSIZE ((protocol_AccountType)(protocol_AccountType_Contract+1))
 
 #define _protocol_Transaction_Contract_ContractType_MIN protocol_Transaction_Contract_ContractType_AccountCreateContract
-#define _protocol_Transaction_Contract_ContractType_MAX protocol_Transaction_Contract_ContractType_UnDelegateResourceContract
-#define _protocol_Transaction_Contract_ContractType_ARRAYSIZE ((protocol_Transaction_Contract_ContractType)(protocol_Transaction_Contract_ContractType_UnDelegateResourceContract+1))
+#define _protocol_Transaction_Contract_ContractType_MAX protocol_Transaction_Contract_ContractType_CancelAllUnfreezeV2Contract
+#define _protocol_Transaction_Contract_ContractType_ARRAYSIZE ((protocol_Transaction_Contract_ContractType)(protocol_Transaction_Contract_ContractType_CancelAllUnfreezeV2Contract+1))
 
 #define _protocol_Transaction_Result_code_MIN protocol_Transaction_Result_code_SUCESS
 #define _protocol_Transaction_Result_code_MAX protocol_Transaction_Result_code_FAILED
