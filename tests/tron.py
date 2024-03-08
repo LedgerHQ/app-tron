@@ -61,6 +61,7 @@ class InsType(IntEnum):
     GET_APP_CONFIGURATION = 0x06  # Version and settings
     SIGN_PERSONAL_MESSAGE = 0x08
     GET_ECDH_SECRET = 0x0A
+    SIGN_TIP_712_MESSAGE = 0x0C
 
 
 class Errors(IntEnum):

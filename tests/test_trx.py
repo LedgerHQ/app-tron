@@ -6,6 +6,7 @@ import pytest
 import sys
 import struct
 import re
+import binascii
 from ragger.error import ExceptionRAPDU
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from inspect import currentframe
 from tron import TronClient, Errors, CLA, InsType
 from ragger.bip import pack_derivation_path
 from utils import check_tx_signature, check_hash_signature
+from eth_keys import KeyAPI
 '''
 Tron Protobuf
 '''
@@ -58,7 +60,7 @@ class TestTRX():
         major, minor, patch = client.unpackGetVersionResponse(resp.data)
         path = str(Path(__file__).parent.parent.resolve()) + "/VERSION"
         version_file = open(path, "r").read()
-        version = re.findall("(\d)\.(\d)\.(\d)", version_file)
+        version = re.findall(r"(\d)\.(\d)\.(\d)", version_file)
         assert (major == int(version[0][0]))
         assert (minor == int(version[0][1]))
         assert (patch == int(version[0][2]))
@@ -500,6 +502,43 @@ class TestTRX():
         resp = backend.last_async_response
 
         assert check_hash_signature(hash_to_sign, resp.data[0:65],
+                                    client.getAccount(0)['publicKey'][2:])
+
+    def test_trx_sign_tip712(self, backend, firmware, navigator):
+        client = TronClient(backend, firmware, navigator)
+        domainHash = bytes.fromhex(
+            '6137beb405d9ff777172aa879e33edb34a1460e701802746c5ef96e741710e59')
+        messageHash = bytes.fromhex(
+            'eb4221181ff3f1a83ea7313993ca9218496e424604ba9492bb4052c03d5c3df8')
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        data += domainHash
+        data += messageHash
+
+        with backend.exchange_async(CLA, InsType.SIGN_TIP_712_MESSAGE, 0x00,
+                                    0x00, data):
+            if firmware.device == "stax":
+                text = "Hold to sign"
+            else:
+                text = "message"
+            client.navigate(Path(currentframe().f_code.co_name), text)
+
+        resp = backend.last_async_response
+        result = resp.data
+
+        v = int(result[0])
+        # Compute parity
+        ecc_parity = (v + 1) % 2
+
+        v = "%02X" % ecc_parity
+        r = binascii.hexlify(result[1:1 + 32]).decode()
+        s = binascii.hexlify(result[1 + 32:1 + 32 + 32]).decode()
+        signature = KeyAPI.Signature(vrs=(int(v, 16), int(r, 16), int(s, 16)))
+        # Magic define
+        SIGN_MAGIC = b'\x19\x01'
+        msg_to_sign = SIGN_MAGIC + domainHash + messageHash
+        hash = keccak.new(digest_bits=256, data=msg_to_sign).digest()
+
+        assert check_hash_signature(hash, signature.to_bytes(),
                                     client.getAccount(0)['publicKey'][2:])
 
     def test_trx_send_permissioned(self, backend, firmware, navigator):

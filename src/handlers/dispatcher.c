@@ -64,6 +64,9 @@ int apdu_dispatcher(const command_t *cmd) {
         case INS_SIGN_PERSONAL_MESSAGE:
             return handleSignPersonalMessage(cmd->p1, cmd->p2, cmd->data, cmd->lc);
 
+        case INS_SIGN_TIP_712_MESSAGE:
+            return handleSignTIP712Message(cmd->p1, cmd->p2, cmd->data, cmd->lc);
+
         default:
             return io_send_sw(E_INS_NOT_SUPPORTED);
     }

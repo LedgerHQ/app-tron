@@ -43,9 +43,13 @@ extern char fullHash[HASH_SIZE * 2 + 1];
 extern int8_t votes_count;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;
+extern messageSigningContext712_t messageSigningContext712;
+extern strings_t strings;
 
 bool ui_callback_tx_ok(bool display_menu);
 bool ui_callback_tx_cancel(bool display_menu);
 bool ui_callback_address_ok(bool display_menu);
 bool ui_callback_signMessage_ok(bool display_menu);
 bool ui_callback_ecdh_ok(bool display_menu);
+bool ui_callback_signMessage712_v0_cancel(bool display_menu);
+bool ui_callback_signMessage712_v0_ok(bool display_menu);
