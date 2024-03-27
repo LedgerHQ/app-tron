@@ -2,36 +2,33 @@
 import sys
 import base58
 
-from enum import IntEnum
 from contextlib import contextmanager
+from enum import IntEnum
 from pathlib import Path
-from time import sleep, time
-from typing import Tuple
+from typing import Tuple, Generator
 from struct import unpack
 from bip_utils import Bip39SeedGenerator, Bip32Slip10Secp256k1
+from bip_utils.addr import TrxAddrEncoder
 from eth_keys import keys
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
 from ragger.backend.interface import BackendInterface, RAPDU
 from ragger.navigator import NavInsID, NavIns
+from ragger.bip import pack_derivation_path
 from conftest import MNEMONIC
-
-sys.path.append(f"{Path(__file__).parent.parent.resolve()}/examples")
-sys.path.append(f"{Path(__file__).parent.parent.resolve()}/examples/proto")
-from base import parse_bip32_path
 '''
 Tron Protobuf
 '''
+sys.path.append(f"{Path(__file__).parent.parent.resolve()}/proto")
 from core import Tron_pb2 as tron
 from google.protobuf.any_pb2 import Any
 from google.protobuf.internal.decoder import _DecodeVarint32
 
+ROOT_SCREENSHOT_PATH = Path(__file__).parent.resolve()
+
 MAX_APDU_LEN: int = 255
 
 CLA: int = 0xE0
-# Samsung Wallet ID specific CLA and INS
-COMMON_CLA: int = 0xB0
-COMMON_INS_GET_WALLET_ID: int = 0x04
 
 PUBLIC_KEY_LENGTH = 65
 BASE58_ADDRESS_SIZE = 34
@@ -63,7 +60,7 @@ class InsType(IntEnum):
     SIGN_TXN_HASH = 0x05  #  Unsafe
     GET_APP_CONFIGURATION = 0x06  # Version and settings
     SIGN_PERSONAL_MESSAGE = 0x08
-    GET_ECDH_SECRET = 0x0Aa
+    GET_ECDH_SECRET = 0x0A
 
 
 class Errors(IntEnum):
@@ -144,8 +141,7 @@ class TronClient:
                                                   ec.SECP256K1(),
                                                   default_backend())
             self.accounts[i] = {
-                "path":
-                parse_bip32_path("44'/195'/{}'/0/0".format(i)),
+                "path": ("m/44'/195'/{}'/0/0".format(i)),
                 "privateKeyHex":
                 HD.hex(),
                 "key":
@@ -158,16 +154,6 @@ class TronClient:
                 diffieHellman,
             }
 
-    def _exchange(self,
-                  ins: int,
-                  p1: int,
-                  p2: int,
-                  payload: bytes = b"") -> RAPDU:
-        return self._client.exchange(self.CLA, ins, p1=p1, p2=p2, data=payload)
-
-    def _exchange_raw(self, payload: bytes = b"") -> RAPDU:
-        return self._client.exchange_raw(data=payload)
-
     def address_hex(self, address):
         return base58.b58decode_check(address).hex().upper()
 
@@ -176,12 +162,6 @@ class TronClient:
         bip32_ctx = Bip32Slip10Secp256k1.FromSeedAndPath(
             seed_bytes, f"m/44'/195'/{account}'/{change}/{address_index}")
         return bytes(bip32_ctx.PrivateKey().Raw())
-
-    def apduMessage(self, INS, P1, P2, MESSAGE):
-        hexString = "{:02x}{:02x}{:02x}{:02x}{:02x}{}".format(
-            CLA, INS, P1, P2,
-            len(MESSAGE) // 2, MESSAGE)
-        return bytes.fromhex(hexString)
 
     def getAccount(self, number):
         return self.accounts[number]
@@ -197,7 +177,7 @@ class TronClient:
         tx.raw_data.ref_block_hash = bytes.fromhex("95DA42177DB00507")
         tx.raw_data.ref_block_bytes = bytes.fromhex("3DCE")
         if data:
-            tx.raw_data.data = data
+            tx.raw_data.custom_data = data
 
         c = tx.raw_data.contract.add()
         c.type = contractType
@@ -213,52 +193,90 @@ class TronClient:
     def get_next_length(self, tx):
         field, pos = _DecodeVarint32(tx, 0)
         size, newpos = _DecodeVarint32(tx, pos)
-        if (field & 0x07 == 0): return newpos
+        if (field & 0x07 == 0):
+            return newpos
         return size + newpos
 
-    @contextmanager
-    def exchange_async_and_navigate(self,
-                                    pack,
-                                    snappath: Path = None,
-                                    text: str = ""):
-        with self._client.exchange_async_raw(pack):
-            if self._firmware.device == "stax":
-                sleep(1.5)
-                self._navigator.navigate_until_text_and_compare(
-                    # Use custom touch coordinates to account for warning approve
-                    # button position.
-                    NavIns(NavInsID.TOUCH, (200, 545)),
-                    [NavIns(NavInsID.USE_CASE_REVIEW_CONFIRM)],
-                    text,
-                    Path(__file__).parent.resolve(),
-                    snappath,
-                    screen_change_after_last_instruction=False)
-            else:
-                self._navigator.navigate_until_text_and_compare(
-                    NavIns(NavInsID.RIGHT_CLICK),
-                    [NavIns(NavInsID.BOTH_CLICK)],
-                    text,
-                    Path(__file__).parent.resolve(),
-                    snappath,
-                    screen_change_after_last_instruction=False)
+    def navigate(self, snappath: Path = None, text: str = ""):
+        if self._firmware.device == "stax":
+            self._navigator.navigate_until_text_and_compare(
+                # Use custom touch coordinates to account for warning approve
+                # button position.
+                NavIns(NavInsID.TOUCH, (200, 545)),
+                [
+                    NavInsID.USE_CASE_REVIEW_CONFIRM,
+                    NavInsID.USE_CASE_STATUS_DISMISS
+                ],
+                text,
+                ROOT_SCREENSHOT_PATH,
+                snappath,
+                screen_change_before_first_instruction=True)
+        else:
+            self._navigator.navigate_until_text_and_compare(
+                NavIns(NavInsID.RIGHT_CLICK), [NavIns(NavInsID.BOTH_CLICK)],
+                text,
+                ROOT_SCREENSHOT_PATH,
+                snappath,
+                screen_change_before_first_instruction=True)
 
     def getVersion(self):
-        pack = self.apduMessage(InsType.GET_APP_CONFIGURATION, 0x00, 0x00,
-                                "FF")
-        return self._exchange_raw(pack)
+        return self._client.exchange(CLA, InsType.GET_APP_CONFIGURATION, 0x00,
+                                     0x00)
 
-    def getAddress(self, account_idx: int = 0):
-        pack = self.apduMessage(InsType.GET_PUBLIC_KEY, 0x00, 0x00,
-                                f"05{self.getAccount(account_idx)['path']}")
-        return self._exchange_raw(pack)
+    def get_async_response(self) -> RAPDU:
+        return self._client.last_async_response
 
-    def unpackGetAddressResponse(self, response: bytes) -> Tuple[str, str]:
-        assert (response[0] == PUBLIC_KEY_LENGTH)
-        assert (response[66] == BASE58_ADDRESS_SIZE)
-        assert (len(response) == GET_ADDRESS_RESP_LEN)
-        pubkey = response[2:66].hex().upper()
-        address = self.address_hex(response[67:101].decode())
-        return pubkey, address
+    def compute_address_from_public_key(self, public_key: bytes) -> str:
+        return TrxAddrEncoder.EncodeKey(public_key)
+
+    def parse_get_public_key_response(
+            self, response: bytes,
+            request_chaincode: bool) -> (bytes, str, bytes):
+        # response = public_key_len (1) ||
+        #            public_key (var) ||
+        #            address_len (1) ||
+        #            address (var) ||
+        #            chain_code (32)
+        offset: int = 0
+
+        public_key_len: int = response[offset]
+        offset += 1
+        public_key: bytes = response[offset:offset + public_key_len]
+        offset += public_key_len
+        address_len: int = response[offset]
+        offset += 1
+        address: str = response[offset:offset + address_len].decode("ascii")
+        offset += address_len
+        if request_chaincode:
+            chaincode: bytes = response[offset:offset + 32]
+            offset += 32
+        else:
+            chaincode = None
+
+        assert len(response) == offset
+        assert len(public_key) == 65
+        assert self.compute_address_from_public_key(public_key) == address
+
+        return public_key, address, chaincode
+
+    def send_get_public_key_non_confirm(self, derivation_path: str,
+                                        request_chaincode: bool) -> RAPDU:
+        p1 = P1.NON_CONFIRM
+        p2 = P2.CHAINCODE if request_chaincode else P2.NO_CHAINCODE
+        payload = pack_derivation_path(derivation_path)
+        return self._client.exchange(CLA, InsType.GET_PUBLIC_KEY, p1, p2,
+                                     payload)
+
+    @contextmanager
+    def send_async_get_public_key_confirm(
+            self, derivation_path: str,
+            request_chaincode: bool) -> Generator[None, None, None]:
+        p1 = P1.CONFIRM
+        p2 = P2.CHAINCODE if request_chaincode else P2.NO_CHAINCODE
+        payload = pack_derivation_path(derivation_path)
+        with self._client.exchange_async(CLA, InsType.GET_PUBLIC_KEY, p1, p2,
+                                         payload):
+            yield
 
     def unpackGetVersionResponse(self,
                                  response: bytes) -> Tuple[int, int, int]:
@@ -266,66 +284,63 @@ class TronClient:
         major, minor, patch = unpack("BBB", response[1:])
         return major, minor, patch
 
-    @contextmanager
     def sign(self,
-             path,
+             path: str,
              tx,
              signatures=[],
              snappath: Path = None,
              text: str = "",
              navigate: bool = True):
-        to_send = []
-        start_bytes = []
+        messages = []
 
-        data = bytearray.fromhex(f"05{path}")
+        # Split transaction in multiples APDU
+        data = pack_derivation_path(path)
         while len(tx) > 0:
             # get next message field
             newpos = self.get_next_length(tx)
             assert (newpos < MAX_APDU_LEN)
-            if (len(data) + newpos) > MAX_APDU_LEN:
+            if (len(data) + newpos) < MAX_APDU_LEN:
+                # append to data
+                data += tx[:newpos]
+                tx = tx[newpos:]
+            else:
                 # add chunk
-                to_send.append(data.hex())
+                messages.append(data)
                 data = bytearray()
                 continue
-            # append to data
-            data.extend(tx[:newpos])
-            tx = tx[newpos:]
         # append last
-        to_send.append(data.hex())
-        token_pos = len(to_send)
-        to_send.extend(signatures)
+        messages.append(data)
+        token_pos = len(messages)
 
-        if len(to_send) == 1:
-            start_bytes.append(P1.SIGN)
+        for signature in signatures:
+            messages.append(bytearray.fromhex(signature))
+
+        # Send all the messages expect the last
+        for i, data in enumerate(messages[:-1]):
+            if i == 0:
+                p1 = P1.FIRST
+            else:
+                if i < token_pos:
+                    p1 = P1.MORE
+                else:
+                    p1 = P1.TRC10_NAME | P1.FIRST | i - token_pos
+
+            self._client.exchange(CLA, InsType.SIGN, p1, 0x00, data)
+
+        # Send last message
+        if len(messages) == 1:
+            p1 = P1.SIGN
+        elif signatures:
+            p1 = P1.TRC10_NAME | InsType.SIGN_PERSONAL_MESSAGE | len(
+                signatures) - 1
         else:
-            start_bytes.append(P1.FIRST)
-            for i in range(1, len(to_send) - 1):
-                if (i >= token_pos):
-                    start_bytes.append(P1.TRC10_NAME | P1.FIRST
-                                       | i - token_pos)
-                else:
-                    start_bytes.append(P1.MORE)
+            p1 = P1.LAST
 
-            if not (signatures == None) and len(signatures) > 0:
-                start_bytes.append(P1.TRC10_NAME
-                                   | InsType.SIGN_PERSONAL_MESSAGE
-                                   | len(signatures) - 1)
-            else:
-                start_bytes.append(P1.LAST)
-
-        for i in range(len(to_send)):
-            pack = self.apduMessage(InsType.SIGN, start_bytes[i], 0x00,
-                                    to_send[i])
-            if i < len(to_send) - 1:
-
-                ret = self._exchange_raw(payload=pack)
-                if not (ret.status == Errors.OK):
-                    raise ValueError(
-                        "Something went wrong while sending the APDU.")
-
-            else:
-                if navigate:
-                    self.exchange_async_and_navigate(pack, snappath, text)
-                else:
-                    self._client.exchange_async_raw(pack)
-                sleep(0.5)
+        if navigate:
+            with self._client.exchange_async(CLA, InsType.SIGN, p1, 0x00,
+                                             messages[-1]):
+                self.navigate(snappath, text)
+            return self._client.last_async_response
+        else:
+            return self._client.exchange(CLA, InsType.SIGN, p1, 0x00,
+                                         messages[-1])

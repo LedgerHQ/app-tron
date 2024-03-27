@@ -149,7 +149,7 @@ typedef struct _protocol_Permission {
 } protocol_Permission;
 
 typedef struct _protocol_Transaction_raw { 
-    pb_callback_t data; 
+    pb_callback_t custom_data; 
     pb_size_t contract_count;
     protocol_Transaction_Contract contract[1]; 
     int64_t fee_limit; 
@@ -246,7 +246,7 @@ extern "C" {
 #define protocol_Permission_parent_id_tag        5
 #define protocol_Permission_operations_tag       6
 #define protocol_Permission_keys_tag             7
-#define protocol_Transaction_raw_data_tag        10
+#define protocol_Transaction_raw_custom_data_tag 10
 #define protocol_Transaction_raw_contract_tag    11
 #define protocol_Transaction_raw_fee_limit_tag   18
 #define protocol_Transaction_raw_data_tag        1
@@ -312,7 +312,7 @@ X(a, STATIC,   SINGULAR, INT64,    exchange_id,      21)
 #define protocol_Transaction_Result_DEFAULT NULL
 
 #define protocol_Transaction_raw_FIELDLIST(X, a) \
-X(a, CALLBACK, SINGULAR, BYTES,    data,             10) \
+X(a, CALLBACK, SINGULAR, BYTES,    custom_data,      10) \
 X(a, STATIC,   REPEATED, MESSAGE,  contract,         11) \
 X(a, STATIC,   SINGULAR, INT64,    fee_limit,        18)
 #define protocol_Transaction_raw_CALLBACK pb_default_field_callback

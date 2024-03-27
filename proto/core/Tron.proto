@@ -126,7 +126,7 @@ message Transaction {
     int64 expiration = 8;
     repeated authority auths = 9;
     // data not used
-    bytes data = 10;
+    bytes custom_data = 10;
     //only support size = 1,  repeated list here for extension
     repeated Contract contract = 11;
     // scripts not used

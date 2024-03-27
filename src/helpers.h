@@ -23,18 +23,18 @@
 #ifndef HELPER_H
 #define HELPER_H
 
-void getAddressFromKey(cx_ecfp_public_key_t *publicKey, uint8_t *out);
+void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static ADDRESS_SIZE]);
 
-void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t *address);
+void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate);
 
-void getBase58FromAddress(uint8_t *address, uint8_t *out, cx_sha256_t *sha2, bool truncate);
+void getBase58FromPublicKey(const uint8_t *publicKey, char *address58, bool truncate);
 
-void transactionHash(uint8_t *raw, uint16_t dataLength, uint8_t *out, cx_sha256_t *sha2);
+int signTransaction(transactionContext_t *transactionContext);
 
-void signTransaction(transactionContext_t *transactionContext);
+int helper_send_response_pubkey(const publicKeyContext_t *pub_key_ctx);
 
-void array_hexstr(char *strbuf, const void *bin, unsigned int len);
+off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path);
 
-uint32_t set_result_get_publicKey(const publicKeyContext_t *pub_key_ctx);
+int initPublicKeyContext(bip32_path_t *bip32_path, char *address58);
 
 #endif

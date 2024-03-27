@@ -236,8 +236,7 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
                           details.name,
                           details.precision,
                           details.signature.bytes,
-                          details.signature.size,
-                          content->publicKeyContext) != 1) {
+                          details.signature.size) != 1) {
         return false;
     }
 
@@ -333,8 +332,7 @@ bool parseExchange(const uint8_t *data, size_t length, txContent_t *content) {
     if (!verifyExchangeID((uint8_t *) buffer,
                           msg_size,
                           details.signature.bytes,
-                          details.signature.size,
-                          content->publicKeyContext)) {
+                          details.signature.size)) {
         return false;
     }
 
@@ -368,13 +366,12 @@ bool parseExchange(const uint8_t *data, size_t length, txContent_t *content) {
     return true;
 }
 
-void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content) {
+void initTx(txContext_t *context, txContent_t *content) {
     memset(context, 0, sizeof(txContext_t));
     memset(content, 0, sizeof(txContent_t));
-    context->sha2 = sha2;
     context->initialized = true;
     content->contractType = INVALID_CONTRACT;
-    cx_sha256_init(sha2);  // init sha
+    cx_sha256_init(&context->sha2);  // init sha
 }
 
 #define COPY_ADDRESS(a, b) memcpy((a), (b), ADDRESS_SIZE)
@@ -797,15 +794,15 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
 
     /* Set callback to determine if transaction contains custom data.
      * This allows to retrieve the size of arbitrary data. */
-    transaction.data.funcs.decode = pb_get_tx_data_size;
-    transaction.data.arg = &content->dataBytes;
+    transaction.custom_data.funcs.decode = pb_get_tx_data_size;
+    transaction.custom_data.arg = &content->dataBytes;
 
     if (!pb_decode(&stream, protocol_Transaction_raw_fields, &transaction)) {
         return USTREAM_FAULT;
     }
 
     if (!HAS_SETTING(S_DATA_ALLOWED) && content->dataBytes != 0) {
-        THROW(E_MISSING_SETTING_DATA_ALLOWED);
+        return USTREAM_MISSING_SETTING_DATA_ALLOWED;
     }
 
     /* Parse contract parameters if any...

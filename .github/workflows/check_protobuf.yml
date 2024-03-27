@@ -1,0 +1,63 @@
+name: Check_Protobuf
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  check_protobuf_files:
+    name: Check that the protobuf files for C and Python are up to date
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-legacy:latest
+
+    steps:
+      - name: Clone
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install grpcio-tools==1.44.0
+
+      - name: Move C tracked files
+        run: |
+          mv proto/core/Tron.pb.c proto/core/_Tron.pb.c
+          mv proto/core/Tron.pb.h proto/core/_Tron.pb.h
+          mv proto/core/Contract.pb.c proto/core/_Contract.pb.c
+          mv proto/core/Contract.pb.h proto/core/_Contract.pb.h
+          mv proto/misc/TronApp.pb.c proto/misc/_TronApp.pb.c
+          mv proto/misc/TronApp.pb.h proto/misc/_TronApp.pb.h
+          mv proto/google/protobuf/any.pb.c proto/google/protobuf/_any.pb.c
+          mv proto/google/protobuf/any.pb.h proto/google/protobuf/_any.pb.h
+
+      - name: Move Python tracked files
+        run: |
+          mv proto/core/Tron_pb2.py proto/core/_Tron_pb2.py
+          mv proto/core/Contract_pb2.py proto/core/_Contract_pb2.py
+          mv proto/google/protobuf/any_pb2.py proto/google/protobuf/_any_pb2.py
+
+      - name: Build proto files
+        run: |
+          make proto
+
+      - name: Check that there is no difference in the C files
+        run: |
+          diff proto/core/Tron.pb.c proto/core/_Tron.pb.c
+          diff proto/core/Tron.pb.h proto/core/_Tron.pb.h
+          diff proto/core/Contract.pb.c proto/core/_Contract.pb.c
+          diff proto/core/Contract.pb.h proto/core/_Contract.pb.h
+          diff proto/misc/TronApp.pb.c proto/misc/_TronApp.pb.c
+          diff proto/misc/TronApp.pb.h proto/misc/_TronApp.pb.h
+          diff proto/google/protobuf/any.pb.c proto/google/protobuf/_any.pb.c
+          diff proto/google/protobuf/any.pb.h proto/google/protobuf/_any.pb.h
+
+      - name: Check that there is no difference in the Python files
+        run: |
+          diff proto/core/Tron_pb2.py proto/core/_Tron_pb2.py
+          diff proto/core/Contract_pb2.py proto/core/_Contract_pb2.py
+          diff proto/google/protobuf/any_pb2.py proto/google/protobuf/_any_pb2.py

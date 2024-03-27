@@ -2,58 +2,56 @@
 import pytest
 from ragger.conftest import configuration
 from ragger.backend import SpeculosBackend, BackendInterface
-from time import sleep
+from ragger.navigator import NavInsID, NavIns
 
 ###########################
 ### CONFIGURATION START ###
 ###########################
 MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
-configuration.OPTIONAL.BACKEND_SCOPE = "session"
+configuration.OPTIONAL.BACKEND_SCOPE = "class"
 configuration.OPTIONAL.CUSTOM_SEED = MNEMONIC
 
 
-@pytest.fixture(scope="session")
-def configuration(backend: BackendInterface, firmware):
+@pytest.fixture(scope="class")
+def configuration(backend: BackendInterface, navigator, firmware):
     if type(backend) is SpeculosBackend:
         if firmware.device == "stax":
-            # Go to settings menu.
-            backend.finger_touch(x=300, y=30, delay=0.5)
-            # Allow data in TXs
-            backend.finger_touch(x=30, y=100, delay=0.5)
-            # Allow custom contracts
-            backend.finger_touch(x=30, y=250, delay=0.5)
-            # Allow sign by hash
-            backend.finger_touch(x=30, y=350, delay=0.5)
-            # Go back to main menu.
-            backend.finger_touch(x=40, y=40, delay=0.5)
-            sleep(4)
+            instructions = [
+                # Go to settings menu.
+                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
+                NavIns(NavInsID.USE_CASE_SETTINGS_NEXT),
+                # Allow data in TXs
+                NavIns(NavInsID.TOUCH, (200, 150)),
+                # Allow custom contracts
+                NavIns(NavInsID.TOUCH, (200, 300)),
+                # Allow sign by hash
+                NavIns(NavInsID.TOUCH, (200, 450)),
+                # Go back to main menu.
+                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
+            ]
         else:
-            # Go to settings main menu
-            backend.right_click()
-            sleep(0.1)
-            backend.right_click()
-            sleep(0.1)
-            backend.both_click()
-            sleep(0.1)
-            # Allow data in TXs
-            backend.both_click()
-            sleep(0.1)
-            # Allow custom contracts
-            backend.right_click()
-            sleep(0.1)
-            backend.both_click()
-            # Allow sign by hash
-            backend.right_click()
-            sleep(0.1)
-            backend.right_click()
-            sleep(0.1)
-            backend.both_click()
-            sleep(0.1)
-            # Go back to main menu
-            backend.right_click()
-            sleep(0.1)
-            backend.both_click()
+            instructions = [
+                # Go to settings main menu
+                NavInsID.RIGHT_CLICK,
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+                # Allow data in TXs
+                NavInsID.BOTH_CLICK,
+                # Allow custom contracts
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+                # Allow sign by hash
+                NavInsID.RIGHT_CLICK,
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+                # Go back to main menu
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+            ]
+
+        navigator.navigate(instructions,
+                           screen_change_before_first_instruction=False)
 
 
 #########################

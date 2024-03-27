@@ -12,7 +12,8 @@
 #define ADDRESS_SIZE             21
 #define TOKENID_SIZE             7
 #define BASE58CHECK_ADDRESS_SIZE 34
-#define BASE58CHECK_PK_SIZE      64
+#define PUBLIC_KEY_SIZE          65
+#define CHAIN_CODE_SIZE          32
 #define HASH_SIZE                32
 
 #define TRC20_DATA_FIELD_SIZE 68
@@ -48,7 +49,12 @@ typedef union {
 
 extern contract_t msg;
 
-typedef enum parserStatus_e { USTREAM_PROCESSING, USTREAM_FINISHED, USTREAM_FAULT } parserStatus_e;
+typedef enum parserStatus_e {
+    USTREAM_PROCESSING,
+    USTREAM_FINISHED,
+    USTREAM_FAULT,
+    USTREAM_MISSING_SETTING_DATA_ALLOWED
+} parserStatus_e;
 
 typedef enum contractType_e {
     ACCOUNTCREATECONTRACT = 0,
@@ -95,15 +101,14 @@ typedef struct stage_t {
 } stage_t;
 
 typedef struct txContext_t {
-    cx_sha256_t *sha2;
+    cx_sha256_t sha2;
     bool initialized;
 } txContext_t;
 
 typedef struct publicKeyContext_t {
-    cx_ecfp_public_key_t publicKey;
-    uint8_t address[ADDRESS_SIZE];
-    uint8_t address58[BASE58CHECK_ADDRESS_SIZE];
-    uint8_t chainCode[32];
+    uint8_t publicKey[PUBLIC_KEY_SIZE];
+    char address58[BASE58CHECK_ADDRESS_SIZE + 1];
+    uint8_t chainCode[CHAIN_CODE_SIZE];
     bool getChaincode;
 } publicKeyContext_t;
 
@@ -136,7 +141,6 @@ typedef struct txContent_t {
     uint64_t dataBytes;
     uint8_t permission_id;
     uint32_t customData;
-    publicKeyContext_t *publicKeyContext;
 } txContent_t;
 
 bool setContractType(contractType_e type, char *out, size_t outlen);
@@ -152,8 +156,11 @@ bool adjustDecimals(const char *src,
                     uint32_t targetLength,
                     uint8_t decimals);
 
-void initTx(txContext_t *context, cx_sha256_t *sha2, txContent_t *content);
+void initTx(txContext_t *context, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
+
+extern txContent_t txContent;
+extern txContext_t txContext;
 
 #endif

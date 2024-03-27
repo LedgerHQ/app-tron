@@ -44,8 +44,8 @@ extern int8_t votes_count;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;
 
-unsigned int ui_callback_tx_ok(void);
-unsigned int ui_callback_tx_cancel(void);
-unsigned int ui_callback_address_ok(void);
-unsigned int ui_callback_signMessage_ok(void);
-unsigned int ui_callback_ecdh_ok(void);
+bool ui_callback_tx_ok(bool display_menu);
+bool ui_callback_tx_cancel(bool display_menu);
+bool ui_callback_address_ok(bool display_menu);
+bool ui_callback_signMessage_ok(bool display_menu);
+bool ui_callback_ecdh_ok(bool display_menu);

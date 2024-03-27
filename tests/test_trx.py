@@ -2,31 +2,29 @@
 '''
 Usage: pytest -v -s ./tests/test_trx.py
 '''
+import pytest
 import sys
 import struct
 import re
 from ragger.error import ExceptionRAPDU
-from ragger.backend.interface import RaisePolicy
 from contextlib import contextmanager
 from pathlib import Path
 from Crypto.Hash import keccak
 from cryptography.hazmat.primitives.asymmetric import ec
 from inspect import currentframe
-from tron import TronClient, Errors
-
-sys.path.append(f"{Path(__file__).parent.parent.resolve()}/examples")
-sys.path.append(f"{Path(__file__).parent.parent.resolve()}/examples/proto")
-from base import parse_bip32_path
-import validateSignature
+from tron import TronClient, Errors, CLA, InsType
+from ragger.bip import pack_derivation_path
+from utils import check_tx_signature, check_hash_signature
 '''
 Tron Protobuf
 '''
+sys.path.append(f"{Path(__file__).parent.parent.resolve()}/proto")
 from core import Contract_pb2 as contract
 from core import Tron_pb2 as tron
-from google.protobuf.any_pb2 import Any
 
 
-class TestTRX:
+@pytest.mark.usefixtures('configuration')
+class TestTRX():
     '''Test TRX client.'''
 
     def sign_and_validate(self,
@@ -44,22 +42,17 @@ class TestTRX:
                 text = "Accept"
         else:
             if text_index == 0 or text_index == 1:
-                text = "Hold to confirm"
+                text = "Hold to sign"
         assert text
-        client.sign(client.getAccount(0)['path'],
-                    tx,
-                    signatures=signatures,
-                    snappath=path,
-                    text=text)
-        resp = client._client.last_async_response
-        assert (resp.status == Errors.OK)
-        validSignature, txID = validateSignature.validate(
-            tx, resp.data[0:65],
-            client.getAccount(0)['publicKey'][2:])
-        assert (validSignature == True)
+        resp = client.sign(client.getAccount(0)['path'],
+                           tx,
+                           signatures=signatures,
+                           snappath=path,
+                           text=text)
+        assert check_tx_signature(tx, resp.data[0:65],
+                                  client.getAccount(0)['publicKey'][2:])
 
-    def test_trx_get_version(self, backend, configuration, firmware,
-                             navigator):
+    def test_trx_get_version(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         resp = client.getVersion()
         major, minor, patch = client.unpackGetVersionResponse(resp.data)
@@ -70,62 +63,48 @@ class TestTRX:
         assert (minor == int(version[0][1]))
         assert (patch == int(version[0][2]))
 
-    def test_trx_get_addresses(self, backend, configuration, firmware,
-                               navigator):
-        client = TronClient(backend, firmware, navigator)
-        for i in range(2):
-            resp = client.getAddress(i)
-            pubkey, address = client.unpackGetAddressResponse(resp.data)
-            assert (client.accounts[i]['publicKey'][2:] == pubkey)
-            assert (client.accounts[i]['addressHex'] == address)
-
     @contextmanager
-    def test_trx_send(self, backend, configuration, firmware, navigator):
+    def test_trx_send(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferContract,
-            contract.TransferContract(owner_address=bytes.fromhex(
-                client.getAccount(0)['addressHex']),
-                                      to_address=bytes.fromhex(
-                                          client.getAccount(0)['addressHex']),
-                                      amount=100000000))
+            contract.TransferContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                amount=100000000))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_send_with_data_field(self, backend, configuration, firmware,
-                                      navigator):
+    def test_trx_send_with_data_field(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferContract,
-            contract.TransferContract(owner_address=bytes.fromhex(
-                client.getAccount(0)['addressHex']),
-                                      to_address=bytes.fromhex(
-                                          client.getAccount(0)['addressHex']),
-                                      amount=100000000),
+            contract.TransferContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                amount=100000000),
             b'CryptoChain-TronSR Ledger Transactions Tests')
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_send_wrong_path(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_send_wrong_path(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferContract,
-            contract.TransferContract(owner_address=bytes.fromhex(
-                client.getAccount(0)['addressHex']),
-                                      to_address=bytes.fromhex(
-                                          client.getAccount(0)['addressHex']),
-                                      amount=100000000))
-        texts = {"sta": "Hold to confirm", "nan": "Sign"}
+            contract.TransferContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                amount=100000000))
+        texts = {"sta": "Hold to sign", "nan": "Sign"}
         text = texts[firmware.device[:3]]
         path = Path(currentframe().f_code.co_name)
-        client.sign(parse_bip32_path("44'/195'/1'/1/0"),
-                    tx,
-                    snappath=path,
-                    text=text)
-        resp = client._client.last_async_response
-        validSignature, txID = validateSignature.validate(
-            tx, resp.data[0:65],
-            client.getAccount(0)['publicKey'][2:])
-        assert (validSignature == False)
+        resp = client.sign("m/44'/195'/1'/1/0", tx, snappath=path, text=text)
+        assert not check_tx_signature(tx, resp.data[0:65],
+                                      client.getAccount(0)['publicKey'][2:])
 
     def test_trx_send_asset_without_name(self, backend, configuration,
                                          firmware, navigator):
@@ -135,20 +114,21 @@ class TestTRX:
             contract.TransferAssetContract(
                 owner_address=bytes.fromhex(
                     client.getAccount(0)['addressHex']),
-                to_address=bytes.fromhex(client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
                 amount=1000000,
                 asset_name="1002000".encode()))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_send_asset_with_name(self, backend, configuration, firmware,
-                                      navigator):
+    def test_trx_send_asset_with_name(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferAssetContract,
             contract.TransferAssetContract(
                 owner_address=bytes.fromhex(
                     client.getAccount(0)['addressHex']),
-                to_address=bytes.fromhex(client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
                 amount=1000000,
                 asset_name="1002000".encode()))
         # BTT token ID 1002000 - 6 decimals
@@ -157,8 +137,7 @@ class TestTRX:
         ]
         self.sign_and_validate(client, firmware, 0, tx, tokenSignature)
 
-    def test_trx_send_asset_with_name_wrong_signature(self, backend,
-                                                      configuration, firmware,
+    def test_trx_send_asset_with_name_wrong_signature(self, backend, firmware,
                                                       navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
@@ -166,24 +145,22 @@ class TestTRX:
             contract.TransferAssetContract(
                 owner_address=bytes.fromhex(
                     client.getAccount(0)['addressHex']),
-                to_address=bytes.fromhex(client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
                 amount=1000000,
                 asset_name="1002000".encode()))
         # BTT token ID 1002000 - 6 decimals
         tokenSignature = [
             "0a0a4e6577416765436f696e10001a473045022100d8d73b4fad5200aa40b5cdbe369172b5c3259c10f1fb17dfb9c3fa6aa934ace702204e7ef9284969c74a0e80b7b7c17e027d671f3a9b3556c05269e15f7ce45986c8"
         ]
-        try:
-            client.raise_policy = RaisePolicy.RAISE_ALL_BUT_0x9000
+        with pytest.raises(ExceptionRAPDU) as e:
             client.sign(client.getAccount(0)['path'],
                         tx,
                         tokenSignature,
                         navigate=False)
-        except ExceptionRAPDU as rapdu:
-            assert (rapdu.status == Errors.INCORRECT_DATA)
+        assert e.value.status == Errors.INCORRECT_DATA
 
-    def test_trx_exchange_create(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_exchange_create(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ExchangeCreateContract,
@@ -213,8 +190,7 @@ class TestTRX:
 
         self.sign_and_validate(client, firmware, 1, tx, tokenSignature)
 
-    def test_trx_exchange_inject(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_exchange_inject(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ExchangeInjectContract,
@@ -228,8 +204,7 @@ class TestTRX:
         ]
         self.sign_and_validate(client, firmware, 0, tx, exchangeSignature)
 
-    def test_trx_exchange_withdraw(self, backend, configuration, firmware,
-                                   navigator):
+    def test_trx_exchange_withdraw(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ExchangeWithdrawContract,
@@ -243,8 +218,7 @@ class TestTRX:
         ]
         self.sign_and_validate(client, firmware, 0, tx, exchangeSignature)
 
-    def test_trx_exchange_transaction(self, backend, configuration, firmware,
-                                      navigator):
+    def test_trx_exchange_transaction(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ExchangeTransactionContract,
@@ -259,8 +233,7 @@ class TestTRX:
         ]
         self.sign_and_validate(client, firmware, 0, tx, exchangeSignature)
 
-    def test_trx_vote_witness(self, backend, configuration, firmware,
-                              navigator):
+    def test_trx_vote_witness(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.VoteWitnessContract,
@@ -331,14 +304,11 @@ class TestTRX:
                                 "TSNbzxac4WhxN91XvaUfPTKP2jNT18mP6T")),
                         vote_count=100),
                 ]))
-        try:
-            client.raise_policy = RaisePolicy.RAISE_ALL_BUT_0x9000
+        with pytest.raises(ExceptionRAPDU) as e:
             client.sign(client.getAccount(0)['path'], tx, navigate=False)
-        except ExceptionRAPDU as rapdu:
-            assert (rapdu.status == Errors.INCORRECT_DATA)
+        assert e.value.status == Errors.INCORRECT_DATA
 
-    def test_trx_freeze_balance_bw(self, backend, configuration, firmware,
-                                   navigator):
+    def test_trx_freeze_balance_bw(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.FreezeBalanceContract,
@@ -349,8 +319,7 @@ class TestTRX:
                                            resource=contract.BANDWIDTH))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_freeze_balance_energy(self, backend, configuration, firmware,
-                                       navigator):
+    def test_trx_freeze_balance_energy(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.FreezeBalanceContract,
@@ -379,8 +348,7 @@ class TestTRX:
 
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_unfreeze_balance_bw(self, backend, configuration, firmware,
-                                     navigator):
+    def test_trx_unfreeze_balance_bw(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.UnfreezeBalanceContract,
@@ -407,8 +375,7 @@ class TestTRX:
 
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_withdraw_balance(self, backend, configuration, firmware,
-                                  navigator):
+    def test_trx_withdraw_balance(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.WithdrawBalanceContract,
@@ -416,8 +383,7 @@ class TestTRX:
                 client.getAccount(0)['addressHex'])))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_proposal_create(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_proposal_create(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ProposalCreateContract,
@@ -429,8 +395,7 @@ class TestTRX:
                                             }))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_proposal_approve(self, backend, configuration, firmware,
-                                  navigator):
+    def test_trx_proposal_approve(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ProposalApproveContract,
@@ -440,8 +405,7 @@ class TestTRX:
                                              is_add_approval=True))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_proposal_delete(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_proposal_delete(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.ProposalDeleteContract,
@@ -453,8 +417,7 @@ class TestTRX:
 
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_account_update(self, backend, configuration, firmware,
-                                navigator):
+    def test_trx_account_update(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.AccountUpdateContract,
@@ -465,7 +428,7 @@ class TestTRX:
             ))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_trc20_send(self, backend, configuration, firmware, navigator):
+    def test_trx_trc20_send(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
@@ -479,8 +442,7 @@ class TestTRX:
                 )))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_trc20_approve(self, backend, configuration, firmware,
-                               navigator):
+    def test_trx_trc20_approve(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
@@ -494,67 +456,83 @@ class TestTRX:
                 )))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_sign_message(self, backend, configuration, firmware,
-                              navigator):
+    def test_trx_sign_message(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         # Magic define
         SIGN_MAGIC = b'\x19TRON Signed Message:\n'
         message = 'CryptoChain-TronSR Ledger Transactions Tests'.encode()
-        encodedTx = struct.pack(">I", len(message)) + message
-        pack = client.apduMessage(
-            0x08, 0x00, 0x00,
-            f"05{client.getAccount(0)['path']}{encodedTx.hex()}")
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        data += struct.pack(">I", len(message)) + message
 
-        texts = {"sta": "Hold to confirm", "nan": "message"}
-        client.exchange_async_and_navigate(pack,
-                                           Path(currentframe().f_code.co_name),
-                                           texts[firmware.device[:3]])
+        with backend.exchange_async(CLA, InsType.SIGN_PERSONAL_MESSAGE, 0x00,
+                                    0x00, data):
+            if firmware.device == "stax":
+                text = "Hold to sign"
+            else:
+                text = "message"
+            client.navigate(Path(currentframe().f_code.co_name), text)
 
-        resp = client._client.last_async_response
+        resp = backend.last_async_response
 
         signedMessage = SIGN_MAGIC + str(len(message)).encode() + message
         keccak_hash = keccak.new(digest_bits=256)
         keccak_hash.update(signedMessage)
-        hash = keccak_hash.digest()
+        hash_to_sign = keccak_hash.digest()
 
-        validSignature = validateSignature.validateHASH(
-            hash, resp.data[0:65],
-            client.getAccount(0)['publicKey'][2:])
-        assert (validSignature == True)
+        assert check_hash_signature(hash_to_sign, resp.data[0:65],
+                                    client.getAccount(0)['publicKey'][2:])
 
-    def test_trx_send_permissioned(self, backend, configuration, firmware,
-                                   navigator):
+    def test_trx_sign_hash(self, backend, firmware, navigator):
+        client = TronClient(backend, firmware, navigator)
+        hash_to_sign = bytes.fromhex("000102030405060708090a0b0c0d0e0f"
+                                     "101112131415161718191a1b1c1d1e1f")
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        data += hash_to_sign
+
+        with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00,
+                                    data):
+            if firmware.device == "stax":
+                text = "Hold to sign"
+            else:
+                text = "Sign"
+            client.navigate(Path(currentframe().f_code.co_name), text)
+
+        resp = backend.last_async_response
+
+        assert check_hash_signature(hash_to_sign, resp.data[0:65],
+                                    client.getAccount(0)['publicKey'][2:])
+
+    def test_trx_send_permissioned(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferContract,
-            contract.TransferContract(owner_address=bytes.fromhex(
-                client.getAccount(0)['addressHex']),
-                                      to_address=bytes.fromhex(
-                                          client.getAccount(0)['addressHex']),
-                                      amount=100000000), None, 2)
+            contract.TransferContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                to_address=bytes.fromhex(
+                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                amount=100000000), None, 2)
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_ecdh_key(self, backend, configuration, firmware, navigator):
+    def test_trx_ecdh_key(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         # get ledger public key
-        pack = client.apduMessage(0x02, 0x00, 0x00,
-                                  f"05{client.getAccount(0)['path']}")
-        resp = client._exchange_raw(pack)
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        resp = backend.exchange(CLA, InsType.GET_PUBLIC_KEY, 0x00, 0x00, data)
         assert (resp.data[0] == 65)
         pubKey = bytes(resp.data[1:66])
 
         # get pair key
-        pack = client.apduMessage(
-            0x0A, 0x00, 0x01,
-            f"05{client.getAccount(0)['path']}04{client.getAccount(1)['publicKey'][2:]}"
-        )
-
-        texts = {"sta": "Hold to confirm", "nan": "Accept"}
-        client.exchange_async_and_navigate(pack,
-                                           Path(currentframe().f_code.co_name),
-                                           texts[firmware.device[:3]])
-        resp = client._client.last_async_response
-        assert (resp.status == Errors.OK)
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        data += bytearray.fromhex(f"04{client.getAccount(1)['publicKey'][2:]}")
+        with backend.exchange_async(CLA, InsType.GET_ECDH_SECRET, 0x00, 0x01,
+                                    data):
+            if firmware.device == "stax":
+                text = "Hold to sign"
+            else:
+                text = "Accept"
+            client.navigate(Path(currentframe().f_code.co_name), text)
+        resp = backend.last_async_response
 
         # check if pair key matchs
         pubKeyDH = ec.EllipticCurvePublicKey.from_encoded_point(
@@ -562,8 +540,7 @@ class TestTRX:
         shared_key = client.getAccount(1)['dh'].exchange(ec.ECDH(), pubKeyDH)
         assert (shared_key.hex() == resp.data[1:33].hex())
 
-    def test_trx_custom_contract(self, backend, configuration, firmware,
-                                 navigator):
+    def test_trx_custom_contract(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
@@ -576,8 +553,7 @@ class TestTRX:
                     0x0a857040, int(10001)))))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_unknown_trc20_send(self, backend, configuration, firmware,
-                                    navigator):
+    def test_trx_unknown_trc20_send(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
@@ -591,8 +567,7 @@ class TestTRX:
                 )))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_freezeV2_balance(self, backend, configuration, firmware,
-                                  navigator):
+    def test_trx_freezeV2_balance(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.FreezeBalanceV2Contract,
@@ -602,8 +577,7 @@ class TestTRX:
                                              resource=contract.ENERGY))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_unfreezeV2_balance(self, backend, configuration, firmware,
-                                    navigator):
+    def test_trx_unfreezeV2_balance(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.UnfreezeBalanceV2Contract,
@@ -613,8 +587,7 @@ class TestTRX:
                                                resource=contract.ENERGY))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_delegate_resource(self, backend, configuration, firmware,
-                                   navigator):
+    def test_trx_delegate_resource(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.DelegateResourceContract,
@@ -628,8 +601,7 @@ class TestTRX:
                 lock=0))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_undelegate_resource(self, backend, configuration, firmware,
-                                     navigator):
+    def test_trx_undelegate_resource(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.UnDelegateResourceContract,
@@ -642,8 +614,7 @@ class TestTRX:
                     client.address_hex("TGQVLckg1gDZS5wUwPTrPgRG4U8MKC4jcP"))))
         self.sign_and_validate(client, firmware, 0, tx)
 
-    def test_trx_withdraw_unfreeze(self, backend, configuration, firmware,
-                                   navigator):
+    def test_trx_withdraw_unfreeze(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.WithdrawExpireUnfreezeContract,
