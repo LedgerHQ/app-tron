@@ -28,13 +28,13 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static AD
     uint8_t hashAddress[HASH_SIZE];
     cx_sha3_t sha3;
 
-    cx_keccak_init_no_throw(&sha3, 256);
-    cx_hash_no_throw((cx_hash_t *) &sha3,
-                     CX_LAST,
-                     publicKey + 1,
-                     PUBLIC_KEY_SIZE - 1,
-                     hashAddress,
-                     HASH_SIZE);
+    CX_ASSERT(cx_keccak_init_no_throw(&sha3, 256));
+    CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3,
+                               CX_LAST,
+                               publicKey + 1,
+                               PUBLIC_KEY_SIZE - 1,
+                               hashAddress,
+                               HASH_SIZE));
 
     memmove(address, hashAddress + 11, ADDRESS_SIZE);
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;

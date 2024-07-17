@@ -135,7 +135,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         return io_send_sw(E_INCORRECT_P1_P2);
     }
     // hash data
-    cx_hash_no_throw((cx_hash_t *) &txContext.sha2, 0, workBuffer, dataLength, NULL, 32);
+    CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &txContext.sha2, 0, workBuffer, dataLength, NULL, 32));
 
 #ifdef HAVE_SWAP
     if (G_called_from_swap) {
@@ -180,12 +180,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
     }
 
     // Last data hash
-    cx_hash_no_throw((cx_hash_t *) &txContext.sha2,
-                     CX_LAST,
-                     workBuffer,
-                     0,
-                     transactionContext.hash,
-                     32);
+    CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &txContext.sha2,
+                               CX_LAST,
+                               workBuffer,
+                               0,
+                               transactionContext.hash,
+                               32));
 
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");

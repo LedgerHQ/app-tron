@@ -1576,10 +1576,10 @@ int verifyTokenNameID(const char *tokenId,
 
     cx_hash_sha256(buffer, strlen(tokenId) + strlen(tokenName) + 1, hash, 32);
 
-    cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
-                                     (uint8_t *) PIC(&token_public_key),
-                                     65,
-                                     &publicKey);
+    CX_ASSERT(cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
+                                               (uint8_t *) PIC(&token_public_key),
+                                               65,
+                                               &publicKey));
 
     int ret = cx_ecdsa_verify_no_throw(&publicKey, hash, 32, signature, signatureLength);
 
@@ -1595,10 +1595,10 @@ int verifyExchangeID(const unsigned char *exchangeValidation,
 
     cx_hash_sha256(exchangeValidation, datLength, hash, 32);
 
-    cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
-                                     (uint8_t *) PIC(&token_public_key),
-                                     65,
-                                     &publicKey);
+    CX_ASSERT(cx_ecfp_init_public_key_no_throw(CX_CURVE_256K1,
+                                               (uint8_t *) PIC(&token_public_key),
+                                               65,
+                                               &publicKey));
 
     int ret = cx_ecdsa_verify_no_throw(&publicKey, hash, 32, signature, signatureLength);
 

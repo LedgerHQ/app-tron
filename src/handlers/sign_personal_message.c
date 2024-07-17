@@ -48,17 +48,18 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         dataLength -= 4;
 
         // Initialize message header + length
-        cx_keccak_init_no_throw(&sha3, 256);
-        cx_hash_no_throw((cx_hash_t *) &sha3,
-                         0,
-                         (const uint8_t *) SIGN_MAGIC,
-                         sizeof(SIGN_MAGIC) - 1,
-                         NULL,
-                         0);
+        CX_ASSERT(cx_keccak_init_no_throw(&sha3, 256));
+        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3,
+                                   0,
+                                   (const uint8_t *) SIGN_MAGIC,
+                                   sizeof(SIGN_MAGIC) - 1,
+                                   NULL,
+                                   0));
 
         char tmp[11];
         snprintf((char *) tmp, 11, "%d", (uint32_t) txContent.dataBytes);
-        cx_hash_no_throw((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 0);
+        CX_ASSERT(
+            cx_hash_no_throw((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 0));
 
     } else if (p1 != P1_MORE) {
         return io_send_sw(E_INCORRECT_P1_P2);
@@ -71,10 +72,15 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         return io_send_sw(E_INCORRECT_LENGTH);
     }
 
-    cx_hash_no_throw((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 0);
+    CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 0));
     txContent.dataBytes -= dataLength;
     if (txContent.dataBytes == 0) {
-        cx_hash_no_throw((cx_hash_t *) &sha3, CX_LAST, workBuffer, 0, transactionContext.hash, 32);
+        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3,
+                                   CX_LAST,
+                                   workBuffer,
+                                   0,
+                                   transactionContext.hash,
+                                   32));
 #ifdef HAVE_BAGL
 #define HASH_LENGTH 4
         format_hex(transactionContext.hash, HASH_LENGTH / 2, fullContract, sizeof(fullContract));

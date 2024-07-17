@@ -16,11 +16,24 @@ configuration.OPTIONAL.CUSTOM_SEED = MNEMONIC
 @pytest.fixture(scope="class")
 def configuration(backend: BackendInterface, navigator, firmware):
     if type(backend) is SpeculosBackend:
-        if firmware.device == "stax":
+        if firmware.device == "flex":
             instructions = [
                 # Go to settings menu.
                 NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
+                # Allow data in TXs
+                NavIns(NavInsID.TOUCH, (200, 150)),
+                # Allow custom contracts
+                NavIns(NavInsID.TOUCH, (200, 300)),
                 NavIns(NavInsID.USE_CASE_SETTINGS_NEXT),
+                # Allow sign by hash
+                NavIns(NavInsID.TOUCH, (200, 150)),
+                # Go back to main menu.
+                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
+            ]
+        elif firmware.device == "stax":
+            instructions = [
+                # Go to settings menu.
+                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
                 # Allow data in TXs
                 NavIns(NavInsID.TOUCH, (200, 150)),
                 # Allow custom contracts

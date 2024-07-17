@@ -46,6 +46,7 @@ ICON_NANOS = icons/nanos_app_tron.gif
 ICON_NANOX = icons/nanox_app_tron.gif
 ICON_NANOSP = icons/nanox_app_tron.gif
 ICON_STAX = icons/stax_app_tron.gif
+ICON_FLEX = icons/flex_app_tron.gif
 
 ENABLE_BLUETOOTH = 1
 ENABLE_SWAP = 1

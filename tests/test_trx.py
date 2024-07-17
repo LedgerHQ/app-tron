@@ -6,6 +6,7 @@ import pytest
 import sys
 import struct
 import re
+import binascii
 from ragger.error import ExceptionRAPDU
 from contextlib import contextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from inspect import currentframe
 from tron import TronClient, Errors, CLA, InsType
 from ragger.bip import pack_derivation_path
 from utils import check_tx_signature, check_hash_signature
+from eth_keys import KeyAPI
 '''
 Tron Protobuf
 '''
@@ -32,10 +34,11 @@ class TestTRX():
                           firmware,
                           text_index,
                           tx,
-                          signatures=[]):
+                          signatures=[],
+                          warning_approve=False):
         path = Path(currentframe().f_back.f_code.co_name)
         text = None
-        if firmware.device.startswith("nano"):
+        if firmware.is_nano:
             if text_index == 0:
                 text = "Sign"
             elif text_index == 1:
@@ -48,7 +51,8 @@ class TestTRX():
                            tx,
                            signatures=signatures,
                            snappath=path,
-                           text=text)
+                           text=text,
+                           warning_approve=warning_approve)
         assert check_tx_signature(tx, resp.data[0:65],
                                   client.getAccount(0)['publicKey'][2:])
 
@@ -58,7 +62,7 @@ class TestTRX():
         major, minor, patch = client.unpackGetVersionResponse(resp.data)
         path = str(Path(__file__).parent.parent.resolve()) + "/VERSION"
         version_file = open(path, "r").read()
-        version = re.findall("(\d)\.(\d)\.(\d)", version_file)
+        version = re.findall(r"(\d)\.(\d)\.(\d)", version_file)
         assert (major == int(version[0][0]))
         assert (minor == int(version[0][1]))
         assert (patch == int(version[0][2]))
@@ -87,7 +91,7 @@ class TestTRX():
                     client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
                 amount=100000000),
             b'CryptoChain-TronSR Ledger Transactions Tests')
-        self.sign_and_validate(client, firmware, 0, tx)
+        self.sign_and_validate(client, firmware, 0, tx, warning_approve=True)
 
     def test_trx_send_wrong_path(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
@@ -99,8 +103,10 @@ class TestTRX():
                 to_address=bytes.fromhex(
                     client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
                 amount=100000000))
-        texts = {"sta": "Hold to sign", "nan": "Sign"}
-        text = texts[firmware.device[:3]]
+        if firmware.is_nano:
+            text = "Sign"
+        else:
+            text = "Hold to sign"
         path = Path(currentframe().f_code.co_name)
         resp = client.sign("m/44'/195'/1'/1/0", tx, snappath=path, text=text)
         assert not check_tx_signature(tx, resp.data[0:65],
@@ -466,10 +472,10 @@ class TestTRX():
 
         with backend.exchange_async(CLA, InsType.SIGN_PERSONAL_MESSAGE, 0x00,
                                     0x00, data):
-            if firmware.device == "stax":
-                text = "Hold to sign"
-            else:
+            if firmware.is_nano:
                 text = "message"
+            else:
+                text = "Hold to sign"
             client.navigate(Path(currentframe().f_code.co_name), text)
 
         resp = backend.last_async_response
@@ -491,15 +497,43 @@ class TestTRX():
 
         with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00,
                                     data):
-            if firmware.device == "stax":
-                text = "Hold to sign"
-            else:
+            if firmware.is_nano:
                 text = "Sign"
+            else:
+                text = "Hold to sign"
             client.navigate(Path(currentframe().f_code.co_name), text)
 
         resp = backend.last_async_response
 
         assert check_hash_signature(hash_to_sign, resp.data[0:65],
+                                    client.getAccount(0)['publicKey'][2:])
+
+    def test_trx_sign_tip712(self, backend, firmware, navigator):
+        client = TronClient(backend, firmware, navigator)
+        domainHash = bytes.fromhex(
+            '6137beb405d9ff777172aa879e33edb34a1460e701802746c5ef96e741710e59')
+        messageHash = bytes.fromhex(
+            'eb4221181ff3f1a83ea7313993ca9218496e424604ba9492bb4052c03d5c3df8')
+        data = pack_derivation_path(client.getAccount(0)['path'])
+        data += domainHash
+        data += messageHash
+
+        with backend.exchange_async(CLA, InsType.SIGN_TIP_712_MESSAGE, 0x00,
+                                    0x00, data):
+            if firmware.is_nano:
+                text = "message"
+            else:
+                text = "Hold to sign"
+            client.navigate(Path(currentframe().f_code.co_name), text)
+
+        resp = backend.last_async_response
+
+        # Magic define
+        SIGN_MAGIC = b'\x19\x01'
+        msg_to_sign = SIGN_MAGIC + domainHash + messageHash
+        hash = keccak.new(digest_bits=256, data=msg_to_sign).digest()
+
+        assert check_hash_signature(hash, resp.data[0:65],
                                     client.getAccount(0)['publicKey'][2:])
 
     def test_trx_send_permissioned(self, backend, firmware, navigator):
@@ -527,10 +561,10 @@ class TestTRX():
         data += bytearray.fromhex(f"04{client.getAccount(1)['publicKey'][2:]}")
         with backend.exchange_async(CLA, InsType.GET_ECDH_SECRET, 0x00, 0x01,
                                     data):
-            if firmware.device == "stax":
-                text = "Hold to sign"
-            else:
+            if firmware.is_nano:
                 text = "Accept"
+            else:
+                text = "Hold to sign"
             client.navigate(Path(currentframe().f_code.co_name), text)
         resp = backend.last_async_response
 
@@ -551,7 +585,7 @@ class TestTRX():
                     client.address_hex("TTg3AAJBYsDNjx5Moc5EPNsgJSa4anJQ3M")),
                 data=bytes.fromhex('{:08x}{:064x}'.format(
                     0x0a857040, int(10001)))))
-        self.sign_and_validate(client, firmware, 0, tx)
+        self.sign_and_validate(client, firmware, 0, tx, warning_approve=True)
 
     def test_trx_unknown_trc20_send(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
@@ -565,7 +599,7 @@ class TestTRX():
                 data=bytes.fromhex(
                     "a9059cbb000000000000000000000000364b03e0815687edaf90b81ff58e496dea7383d700000000000000000000000000000000000000000000000000000000000f4240"
                 )))
-        self.sign_and_validate(client, firmware, 0, tx)
+        self.sign_and_validate(client, firmware, 0, tx, warning_approve=True)
 
     def test_trx_freezeV2_balance(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)

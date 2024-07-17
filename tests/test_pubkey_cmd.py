@@ -41,14 +41,17 @@ class Test_GET_PUBLIC_KEY():
                                              navigator, test_name):
         client = TronClient(backend, firmware, navigator)
         with client.send_async_get_public_key_confirm(TRX_PATH, True):
-            if firmware.device.startswith("nano"):
+            if firmware.is_nano:
                 navigator.navigate_until_text_and_compare(
                     NavInsID.RIGHT_CLICK, [NavInsID.BOTH_CLICK], "Approve",
                     ROOT_SCREENSHOT_PATH, test_name)
             else:
                 instructions = [
-                    NavInsID.USE_CASE_REVIEW_TAP,
-                    NavIns(NavInsID.TOUCH, (200, 335)),
+                    NavInsID.SWIPE_CENTER_TO_LEFT,
+                    NavIns(
+                        NavInsID.TOUCH,
+                        (100 if firmware.device.startswith("flex") else 200,
+                         400 if firmware.device.startswith("flex") else 335)),
                     NavInsID.USE_CASE_ADDRESS_CONFIRMATION_EXIT_QR,
                     NavInsID.USE_CASE_ADDRESS_CONFIRMATION_CONFIRM,
                     NavInsID.USE_CASE_STATUS_DISMISS
@@ -63,7 +66,7 @@ class Test_GET_PUBLIC_KEY():
 
         # Check that with NO_CHAINCODE, value and screens stay the same
         with client.send_async_get_public_key_confirm(TRX_PATH, False):
-            if firmware.device.startswith("nano"):
+            if firmware.is_nano:
                 navigator.navigate_until_text_and_compare(
                     NavInsID.RIGHT_CLICK, [NavInsID.BOTH_CLICK], "Approve",
                     ROOT_SCREENSHOT_PATH, test_name)
@@ -82,7 +85,7 @@ class Test_GET_PUBLIC_KEY():
                                             test_name):
         client = TronClient(backend, firmware, navigator)
         for chaincode_param in [True, False]:
-            if firmware.device.startswith("nano"):
+            if firmware.is_nano:
                 with client.send_async_get_public_key_confirm(
                         TRX_PATH, chaincode_param):
                     backend.raise_policy = RaisePolicy.RAISE_NOTHING
@@ -99,7 +102,7 @@ class Test_GET_PUBLIC_KEY():
                         NavInsID.USE_CASE_STATUS_DISMISS
                     ],
                     [
-                        NavInsID.USE_CASE_REVIEW_TAP,
+                        NavInsID.SWIPE_CENTER_TO_LEFT,
                         NavInsID.USE_CASE_ADDRESS_CONFIRMATION_CANCEL,
                         NavInsID.USE_CASE_STATUS_DISMISS
                     ]

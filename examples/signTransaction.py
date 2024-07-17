@@ -6,14 +6,14 @@ from base import parse_bip32_path
 import binascii
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--path', help="BIP32 path to retrieve. e.g. \"44'/195'/0'/0/0\".")
+parser.add_argument('--path',
+                    help="BIP32 path to retrieve. e.g. \"44'/195'/0'/0/0\".")
 args = parser.parse_args()
 
 if args.path == None:
-	args.path = "44'/195'/0'/0/0"
+    args.path = "44'/195'/0'/0/0"
 
 donglePath = parse_bip32_path(args.path)
-
 
 # Create APDU message.
 transactionRaw = "0a027d52220889fd90c45b71f24740e0bcb0f2be2c5a67080112630a2d747970"   \
@@ -26,7 +26,10 @@ signatureCheck = "cd01fcd0a4f0bb9a55a43d57ae1c955374f2540ff931307029e4c1fb80a6dc
                      "3185edd8a4dfda2d03aad569b856cfb3ed9db387b6589451797ff01c9c353583"\
                      "01"
 
-apduMessage = "E0041000" + '{:02x}'.format(int(len(donglePath) / 2) + 1 + int(len(transactionRaw) / 2)) + '{:02x}'.format(int(len(donglePath) / 4 / 2)) + donglePath + transactionRaw
+apduMessage = "E0041000" + '{:02x}'.format(
+    int(len(donglePath) / 2) + 1 +
+    int(len(transactionRaw) / 2)) + '{:02x}'.format(
+        int(len(donglePath) / 4 / 2)) + donglePath + transactionRaw
 apdu = bytearray.fromhex(apduMessage)
 
 print("-= Tron Ledger =-")
@@ -36,7 +39,7 @@ dongle = getDongle(True)
 print(apduMessage.strip())
 result = dongle.exchange(bytearray.fromhex(apduMessage))
 print(binascii.hexlify(result[0:65]))
-if binascii.hexlify(result[0:65]).decode()==signatureCheck:
-	print("Signature Validated!")
+if binascii.hexlify(result[0:65]).decode() == signatureCheck:
+    print("Signature Validated!")
 else:
-	print("Signature Error!")
+    print("Signature Error!")

@@ -6,11 +6,12 @@ from base import parse_bip32_path
 import binascii
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--path', help="BIP32 path to retrieve. e.g. \"44'/195'/0'/0/0\".")
+parser.add_argument('--path',
+                    help="BIP32 path to retrieve. e.g. \"44'/195'/0'/0/0\".")
 args = parser.parse_args()
 
 if args.path == None:
-	args.path = "44'/195'/0'/0/0"
+    args.path = "44'/195'/0'/0/0"
 
 donglePath = parse_bip32_path(args.path)
 
@@ -24,10 +25,14 @@ exchangeInfo = "08051207313030303933331a0f54726f6e57617463684d61726b657420002a01
 signatureCheck = "a1b321a521ff05b7159fee36c34c5918a7082125ef4152debf4ab73ffd366e8f4beec9d21c35c3d0c90db6de36f3b408a3f1449dc28f08b2a5a8ff04c95c007801"
 
 # P1 = 0x00 - first message
-apduMessage1 = "E004{:02x}00".format(0x00) + '{:02x}'.format(int(len(donglePath) / 2) + 1 + int(len(transactionRaw) / 2)) + '{:02x}'.format(int(len(donglePath) / 4 / 2)) + donglePath + transactionRaw
+apduMessage1 = "E004{:02x}00".format(0x00) + '{:02x}'.format(
+    int(len(donglePath) / 2) + 1 +
+    int(len(transactionRaw) / 2)) + '{:02x}'.format(
+        int(len(donglePath) / 4 / 2)) + donglePath + transactionRaw
 # Exchange info
 # To add info P1 = 0xA0 | 0x08 END | Index = 0
-apduMessage2 = "E004{:02x}00".format(0xA0 | 0x08 | 0x00) +  '{:02x}'.format(int(len(exchangeInfo) / 2) ) + exchangeInfo
+apduMessage2 = "E004{:02x}00".format(0xA0 | 0x08 | 0x00) + '{:02x}'.format(
+    int(len(exchangeInfo) / 2)) + exchangeInfo
 
 print("-= Tron Ledger =-")
 print("Sign Exchange Transaction")
@@ -36,7 +41,7 @@ result = dongle.exchange(bytearray.fromhex(apduMessage1))
 print(apduMessage2.strip())
 result = dongle.exchange(bytearray.fromhex(apduMessage2))
 print(binascii.hexlify(result[0:65]))
-if binascii.hexlify(result[0:65]).decode()==signatureCheck:
-	print("Signature Validated!")
+if binascii.hexlify(result[0:65]).decode() == signatureCheck:
+    print("Signature Validated!")
 else:
-	print("Signature Error!")
+    print("Signature Error!")

@@ -19,7 +19,7 @@
 
 #include "pb.h"
 #include "misc/TronApp.pb.h"
-
+#include "format.h"
 #include "parse.h"
 #include "settings.h"
 #include "tokens.h"
@@ -888,4 +888,21 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
     }
 
     return USTREAM_PROCESSING;
+}
+
+int bytes_to_string(char *out, size_t outl, const void *value, size_t len) {
+    if (outl <= 2) {
+        // Need at least '0x' and 1 digit
+        return -1;
+    }
+    if (strlcpy(out, "0x", outl) != 2) {
+        goto err;
+    }
+    if (format_hex(value, len, out + 2, outl - 2) < 0) {
+        goto err;
+    }
+    return 0;
+err:
+    *out = '\0';
+    return -1;
 }

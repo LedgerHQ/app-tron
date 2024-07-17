@@ -78,7 +78,7 @@ static void dataWarningChoice(bool accept) {
         }
     } else {
         ui_callback_tx_cancel(false);
-        nbgl_useCaseStatus("Transaction rejected", false, ui_idle);
+        nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_REJECTED, ui_idle);
     }
 }
 
@@ -87,12 +87,12 @@ static void customContractWarningChoice(bool accept) {
         displayTransaction();
     } else {
         ui_callback_tx_cancel(false);
-        nbgl_useCaseStatus("Transaction rejected", false, ui_idle);
+        nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_REJECTED, ui_idle);
     }
 }
 
 static void displayDataWarning(void) {
-    nbgl_useCaseChoice(&C_round_warning_64px,
+    nbgl_useCaseChoice(&C_Important_Circle_64px,
                        "WARNING\nThis transaction\ncontains\nextra data",
                        "Reject if you're not sure",
                        "Continue",
@@ -101,7 +101,7 @@ static void displayDataWarning(void) {
 }
 
 static void displayCustomContractWarning(void) {
-    nbgl_useCaseChoice(&C_round_warning_64px,
+    nbgl_useCaseChoice(&C_Important_Circle_64px,
                        "WARNING\nCustom Contract\nProceed with care",
                        "Reject if you're not sure",
                        "Continue",
@@ -110,22 +110,24 @@ static void displayCustomContractWarning(void) {
 }
 
 static void displayTransaction(void) {
-    nbgl_useCaseStaticReview(&pairList, &infoLongPress, "Reject transaction", reviewChoice);
+    // Start review
+    nbgl_useCaseReview(TYPE_TRANSACTION,
+                       &pairList,
+                       &C_app_tron_64px,
+                       txInfos.flowTitle,
+                       txInfos.flowSubtitle,
+                       infoLongPress.text,
+                       reviewChoice);
 }
 
 static void reviewStart() {
-    nbgl_callback_t displayFunction = displayTransaction;
     if (txInfos.warnings[DATA_WARNING] == true) {
-        displayFunction = displayDataWarning;
+        displayDataWarning();
     } else if (txInfos.warnings[CUSTOM_CONTRACT_WARNING] == true) {
-        displayFunction = displayCustomContractWarning;
+        displayCustomContractWarning();
+    } else {
+        displayTransaction();
     }
-    nbgl_useCaseReviewStart(&C_stax_app_tron_64px,
-                            txInfos.flowTitle,
-                            txInfos.flowSubtitle,
-                            "Reject transaction",
-                            displayFunction,
-                            rejectChoice);
 }
 
 static void reviewChoice(bool confirm) {
@@ -136,12 +138,14 @@ static void reviewChoice(bool confirm) {
             ret = ui_callback_signMessage_ok(false);
         } else if (txInfos.state == APPROVAL_SHARED_ECDH_SECRET) {
             ret = ui_callback_ecdh_ok(false);
+        } else if (txInfos.state == APPROVAL_SIGN_TIP72_TRANSACTION) {
+            ret = ui_callback_signMessage712_v0_ok(false);
         } else {
             ret = ui_callback_tx_ok(false);
         }
 
         if (ret) {
-            nbgl_useCaseStatus("TRANSACTION\nSIGNED", true, ui_idle);
+            nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_SIGNED, ui_idle);
         } else {
             nbgl_useCaseStatus("Transaction failure", false, ui_idle);
         }
@@ -151,8 +155,12 @@ static void reviewChoice(bool confirm) {
 }
 
 static void rejectConfirmation(void) {
-    ui_callback_tx_cancel(false);
-    nbgl_useCaseStatus("Transaction rejected", false, ui_idle);
+    if (txInfos.state == APPROVAL_SIGN_TIP72_TRANSACTION) {
+        ui_callback_signMessage712_v0_cancel(false);
+    } else {
+        ui_callback_tx_cancel(false);
+    }
+    nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_REJECTED, ui_idle);
 }
 
 static void rejectChoice(void) {
@@ -161,6 +169,11 @@ static void rejectChoice(void) {
                         "Yes, Reject",
                         "Go back to transaction",
                         rejectConfirmation);
+}
+
+static char *format_hash(const uint8_t *hash, char *buffer, size_t buffer_size, size_t offset) {
+    bytes_to_string(buffer + offset, buffer_size - offset, hash, 32);
+    return buffer + offset;
 }
 
 static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
@@ -173,7 +186,7 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
 
     infoLongPress.text = "Sign transaction";
     infoLongPress.longPressText = "Hold to sign";
-    infoLongPress.icon = &C_stax_app_tron_64px;
+    infoLongPress.icon = &C_app_tron_64px;
 
     pairList.pairs = (nbgl_layoutTagValue_t *) txInfos.fields;
 
@@ -306,6 +319,21 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowTitle = "Review message";
             infoLongPress.text = "Sign message";
             break;
+        case APPROVAL_SIGN_TIP72_TRANSACTION:
+            txInfos.fields[0].item = "Domain hash";
+            txInfos.fields[0].value = format_hash(messageSigningContext712.domainHash,
+                                                  strings.tmp.tmp,
+                                                  sizeof(strings.tmp.tmp),
+                                                  0);
+            txInfos.fields[1].item = "Message hash";
+            txInfos.fields[1].value = format_hash(messageSigningContext712.messageHash,
+                                                  strings.tmp.tmp,
+                                                  sizeof(strings.tmp.tmp),
+                                                  70);
+            pairList.nbPairs = 2;
+            txInfos.flowTitle = "Review message";
+            infoLongPress.text = "Sign message";
+            break;
         case APPROVAL_CUSTOM_CONTRACT:
             txInfos.warnings[CUSTOM_CONTRACT_WARNING] = true;
             txInfos.fields[0].item = "Contract";
@@ -397,33 +425,24 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
     }
 }
 
-static void address_verification_cancelled(void) {
-    ui_callback_tx_cancel(false);
-    nbgl_useCaseStatus("Address verification\ncancelled", false, ui_idle);
-}
-
 static void display_address_callback(bool confirm) {
     if (confirm) {
         ui_callback_address_ok(false);
-        nbgl_useCaseStatus("ADDRESS\nVERIFIED", true, ui_idle);
+        nbgl_useCaseReviewStatus(STATUS_TYPE_ADDRESS_VERIFIED, ui_idle);
     } else {
-        address_verification_cancelled();
+        ui_callback_tx_cancel(false);
+        nbgl_useCaseReviewStatus(STATUS_TYPE_ADDRESS_REJECTED, ui_idle);
     }
-}
-
-// called when tapping on review start page to actually display address
-static void display_addr(void) {
-    nbgl_useCaseAddressConfirmation(toAddress, &display_address_callback);
 }
 
 void ux_flow_display(ui_approval_state_t state, bool data_warning) {
     if (state == APPROVAL_VERIFY_ADDRESS) {
-        nbgl_useCaseReviewStart(&C_stax_app_tron_64px,
-                                "Verify Tron\naddress",
-                                NULL,
-                                "Cancel",
-                                display_addr,
-                                address_verification_cancelled);
+        nbgl_useCaseAddressReview(toAddress,
+                                  NULL,
+                                  &C_app_tron_64px,
+                                  "Verify Tron\naddress",
+                                  NULL,
+                                  display_address_callback);
     } else {
         // Prepare transaction infos to be displayed (field values etc.)
         prepareTxInfos(state, data_warning);
