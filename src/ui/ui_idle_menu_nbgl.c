@@ -85,12 +85,16 @@ void ui_idle(void) {
     switches[0].tuneId = TUNE_TAP_CASUAL;
     switches[0].initState = (HAS_SETTING(S_DATA_ALLOWED)) ? ON_STATE : OFF_STATE;
     switches[1].text = "Custom contracts";
-    switches[1].subText = "Allow unverified contracts";
+    switches[1].subText = "Allow unverified\ncontracts";
     switches[1].token = SWITCH_ALLOW_CSTM_CONTRACTS_TOKEN;
     switches[1].tuneId = TUNE_TAP_CASUAL;
     switches[1].initState = (HAS_SETTING(S_CUSTOM_CONTRACT)) ? ON_STATE : OFF_STATE;
     switches[2].text = "Blind signing";
+#ifdef TARGET_STAX
     switches[2].subText = "Allow transaction blind signing";
+#else
+    switches[2].subText = "Allow transaction blind\nsigning";
+#endif
     switches[2].token = SWITCH_ALLOW_HASH_TX_TOKEN;
     switches[2].tuneId = TUNE_TAP_CASUAL;
     switches[2].initState = (HAS_SETTING(S_SIGN_BY_HASH)) ? ON_STATE : OFF_STATE;
