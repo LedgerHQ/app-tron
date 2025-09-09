@@ -50,8 +50,12 @@ class Test_GET_PUBLIC_KEY():
                     NavInsID.SWIPE_CENTER_TO_LEFT,
                     NavIns(
                         NavInsID.TOUCH,
-                        (100,
-                         400 if firmware.device.startswith("flex") else 500)),
+                        (100 if firmware.device.startswith("stax") else
+                         100 if firmware.device.startswith("flex") else
+                         65 if firmware.device.startswith("apex") else 100,
+                         500 if firmware.device.startswith("stax") else
+                         400 if firmware.device.startswith("flex") else
+                         300 if firmware.device.startswith("apex") else 500)),
                     NavInsID.USE_CASE_ADDRESS_CONFIRMATION_EXIT_QR,
                     NavInsID.USE_CASE_ADDRESS_CONFIRMATION_CONFIRM,
                     NavInsID.USE_CASE_STATUS_DISMISS

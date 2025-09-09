@@ -21,6 +21,7 @@
 #include "glyphs.h"
 #include "ux.h"
 #include "nbgl_use_case.h"
+#include "ui_globals.h"
 #include "settings.h"
 
 enum {
@@ -100,7 +101,7 @@ void ui_idle(void) {
     switches[2].initState = (HAS_SETTING(S_SIGN_BY_HASH)) ? ON_STATE : OFF_STATE;
 
     nbgl_useCaseHomeAndSettings(APPNAME,
-                                &C_app_tron_64px,
+                                &APP_TRON_ICON,
                                 NULL,
                                 INIT_HOME_PAGE,
                                 &settingContents,

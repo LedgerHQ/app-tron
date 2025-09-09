@@ -47,6 +47,7 @@ ICON_NANOX = icons/nanox_app_tron.gif
 ICON_NANOSP = icons/nanox_app_tron.gif
 ICON_STAX = icons/stax_app_tron.gif
 ICON_FLEX = icons/flex_app_tron.gif
+ICON_APEX_P = icons/apex_app_tron.png
 
 ENABLE_BLUETOOTH = 1
 ENABLE_SWAP = 1
