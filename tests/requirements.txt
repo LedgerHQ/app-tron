@@ -6,4 +6,3 @@ ledgerblue==0.1.45
 ragger[speculos]>=1.7.1
 ragger[ledgerwallet]>=1.7.1
 ecdsa>=0.16.1,<0.17.0
-pysha3>=1.0.0,<2.0.0

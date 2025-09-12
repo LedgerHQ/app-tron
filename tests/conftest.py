@@ -43,6 +43,20 @@ def configuration(backend: BackendInterface, navigator, firmware):
                 # Go back to main menu.
                 NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
             ]
+        elif firmware.device.startswith("apex_p"):
+            instructions = [
+                # Go to settings menu.
+                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
+                # Allow data in TXs
+                NavIns(NavInsID.TOUCH, (150, 110)),
+                # Allow custom contracts
+                NavIns(NavInsID.TOUCH, (150, 220)),
+                NavIns(NavInsID.USE_CASE_SETTINGS_NEXT),
+                # Allow sign by hash
+                NavIns(NavInsID.TOUCH, (150, 110)),
+                # Go back to main menu.
+                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
+            ]
         else:
             instructions = [
                 # Go to settings main menu
