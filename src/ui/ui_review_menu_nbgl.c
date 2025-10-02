@@ -66,7 +66,6 @@ static void displayCustomContractWarning(void);
 static void dataWarningChoice(bool reject);
 static void customContractWarningChoice(bool reject);
 static void reviewChoice(bool confirm);
-static void rejectConfirmation(void);
 static void rejectChoice(void);
 
 static void dataWarningChoice(bool accept) {
@@ -154,21 +153,13 @@ static void reviewChoice(bool confirm) {
     }
 }
 
-static void rejectConfirmation(void) {
+static void rejectChoice(void) {
     if (txInfos.state == APPROVAL_SIGN_TIP72_TRANSACTION) {
         ui_callback_signMessage712_v0_cancel(false);
     } else {
         ui_callback_tx_cancel(false);
     }
     nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_REJECTED, ui_idle);
-}
-
-static void rejectChoice(void) {
-    nbgl_useCaseConfirm("Reject transaction?",
-                        NULL,
-                        "Yes, Reject",
-                        "Go back to transaction",
-                        rejectConfirmation);
 }
 
 static char *format_hash(const uint8_t *hash, char *buffer, size_t buffer_size, size_t offset) {
