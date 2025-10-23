@@ -66,7 +66,6 @@ static void displayCustomContractWarning(void);
 static void dataWarningChoice(bool reject);
 static void customContractWarningChoice(bool reject);
 static void reviewChoice(bool confirm);
-static void rejectConfirmation(void);
 static void rejectChoice(void);
 
 static void dataWarningChoice(bool accept) {
@@ -92,7 +91,7 @@ static void customContractWarningChoice(bool accept) {
 }
 
 static void displayDataWarning(void) {
-    nbgl_useCaseChoice(&C_Important_Circle_64px,
+    nbgl_useCaseChoice(&IMPORTANT_CIRCLE_ICON,
                        "WARNING\nThis transaction\ncontains\nextra data",
                        "Reject if you're not sure",
                        "Continue",
@@ -101,7 +100,7 @@ static void displayDataWarning(void) {
 }
 
 static void displayCustomContractWarning(void) {
-    nbgl_useCaseChoice(&C_Important_Circle_64px,
+    nbgl_useCaseChoice(&IMPORTANT_CIRCLE_ICON,
                        "WARNING\nCustom Contract\nProceed with care",
                        "Reject if you're not sure",
                        "Continue",
@@ -113,7 +112,7 @@ static void displayTransaction(void) {
     // Start review
     nbgl_useCaseReview(TYPE_TRANSACTION,
                        &pairList,
-                       &C_app_tron_64px,
+                       &APP_TRON_ICON,
                        txInfos.flowTitle,
                        txInfos.flowSubtitle,
                        infoLongPress.text,
@@ -154,21 +153,13 @@ static void reviewChoice(bool confirm) {
     }
 }
 
-static void rejectConfirmation(void) {
+static void rejectChoice(void) {
     if (txInfos.state == APPROVAL_SIGN_TIP72_TRANSACTION) {
         ui_callback_signMessage712_v0_cancel(false);
     } else {
         ui_callback_tx_cancel(false);
     }
     nbgl_useCaseReviewStatus(STATUS_TYPE_TRANSACTION_REJECTED, ui_idle);
-}
-
-static void rejectChoice(void) {
-    nbgl_useCaseConfirm("Reject transaction?",
-                        NULL,
-                        "Yes, Reject",
-                        "Go back to transaction",
-                        rejectConfirmation);
 }
 
 static char *format_hash(const uint8_t *hash, char *buffer, size_t buffer_size, size_t offset) {
@@ -186,7 +177,7 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
 
     infoLongPress.text = "Sign transaction";
     infoLongPress.longPressText = "Hold to sign";
-    infoLongPress.icon = &C_app_tron_64px;
+    infoLongPress.icon = &APP_TRON_ICON;
 
     pairList.pairs = (nbgl_layoutTagValue_t *) txInfos.fields;
 
@@ -439,7 +430,7 @@ void ux_flow_display(ui_approval_state_t state, bool data_warning) {
     if (state == APPROVAL_VERIFY_ADDRESS) {
         nbgl_useCaseAddressReview(toAddress,
                                   NULL,
-                                  &C_app_tron_64px,
+                                  &APP_TRON_ICON,
                                   "Verify Tron\naddress",
                                   NULL,
                                   display_address_callback);

@@ -218,8 +218,13 @@ class TronClient:
                 instructions = [
                     NavIns(
                         NavInsID.TOUCH,
-                        (200, 445 if self._firmware.device.startswith("flex")
-                         else 545)),
+                        (200 if self._firmware.device.startswith("stax") else
+                         200 if self._firmware.device.startswith("flex") else
+                         150 if self._firmware.device.startswith("apex") else
+                         200, 545 if self._firmware.device.startswith("stax")
+                         else 445 if self._firmware.device.startswith("flex")
+                         else 315 if self._firmware.device.startswith(
+                             "apex") else 545)),
                 ]
                 self._navigator.navigate_and_compare(ROOT_SCREENSHOT_PATH,
                                                      str(snappath) + "/part1",
