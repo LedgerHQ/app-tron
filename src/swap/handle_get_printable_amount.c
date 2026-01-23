@@ -20,12 +20,12 @@
 
 #include "handle_swap_sign_transaction.h"
 #include "parse.h"
+#include "uint256.h"
 
 /* Set empty printable_amount on error, printable amount otherwise */
 void swap_handle_get_printable_amount(get_printable_amount_parameters_t* params) {
     uint8_t decimals;
     char ticker[MAX_SWAP_TOKEN_LENGTH] = {0};
-    uint64_t amount;
 
     PRINTF("Inside Tron swap_handle_get_printable_amount\n");
 
@@ -45,15 +45,20 @@ void swap_handle_get_printable_amount(get_printable_amount_parameters_t* params)
         }
     }
 
-    if (!swap_str_to_u64(params->amount, params->amount_length, &amount)) {
-        PRINTF("Amount is too big\n");
-        goto error;
-    }
+    uint256_t amount_number = {0};
 
-    if (print_amount(amount,
-                     params->printable_amount,
-                     sizeof(params->printable_amount),
-                     decimals) == 0) {
+    //Raw amount string without a decimal point
+    char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
+
+    convertUint256BE(params->amount, params->amount_length, &amount_number);
+
+    tostring256(&amount_number, 10, amount_raw_string, sizeof(amount_raw_string));
+
+    if (!adjustDecimals(amount_raw_string,
+                        strnlen(amount_raw_string, sizeof(amount_raw_string)),
+                        params->printable_amount,
+                        sizeof(params->printable_amount),
+                        decimals)) {
         PRINTF("print_amount failed\n");
         goto error;
     }

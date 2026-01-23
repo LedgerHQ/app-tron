@@ -20,12 +20,13 @@
 #include "swap.h"
 
 #include "parse.h"
+#include "uint256.h"
 
 typedef struct swap_validated_s {
     bool initialized;
     uint8_t decimals;
     char ticker[MAX_SWAP_TOKEN_LENGTH];
-    uint64_t amount;
+    uint256_t amount;
     char recipient[BASE58CHECK_ADDRESS_SIZE + 1];
 } swap_validated_t;
 
@@ -92,10 +93,7 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t* params) {
         return false;
     }
 
-    // Save amount
-    if (!swap_str_to_u64(params->amount, params->amount_length, &swap_validated.amount)) {
-        return false;
-    }
+    convertUint256BE(params->amount, params->amount_length, &swap_validated.amount);
 
     swap_validated.initialized = true;
 
@@ -111,17 +109,23 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t* params) {
 }
 
 // Check that the amount in parameter is the same as the previously saved amount
-static bool check_swap_amount(const char* amount) {
-    char validated_amount[MAX_PRINTABLE_AMOUNT_SIZE];
-    if (print_amount(G_swap_validated.amount,
-                     validated_amount,
-                     sizeof(validated_amount),
-                     G_swap_validated.decimals) == 0) {
+static bool check_swap_amount(const char* amount, const uint8_t decimals) {
+    char validated_amount[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
+    char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
+
+    tostring256(&G_swap_validated.amount, 10, amount_raw_string, sizeof(amount_raw_string));
+
+    if (!adjustDecimals(amount_raw_string,
+                        strnlen(amount_raw_string, sizeof(amount_raw_string)),
+                        validated_amount,
+                        sizeof(validated_amount),
+                        decimals
+    )) {
         PRINTF("Conversion failed\n");
         return false;
     }
 
-    if (strcmp(amount, validated_amount) != 0) {
+    if (strncmp(amount, validated_amount, MAX_PRINTABLE_AMOUNT_SIZE) != 0) {
         PRINTF("Amount requested in this transaction = %s\n", amount);
         PRINTF("Amount validated in swap = %s\n", validated_amount);
         return false;
@@ -140,21 +144,21 @@ bool swap_check_validity(const char* amount,
         return false;
     }
 
-    if (!check_swap_amount(amount)) {
+    if (!check_swap_amount(amount, G_swap_validated.decimals)) {
         return false;
     }
 
-    if (strcmp(tokenName, G_swap_validated.ticker) != 0) {
+    if (strncmp(tokenName, G_swap_validated.ticker, MAX_SWAP_TOKEN_LENGTH) != 0) {
         PRINTF("Refused field '%s', expecting '%s'\n", tokenName, G_swap_validated.ticker);
         return false;
     }
 
-    if (strcmp(action, "To") != 0) {
+    if (strncmp(action, "To", 3) != 0) {
         PRINTF("Refused field '%s', expecting 'To'\n", action);
         return false;
     }
 
-    if (strcmp(G_swap_validated.recipient, toAddress) != 0) {
+    if (strncmp(G_swap_validated.recipient, toAddress, BASE58CHECK_ADDRESS_SIZE + 1) != 0) {
         PRINTF("Recipient requested in this transaction = %s\n", toAddress);
         PRINTF("Recipient validated in swap = %s\n", G_swap_validated.recipient);
         return false;
