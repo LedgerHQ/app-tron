@@ -2,6 +2,8 @@
 '''
 Usage: pytest -v -s ./tests/test_trx.py
 '''
+from decimal import Decimal
+
 import pytest
 import sys
 import struct
@@ -15,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from inspect import currentframe
 from tron import TronClient, Errors, CLA, InsType
 from ragger.bip import pack_derivation_path
-from utils import check_tx_signature, check_hash_signature
+from utils import check_tx_signature, check_hash_signature, build_trc20_calldata
 from eth_keys import KeyAPI
 '''
 Tron Protobuf
@@ -68,7 +70,7 @@ class TestTRX():
         assert (patch == int(version[0][2]))
 
     @contextmanager
-    def test_trx_send(self, backend, firmware, navigator):
+    def test_trx_send_123(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
         tx = client.packContract(
             tron.Transaction.Contract.TransferContract,
@@ -436,6 +438,7 @@ class TestTRX():
 
     def test_trx_trc20_send(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
+        tx_calldata = build_trc20_calldata("364b03e0815687edaf90b81ff58e496dea7383d7", Decimal(1000000))
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
             contract.TriggerSmartContract(
@@ -443,13 +446,42 @@ class TestTRX():
                     client.getAccount(0)['addressHex']),
                 contract_address=bytes.fromhex(
                     client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
-                data=bytes.fromhex(
-                    "a9059cbb000000000000000000000000364b03e0815687edaf90b81ff58e496dea7383d700000000000000000000000000000000000000000000000000000000000f4240"
-                )))
+                data=tx_calldata
+            ))
+        self.sign_and_validate(client, firmware, 0, tx)
+
+    def test_trx_trc20_send_zero_amount(self, backend, firmware, navigator):
+        client = TronClient(backend, firmware, navigator)
+        tx_calldata = build_trc20_calldata("364b03e0815687edaf90b81ff58e496dea7383d7", Decimal(0))
+        print(tx_calldata)
+        tx = client.packContract(
+            tron.Transaction.Contract.TriggerSmartContract,
+            contract.TriggerSmartContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                contract_address=bytes.fromhex(
+                    client.address_hex("TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9")),
+                data=tx_calldata
+            ))
+        self.sign_and_validate(client, firmware, 0, tx)
+
+    def test_trx_trc20_send_e20_amount(self, backend, firmware, navigator):
+        client = TronClient(backend, firmware, navigator)
+        tx_calldata = build_trc20_calldata("364b03e0815687edaf90b81ff58e496dea7383d7", Decimal(3.1415*10**21))
+        tx = client.packContract(
+            tron.Transaction.Contract.TriggerSmartContract,
+            contract.TriggerSmartContract(
+                owner_address=bytes.fromhex(
+                    client.getAccount(0)['addressHex']),
+                contract_address=bytes.fromhex(
+                    client.address_hex("TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9")),
+                data=tx_calldata
+            ))
         self.sign_and_validate(client, firmware, 0, tx)
 
     def test_trx_trc20_approve(self, backend, firmware, navigator):
         client = TronClient(backend, firmware, navigator)
+        tx_calldata = build_trc20_calldata("364b03e0815687edaf90b81ff58e496dea7383d7", Decimal(1000000))
         tx = client.packContract(
             tron.Transaction.Contract.TriggerSmartContract,
             contract.TriggerSmartContract(
@@ -457,9 +489,8 @@ class TestTRX():
                     client.getAccount(0)['addressHex']),
                 contract_address=bytes.fromhex(
                     client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
-                data=bytes.fromhex(
-                    "095ea7b3000000000000000000000000364b03e0815687edaf90b81ff58e496dea7383d700000000000000000000000000000000000000000000000000000000000f4240"
-                )))
+                data=tx_calldata
+            ))
         self.sign_and_validate(client, firmware, 0, tx)
 
     def test_trx_sign_message(self, backend, firmware, navigator):
