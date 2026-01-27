@@ -40,7 +40,8 @@ tokenDefinition_t *getKnownToken(txContent_t *context) {
 }
 
 /**
- * Adjusts a numeric string by adding a decimal point at the specified position and trimming trailing zeros.
+ * Adjusts a numeric string by adding a decimal point at the specified position and trimming
+ * trailing zeros.
  *
  * @param[in] src
  *   Pointer to the source numeric string.

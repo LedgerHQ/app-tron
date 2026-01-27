@@ -119,8 +119,7 @@ static bool check_swap_amount(const char* amount, const uint8_t decimals) {
                         strnlen(amount_raw_string, sizeof(amount_raw_string)),
                         validated_amount,
                         sizeof(validated_amount),
-                        decimals
-    )) {
+                        decimals)) {
         PRINTF("Conversion failed\n");
         return false;
     }

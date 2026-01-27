@@ -47,7 +47,7 @@ void swap_handle_get_printable_amount(get_printable_amount_parameters_t* params)
 
     uint256_t amount_number = {0};
 
-    //Raw amount string without a decimal point
+    // Raw amount string without a decimal point
     char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
 
     convertUint256BE(params->amount, params->amount_length, &amount_number);
