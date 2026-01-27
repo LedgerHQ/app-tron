@@ -13,5 +13,7 @@ jobs:
   job_functional_tests:
     uses: LedgerHQ/app-exchange/.github/workflows/reusable_swap_functional_tests.yml@develop
     with:
+      # @TODO remove
+      repo_for_tron: 'blockydevs/app-tron'
       branch_for_tron: ${{ github.ref }}
       test_filter: '"TRX or trx or Tron or tron"'
