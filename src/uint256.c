@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include "uint256.h"
 
+#include <string.h>
+
 static const char HEXDIGITS[] = "0123456789abcdef";
 
 static uint64_t readUint64BE(uint8_t *buffer) {
@@ -38,6 +40,12 @@ void readu128BE(uint8_t *buffer, uint128_t *target) {
 void readu256BE(uint8_t *buffer, uint256_t *target) {
     readu128BE(buffer, &UPPER_P(target));
     readu128BE(buffer + 16, &LOWER_P(target));
+}
+
+void convertUint256BE(const uint8_t *data, const uint32_t length, uint256_t *target) {
+    uint8_t tmp[32] = {0};
+    memcpy(tmp + 32 - length, data, length);
+    readu256BE(tmp, target);
 }
 
 bool zero128(uint128_t *number) {
