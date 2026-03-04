@@ -39,6 +39,24 @@ tokenDefinition_t *getKnownToken(txContent_t *context) {
     return NULL;
 }
 
+/**
+ * Adjusts a numeric string by adding a decimal point at the specified position and trimming
+ * trailing zeros.
+ *
+ * @param[in] src
+ *   Pointer to the source numeric string.
+ * @param[in] srcLength
+ *   Length of the number as the number of actual characters (not the size of the buffer).
+ * @param[out] target
+ *   Pointer to the buffer where the adjusted string will be stored.
+ * @param[in] targetLength
+ *   Size of the target buffer.
+ * @param[in] decimals
+ *   Number of decimal places to shift.
+ *
+ * @return
+ *   True if successful, false otherwise (e.g., if the target buffer is too small).
+ */
 bool adjustDecimals(const char *src,
                     uint32_t srcLength,
                     char *target,
