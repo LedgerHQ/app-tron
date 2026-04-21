@@ -34,6 +34,8 @@
 #include "handle_swap_sign_transaction.h"
 #endif  // HAVE_SWAP
 
+static const uint8_t ZERO_ADDRESS[ADDRESS_SIZE] = {0};
+
 static void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
 #ifdef HAVE_BAGL
     memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
@@ -417,7 +419,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (memcmp(txContent.destination, ZERO_ADDRESS, ADDRESS_SIZE) != 0) {
                 getBase58FromAddress(txContent.destination,
                                      toAddress,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
@@ -434,7 +436,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             else
                 strcpy(fullContract, "Energy");
 
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (memcmp(txContent.destination, ZERO_ADDRESS, ADDRESS_SIZE) != 0) {
                 getBase58FromAddress(txContent.destination,
                                      toAddress,
                                      HAS_SETTING(S_TRUNCATE_ADDRESS));
