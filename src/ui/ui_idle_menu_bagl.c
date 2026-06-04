@@ -24,9 +24,8 @@
 static void display_settings(const ux_flow_step_t* const);
 static void switch_settings_contract_data();
 static void switch_settings_custom_contracts();
-static void switch_settings_truncate_address();
 static void switch_settings_sign_by_hash();
-static char settings_param_value[40];
+static char settings_param_value[36];
 
 #if defined(TARGET_NANOS)
 
@@ -45,13 +44,8 @@ UX_STEP_VALID(ux_settings_flow_2_step,
 
 UX_STEP_VALID(ux_settings_flow_3_step,
               bnnn_paging,
-              switch_settings_truncate_address(),
-              {.title = "Truncate Address", .text = settings_param_value + 24});
-
-UX_STEP_VALID(ux_settings_flow_4_step,
-              bnnn_paging,
               switch_settings_sign_by_hash(),
-              {.title = "Sign by Hash", .text = settings_param_value + 28});
+              {.title = "Sign by Hash", .text = settings_param_value + 24});
 
 #else
 
@@ -72,17 +66,12 @@ UX_STEP_VALID(ux_settings_flow_2_step,
 
 UX_STEP_VALID(ux_settings_flow_3_step,
               bnnn,
-              switch_settings_truncate_address(),
-              {"Truncate Address", "Display truncated", "addresses", settings_param_value + 24});
-
-UX_STEP_VALID(ux_settings_flow_4_step,
-              bnnn,
               switch_settings_sign_by_hash(),
-              {"Sign by Hash", "Allow hash-only", "transactions", settings_param_value + 28});
+              {"Sign by Hash", "Allow hash-only", "transactions", settings_param_value + 24});
 
 #endif
 
-UX_STEP_VALID(ux_settings_flow_5_step,
+UX_STEP_VALID(ux_settings_flow_4_step,
               pb,
               ui_idle(),
               {
@@ -94,18 +83,16 @@ UX_DEF(ux_settings_flow,
        &ux_settings_flow_1_step,
        &ux_settings_flow_2_step,
        &ux_settings_flow_3_step,
-       &ux_settings_flow_4_step,
-       &ux_settings_flow_5_step);
+       &ux_settings_flow_4_step);
 
 static void display_settings(const ux_flow_step_t* const start_step) {
     strlcpy(settings_param_value, (HAS_SETTING(S_DATA_ALLOWED) ? "Allowed" : "NOT Allowed"), 12);
     strlcpy(settings_param_value + 12,
             (HAS_SETTING(S_CUSTOM_CONTRACT) ? "Allowed" : "NOT Allowed"),
             12);
-    strlcpy(settings_param_value + 24, (HAS_SETTING(S_TRUNCATE_ADDRESS) ? "Yes" : "No"), 4);
-    strlcpy(settings_param_value + 28,
+    strlcpy(settings_param_value + 24,
             (HAS_SETTING(S_SIGN_BY_HASH) ? "Allowed" : "NOT Allowed"),
-            sizeof(settings_param_value) - 28);
+            sizeof(settings_param_value) - 24);
     ux_flow_init(0, ux_settings_flow, start_step);
 }
 
@@ -119,14 +106,9 @@ static void switch_settings_custom_contracts() {
     display_settings(&ux_settings_flow_2_step);
 }
 
-static void switch_settings_truncate_address() {
-    SETTING_TOGGLE(S_TRUNCATE_ADDRESS);
-    display_settings(&ux_settings_flow_3_step);
-}
-
 static void switch_settings_sign_by_hash() {
     SETTING_TOGGLE(S_SIGN_BY_HASH);
-    display_settings(&ux_settings_flow_4_step);
+    display_settings(&ux_settings_flow_3_step);
 }
 
 //////////////////////////////////////////////////////////////////////

@@ -184,10 +184,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 5, "P%d - ", txContent.permission_id);
-        getBase58FromAddress(txContent.account, fromAddress + 4, HAS_SETTING(S_TRUNCATE_ADDRESS));
+        getBase58FromAddress(txContent.account, fromAddress + 4);
     } else {
         PRINTF("Regular transaction...\n");
-        getBase58FromAddress(txContent.account, fromAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+        getBase58FromAddress(txContent.account, fromAddress);
     }
 
     data_warning = ((txContent.dataBytes > 0) ? true : false);
@@ -233,9 +233,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     }
                     customContractField = 1;
 
-                    getBase58FromAddress(txContent.contractAddress,
-                                         fullContract,
-                                         HAS_SETTING(S_TRUNCATE_ADDRESS));
+                    getBase58FromAddress(txContent.contractAddress, fullContract);
                     snprintf((char *) TRC20Action,
                              sizeof(TRC20Action),
                              "%08x",
@@ -287,7 +285,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     (txContent.contractType == TRANSFERCONTRACT) ? SUN_DIG : txContent.decimals[0]);
             }
 
-            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress);
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
@@ -389,9 +387,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 #endif
 
             for (int i = 0; i < contract->votes_count; i++) {
-                getBase58FromAddress(contract->votes[i].vote_address,
-                                     fullContract,
-                                     HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(contract->votes[i].vote_address, fullContract);
 #if defined(HAVE_NBGL)
                 total_votes += (unsigned int) contract->votes[i].vote_count;
 #endif
@@ -418,11 +414,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             if (strlen((const char *) txContent.destination) > 0) {
-                getBase58FromAddress(txContent.destination,
-                                     toAddress,
-                                     HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.destination, toAddress);
             } else {
-                getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.account, toAddress);
             }
 
             ux_flow_display(APPROVAL_FREEZEASSET_TRANSACTION, data_warning);
@@ -435,11 +429,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             if (strlen((const char *) txContent.destination) > 0) {
-                getBase58FromAddress(txContent.destination,
-                                     toAddress,
-                                     HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.destination, toAddress);
             } else {
-                getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+                getBase58FromAddress(txContent.account, toAddress);
             }
 
             ux_flow_display(APPROVAL_UNFREEZEASSET_TRANSACTION, data_warning);
@@ -452,7 +444,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress);
 
             ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION, data_warning);
             break;
@@ -463,7 +455,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress);
 
             ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION, data_warning);
 
@@ -481,7 +473,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             }
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress);
 
             ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION, data_warning);
 
@@ -493,19 +485,19 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.destination, toAddress);
 
             ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
-            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress);
 
             ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
-            getBase58FromAddress(txContent.account, toAddress, HAS_SETTING(S_TRUNCATE_ADDRESS));
+            getBase58FromAddress(txContent.account, toAddress);
 
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION, data_warning);
 

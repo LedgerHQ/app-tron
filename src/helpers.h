@@ -25,9 +25,9 @@
 
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static ADDRESS_SIZE]);
 
-void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate);
+void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out);
 
-void getBase58FromPublicKey(const uint8_t *publicKey, char *address58, bool truncate);
+void getBase58FromPublicKey(const uint8_t *publicKey, char *address58);
 
 int signTransaction(transactionContext_t *transactionContext);
 

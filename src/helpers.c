@@ -40,7 +40,7 @@ void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static AD
     address[0] = ADD_PRE_FIX_BYTE_MAINNET;
 }
 
-void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out, bool truncate) {
+void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out) {
     uint8_t sha256[HASH_SIZE];
     uint8_t addchecksum[ADDRESS_SIZE + 4];
 
@@ -52,22 +52,16 @@ void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out,
 
     base58_encode(addchecksum, sizeof(addchecksum), out, BASE58CHECK_ADDRESS_SIZE);
     out[BASE58CHECK_ADDRESS_SIZE] = '\0';
-    if (truncate) {
-        memmove((void *) out + 5, "...", 3);
-        memmove((void *) out + 8,
-                (const void *) (out + BASE58CHECK_ADDRESS_SIZE - 5),
-                6);  // include \0 char
-    }
 }
 
-void getBase58FromPublicKey(const uint8_t *publicKey, char *address58, bool truncate) {
+void getBase58FromPublicKey(const uint8_t *publicKey, char *address58) {
     uint8_t address[ADDRESS_SIZE];
 
     // Get address from public key
     getAddressFromPublicKey(publicKey, address);
 
     // Get base58 address
-    getBase58FromAddress(address, address58, truncate);
+    getBase58FromAddress(address, address58);
 }
 
 int signTransaction(transactionContext_t *transactionContext) {
@@ -147,7 +141,7 @@ int initPublicKeyContext(bip32_path_t *bip32_path, char *address58) {
     }
 
     // Get base58 address from public key
-    getBase58FromPublicKey(publicKeyContext.publicKey, address58, false);
+    getBase58FromPublicKey(publicKeyContext.publicKey, address58);
 
     return 0;
 }
