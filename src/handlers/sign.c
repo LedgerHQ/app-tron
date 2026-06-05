@@ -183,8 +183,8 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
     if (txContent.permission_id > 0) {
         PRINTF("Set permission_id...\n");
-        snprintf((char *) fromAddress, 5, "P%d - ", txContent.permission_id);
-        getBase58FromAddress(txContent.account, fromAddress + 4);
+        snprintf((char *) fromAddress, 6, "P%d - ", txContent.permission_id);
+        getBase58FromAddress(txContent.account, fromAddress + 5);
     } else {
         PRINTF("Regular transaction...\n");
         getBase58FromAddress(txContent.account, fromAddress);
