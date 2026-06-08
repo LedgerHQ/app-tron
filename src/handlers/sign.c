@@ -34,6 +34,10 @@
 #include "handle_swap_sign_transaction.h"
 #endif  // HAVE_SWAP
 
+// TRON permission model: owner=0, witness=1, active=2..9 (max 8 active permissions).
+// The largest valid ID is a single decimal digit, which is all the "Px - " prefix can hold.
+#define MAX_PERMISSION_ID 9
+
 static void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
 #ifdef HAVE_BAGL
     memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
@@ -182,6 +186,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                32));
 
     if (txContent.permission_id > 0) {
+        // The fromAddress buffer only reserves 5 bytes for the "Px - " prefix, which fits a
+        // single decimal digit. Refuse multi-digit IDs to avoid truncation and a misaligned
+        // address being displayed/signed (fail closed).
+        if (txContent.permission_id > MAX_PERMISSION_ID) {
+            PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
+            return io_send_sw(E_INCORRECT_DATA);
+        }
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 6, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account, fromAddress + 5);
