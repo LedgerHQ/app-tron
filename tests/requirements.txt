@@ -1,7 +1,7 @@
 pytest
 base58==1.0.3
 crypto==1.4.1
-eth-keys==0.3.1
+eth-keys==0.7.0
 ledgerblue==0.1.45
 ragger[speculos]>=1.7.1
 ragger[ledgerwallet]>=1.7.1

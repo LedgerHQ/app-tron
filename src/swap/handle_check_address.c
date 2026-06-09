@@ -47,7 +47,7 @@ static bool derive_public_key(const uint8_t *buffer,
     }
 
     // Get base58 address from public key
-    getBase58FromPublicKey(public_key, address58, false);
+    getBase58FromPublicKey(public_key, address58);
 
     return true;
 }
