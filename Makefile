@@ -74,4 +74,7 @@ DEFINES   += PB_NO_ERRMSG=1
 SOURCE_FILES += $(NANOPB_DIR)/pb_encode.c $(NANOPB_DIR)/pb_decode.c $(NANOPB_DIR)/pb_common.c
 APP_SOURCE_PATH += proto
 
+# Exclude third-party nanopb from static analysis
+SCAN_BUILD = scan-build --exclude $(NANOPB_DIR)
+
 include $(BOLOS_SDK)/Makefile.standard_app

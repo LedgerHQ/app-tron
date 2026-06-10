@@ -48,7 +48,7 @@ int handleECDHSecret(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataL
     memcpy(transactionContext.signature, workBuffer, PUBLIC_KEY_SIZE);
 
     // Get base58 address from workBuffer public key
-    getBase58FromPublicKey(transactionContext.signature, toAddress, false);
+    getBase58FromPublicKey(transactionContext.signature, toAddress);
 
     ux_flow_display(APPROVAL_SHARED_ECDH_SECRET, false);
 

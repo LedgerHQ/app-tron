@@ -1,4 +1,10 @@
 # This final fixture will return the properly configured backend client, to be used in tests
+import os
+
+# Force pure-Python protobuf backend to ensure deterministic map serialization
+# order, matching the CI environment (reusable_ragger_tests.yml).
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 import pytest
 from ragger.conftest import configuration
 from ragger.backend import SpeculosBackend, BackendInterface
@@ -69,7 +75,6 @@ def configuration(backend: BackendInterface, navigator, firmware):
                 NavInsID.RIGHT_CLICK,
                 NavInsID.BOTH_CLICK,
                 # Allow sign by hash
-                NavInsID.RIGHT_CLICK,
                 NavInsID.RIGHT_CLICK,
                 NavInsID.BOTH_CLICK,
                 # Go back to main menu
