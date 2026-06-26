@@ -42,7 +42,6 @@ VARIANT_VALUES = tron
 CURVE_APP_LOAD_PARAMS = secp256k1
 PATH_APP_LOAD_PARAMS = "44'/195'"  # purpose=coin(44) / coin_type=Tron(1)
 
-ICON_NANOS = icons/nanos_app_tron.gif
 ICON_NANOX = icons/nanox_app_tron.gif
 ICON_NANOSP = icons/nanox_app_tron.gif
 ICON_STAX = icons/stax_app_tron.gif

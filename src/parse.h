@@ -24,11 +24,7 @@
 #define MAX_TOKEN_LENGTH         67
 
 #define NETWORK_STRING_MAX_SIZE 16
-#ifdef TARGET_NANOS
-#define SHARED_CTX_FIELD_1_SIZE 100
-#else
 #define SHARED_CTX_FIELD_1_SIZE 256
-#endif
 #define SHARED_CTX_FIELD_2_SIZE 40
 
 typedef union {

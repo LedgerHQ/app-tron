@@ -248,7 +248,7 @@ UX_STEP_NOCB(ux_approval_vote_flow_6_step,
                  .text = (char *) (G_io_apdu_buffer + voteSlot(4, VOTE_AMOUNT)),
              });
 
-// 11 slots for dynamic NanoS/NanoX UX voting steps
+// 11 slots for dynamic Nano UX voting steps
 const ux_flow_step_t *ux_approval_vote_flow[11];
 
 // FREEZE TRANSACTION

@@ -21,35 +21,13 @@
 #include "ux.h"
 #include "settings.h"
 
-static void display_settings(const ux_flow_step_t* const);
+static void display_settings(const ux_flow_step_t *const);
 static void switch_settings_contract_data();
 static void switch_settings_custom_contracts();
 static void switch_settings_sign_by_hash();
 
 #define SETTING_SLOT_SIZE 12  // = sizeof("NOT Allowed")
 static char settings_param_value[3 * SETTING_SLOT_SIZE];
-
-#if defined(TARGET_NANOS)
-
-UX_STEP_VALID(ux_settings_flow_1_step,
-              bnnn_paging,
-              switch_settings_contract_data(),
-              {
-                  .title = "Transactions Data",
-                  .text = settings_param_value,
-              });
-
-UX_STEP_VALID(ux_settings_flow_2_step,
-              bnnn_paging,
-              switch_settings_custom_contracts(),
-              {.title = "Custom Contracts", .text = settings_param_value + SETTING_SLOT_SIZE});
-
-UX_STEP_VALID(ux_settings_flow_3_step,
-              bnnn_paging,
-              switch_settings_sign_by_hash(),
-              {.title = "Sign by Hash", .text = settings_param_value + 2 * SETTING_SLOT_SIZE});
-
-#else
 
 UX_STEP_VALID(ux_settings_flow_1_step,
               bnnn,
@@ -77,8 +55,6 @@ UX_STEP_VALID(ux_settings_flow_3_step,
                "transactions",
                settings_param_value + 2 * SETTING_SLOT_SIZE});
 
-#endif
-
 UX_STEP_VALID(ux_settings_flow_4_step,
               pb,
               ui_idle(),
@@ -93,7 +69,7 @@ UX_DEF(ux_settings_flow,
        &ux_settings_flow_3_step,
        &ux_settings_flow_4_step);
 
-static void display_settings(const ux_flow_step_t* const start_step) {
+static void display_settings(const ux_flow_step_t *const start_step) {
     strlcpy(settings_param_value,
             (HAS_SETTING(S_DATA_ALLOWED) ? "Allowed" : "NOT Allowed"),
             SETTING_SLOT_SIZE);

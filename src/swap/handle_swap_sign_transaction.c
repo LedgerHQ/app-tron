@@ -33,10 +33,10 @@ typedef struct swap_validated_s {
 static swap_validated_t G_swap_validated;
 
 // Save the BSS address where we will write the return value when finished
-static uint8_t* G_swap_sign_return_value_address;
+static uint8_t *G_swap_sign_return_value_address;
 
 // Save the data validated during the Exchange app flow
-bool swap_copy_transaction_parameters(create_transaction_parameters_t* params) {
+bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
     PRINTF("Inside Tron swap_copy_transaction_parameters\n");
 
     // Ensure no extraid
@@ -109,7 +109,7 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t* params) {
 }
 
 // Check that the amount in parameter is the same as the previously saved amount
-static bool check_swap_amount(const char* amount, const uint8_t decimals) {
+static bool check_swap_amount(const char *amount, const uint8_t decimals) {
     char validated_amount[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
     char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
 
@@ -133,10 +133,10 @@ static bool check_swap_amount(const char* amount, const uint8_t decimals) {
     return true;
 }
 
-bool swap_check_validity(const char* amount,
-                         const char* tokenName,
-                         const char* action,
-                         const char* toAddress) {
+bool swap_check_validity(const char *amount,
+                         const char *tokenName,
+                         const char *action,
+                         const char *toAddress) {
     PRINTF("Inside Tron swap_check_validity\n");
 
     if (!G_swap_validated.initialized) {

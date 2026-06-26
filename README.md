@@ -132,6 +132,10 @@ python3 -m pip install ledgerblue
 python3 -m ledgerblue.runScript --scp --fileName bin/app.apdu --elfFile bin/app.elf
 ```
 
+## APDUs
+
+supported APDUs are listed in the [APDU documentation](docs/apdu.md).
+
 ## Tests
 
 The Tron app comes with functional tests implemented with Ledger's [Ragger](https://github.com/LedgerHQ/ragger) test framework.
