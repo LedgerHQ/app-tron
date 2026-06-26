@@ -29,28 +29,6 @@ static void switch_settings_sign_by_hash();
 #define SETTING_SLOT_SIZE 12  // = sizeof("NOT Allowed")
 static char settings_param_value[3 * SETTING_SLOT_SIZE];
 
-#if defined(TARGET_NANOS)
-
-UX_STEP_VALID(ux_settings_flow_1_step,
-              bnnn_paging,
-              switch_settings_contract_data(),
-              {
-                  .title = "Transactions Data",
-                  .text = settings_param_value,
-              });
-
-UX_STEP_VALID(ux_settings_flow_2_step,
-              bnnn_paging,
-              switch_settings_custom_contracts(),
-              {.title = "Custom Contracts", .text = settings_param_value + SETTING_SLOT_SIZE});
-
-UX_STEP_VALID(ux_settings_flow_3_step,
-              bnnn_paging,
-              switch_settings_sign_by_hash(),
-              {.title = "Sign by Hash", .text = settings_param_value + 2 * SETTING_SLOT_SIZE});
-
-#else
-
 UX_STEP_VALID(ux_settings_flow_1_step,
               bnnn,
               switch_settings_contract_data(),
@@ -76,8 +54,6 @@ UX_STEP_VALID(ux_settings_flow_3_step,
                "Allow hash-only",
                "transactions",
                settings_param_value + 2 * SETTING_SLOT_SIZE});
-
-#endif
 
 UX_STEP_VALID(ux_settings_flow_4_step,
               pb,
