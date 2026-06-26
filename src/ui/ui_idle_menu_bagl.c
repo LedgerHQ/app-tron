@@ -21,7 +21,7 @@
 #include "ux.h"
 #include "settings.h"
 
-static void display_settings(const ux_flow_step_t* const);
+static void display_settings(const ux_flow_step_t *const);
 static void switch_settings_contract_data();
 static void switch_settings_custom_contracts();
 static void switch_settings_sign_by_hash();
@@ -93,7 +93,7 @@ UX_DEF(ux_settings_flow,
        &ux_settings_flow_3_step,
        &ux_settings_flow_4_step);
 
-static void display_settings(const ux_flow_step_t* const start_step) {
+static void display_settings(const ux_flow_step_t *const start_step) {
     strlcpy(settings_param_value,
             (HAS_SETTING(S_DATA_ALLOWED) ? "Allowed" : "NOT Allowed"),
             SETTING_SLOT_SIZE);
