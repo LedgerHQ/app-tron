@@ -81,22 +81,10 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
                                    0,
                                    transactionContext.hash,
                                    32));
-#ifdef HAVE_BAGL
-#define HASH_LENGTH 4
-        format_hex(transactionContext.hash, HASH_LENGTH / 2, fullContract, sizeof(fullContract));
-        fullContract[HASH_LENGTH] = '.';
-        fullContract[HASH_LENGTH + 1] = '.';
-        fullContract[HASH_LENGTH + 2] = '.';
-        format_hex(transactionContext.hash + 32 - HASH_LENGTH / 2,
-                   HASH_LENGTH / 2,
-                   fullContract + HASH_LENGTH + 3,
-                   sizeof(fullContract) - (HASH_LENGTH + 3));
-#else
         format_hex(transactionContext.hash,
                    sizeof(transactionContext.hash),
                    fullContract,
                    sizeof(fullContract));
-#endif
         if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
             return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
         }

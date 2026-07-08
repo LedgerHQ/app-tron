@@ -19,7 +19,7 @@ ifeq ($(BOLOS_SDK),)
 $(error Environment variable BOLOS_SDK is not set)
 endif
 
-include $(BOLOS_SDK)/Makefile.defines
+include $(BOLOS_SDK)/Makefile.target
 
 APPNAME = Tron
 
@@ -51,6 +51,15 @@ ICON_APEX_P = icons/apex_app_tron.png
 ENABLE_BLUETOOTH = 1
 ENABLE_SWAP = 1
 ENABLE_NBGL_QRCODE = 1
+
+# Address Book (SDK feature) — NBGL-only, so Nano devices are migrated to NBGL
+ENABLE_NBGL_FOR_NANO_DEVICES = 1
+ENABLE_DYNAMIC_ALLOC = 1
+ENABLE_LISTS_LIBRARY = 1
+ENABLE_ADDRESS_BOOK = 1
+ENABLE_ADDRESS_BOOK_LEDGER_ACCOUNT = 1
+# lib_tlv use-cases pulled in by the TLV library include ledger_pki.h
+ENABLE_PKI_LIBRARY = 1
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 DEBUG ?= 0
