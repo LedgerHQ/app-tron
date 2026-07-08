@@ -1,7 +1,10 @@
-from application_client.settings import SettingID, settings_toggle
-from application_client.tron_command_sender import TronCommandSender
 from Crypto.Hash import keccak
+
 from ragger.navigator.navigation_scenario import NavigateWithScenario
+
+from application_client.tron_command_sender import TronCommandSender
+from application_client.tron_transaction import get_default_accounts
+from application_client.settings import SettingID, settings_toggle
 from utils import check_hash_signature
 
 TRX_PATH = "m/44'/195'/0'/0/0"
@@ -18,7 +21,7 @@ def _approve(scenario_navigator: NavigateWithScenario, nano_text: str) -> None:
 def test_sign_personal_message(backend, device, navigator, accounts, scenario_navigator):
     client = TronCommandSender(backend)
     settings_toggle(device, navigator, [SettingID.SIGN_BY_HASH])
-    message = b"CryptoChain-TronSR Ledger Transactions Tests"
+    message = "CryptoChain-TronSR Ledger Transactions Tests".encode()
     with client.sign_personal_message(accounts[0]["path"], message):
         _approve(scenario_navigator, "Sign message")
     resp = client.get_async_response().data

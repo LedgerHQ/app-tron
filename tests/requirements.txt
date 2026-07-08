@@ -1,4 +1,3 @@
-pytest
 base58==1.0.3
 eth-keys==0.7.0
 bip-utils>=2.9.0
