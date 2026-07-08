@@ -1,94 +1,33 @@
-# This final fixture will return the properly configured backend client, to be used in tests
 import os
 
-# Force pure-Python protobuf backend to ensure deterministic map serialization
-# order, matching the CI environment (reusable_ragger_tests.yml).
+# Force the pure-Python protobuf backend so map fields serialize deterministically,
+# matching the CI environment.
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import pytest
 from ragger.conftest import configuration
-from ragger.backend import SpeculosBackend, BackendInterface
-from ragger.navigator import NavInsID, NavIns
 
 ###########################
 ### CONFIGURATION START ###
 ###########################
-MNEMONIC = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
 
-configuration.OPTIONAL.BACKEND_SCOPE = "class"
+# Speculos is seeded with this mnemonic; client-side key derivation uses the same one
+# so that signatures and addresses can be checked against the device.
+MNEMONIC = ("glory promote mansion idle axis finger extra february uncover one trip resource "
+            "lawn turtle enact monster seven myth punch hobby comfort wild raise skin")
+
 configuration.OPTIONAL.CUSTOM_SEED = MNEMONIC
-
-
-@pytest.fixture(scope="class")
-def configuration(backend: BackendInterface, navigator, firmware):
-    if type(backend) is SpeculosBackend:
-        if firmware.device == "flex":
-            instructions = [
-                # Go to settings menu.
-                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
-                # Allow data in TXs
-                NavIns(NavInsID.TOUCH, (200, 150)),
-                # Allow custom contracts
-                NavIns(NavInsID.TOUCH, (200, 300)),
-                NavIns(NavInsID.USE_CASE_SETTINGS_NEXT),
-                # Allow sign by hash
-                NavIns(NavInsID.TOUCH, (200, 150)),
-                # Go back to main menu.
-                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
-            ]
-        elif firmware.device == "stax":
-            instructions = [
-                # Go to settings menu.
-                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
-                # Allow data in TXs
-                NavIns(NavInsID.TOUCH, (200, 150)),
-                # Allow custom contracts
-                NavIns(NavInsID.TOUCH, (200, 300)),
-                # Allow sign by hash
-                NavIns(NavInsID.TOUCH, (200, 450)),
-                # Go back to main menu.
-                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
-            ]
-        elif firmware.device.startswith("apex_p"):
-            instructions = [
-                # Go to settings menu.
-                NavIns(NavInsID.USE_CASE_HOME_SETTINGS),
-                # Allow data in TXs
-                NavIns(NavInsID.TOUCH, (150, 110)),
-                # Allow custom contracts
-                NavIns(NavInsID.TOUCH, (150, 220)),
-                NavIns(NavInsID.USE_CASE_SETTINGS_NEXT),
-                # Allow sign by hash
-                NavIns(NavInsID.TOUCH, (150, 110)),
-                # Go back to main menu.
-                NavIns(NavInsID.USE_CASE_SETTINGS_MULTI_PAGE_EXIT),
-            ]
-        else:
-            instructions = [
-                # Go to settings main menu
-                NavInsID.RIGHT_CLICK,
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-                # Allow data in TXs
-                NavInsID.BOTH_CLICK,
-                # Allow custom contracts
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-                # Allow sign by hash
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-                # Go back to main menu
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-            ]
-
-        navigator.navigate(instructions,
-                           screen_change_before_first_instruction=False)
-
 
 #########################
 ### CONFIGURATION END ###
 #########################
 
-# Pull all features from the base ragger conftest using the overridden configuration
-pytest_plugins = ("ragger.conftest.base_conftest", )
+@pytest.fixture
+def accounts():
+    """Reference Tron accounts derived from the test mnemonic (matches Speculos)."""
+    from application_client.tron_transaction import get_default_accounts
+    return get_default_accounts(MNEMONIC)
+
+
+# Pull all the generic fixtures (backend, firmware, navigator, scenario_navigator, ...)
+pytest_plugins = ("ragger.conftest.base_conftest",)

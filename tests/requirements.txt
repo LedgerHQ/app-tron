@@ -1,8 +1,7 @@
-pytest
 base58==1.0.3
-crypto==1.4.1
 eth-keys==0.7.0
-ledgerblue==0.1.45
+bip-utils>=2.9.0
+pycryptodome>=3.20.0
+cryptography>=42.0.0
+protobuf>=4.0.0
 ragger[speculos]>=1.7.1
-ragger[ledgerwallet]>=1.7.1
-ecdsa>=0.16.1,<0.17.0
