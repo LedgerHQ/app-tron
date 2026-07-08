@@ -33,6 +33,10 @@ char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
 permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
+#ifdef HAVE_ADDRESS_BOOK
+const s_ab_contact *g_recipient_contact;  // contact matching toAddress, or NULL
+const s_ab_contact *g_sender_contact;     // contact matching fromAddress, or NULL
+#endif
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 messageSigningContext712_t messageSigningContext712;

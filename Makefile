@@ -52,21 +52,17 @@ ENABLE_BLUETOOTH = 1
 ENABLE_SWAP = 1
 ENABLE_NBGL_QRCODE = 1
 
-# AccountPermissionUpdateContract must never fall back to hash-only review (see
-# ui_review_menu_nbgl.c). Migrating Nano X/S+ to NBGL gives them the same full
-# permission-detail rendering as Stax/Flex/Apex, instead of the stale BAGL
-# hash-only screen the app used to fall back to on those devices.
 ENABLE_NBGL_FOR_NANO_DEVICES = 1
 
-#######################################################################
-#                           STACK PROTECTOR                           #
-#######################################################################
-ENABLE_STACK_PROTECTOR = 1
+# Address Book (SDK feature) — NBGL-only, so Nano devices are migrated to NBGL
+ENABLE_NBGL_FOR_NANO_DEVICES = 1
+ENABLE_DYNAMIC_ALLOC = 1
+ENABLE_LISTS_LIBRARY = 1
+ENABLE_ADDRESS_BOOK = 1
+ENABLE_ADDRESS_BOOK_LEDGER_ACCOUNT = 1
+# lib_tlv use-cases pulled in by the TLV library include ledger_pki.h
+ENABLE_PKI_LIBRARY = 1
 
-#######################################################################
-#                                 LTO                                 #
-#######################################################################
-ENABLE_LINK_TIME_OPTIMIZATION = 1
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 DEBUG ?= 0
@@ -91,5 +87,16 @@ APP_SOURCE_PATH += proto
 
 # Exclude third-party nanopb from static analysis
 SCAN_BUILD = scan-build --exclude $(NANOPB_DIR)
+
+#######################################################################
+#                       LINK TIME OPTIMIZATION                        #
+#######################################################################
+ENABLE_LINK_TIME_OPTIMIZATION = 1
+
+#######################################################################
+#                           STACK PROTECTOR                           #
+#######################################################################
+ENABLE_STACK_PROTECTOR = 1
+
 
 include $(BOLOS_SDK)/Makefile.standard_app
