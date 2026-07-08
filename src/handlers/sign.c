@@ -48,10 +48,6 @@ static void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index)
     PRINTF("Amount: %d - %s\n", index, destination + (voteSlot(index, VOTE_AMOUNT)));
 }
 
-// Render one Permission sub-message (owner/witness/active) of an
-// AccountPermissionUpdateContract into permissionEntries[index] for full on-device
-// review. keys_count/actives_count are already bounded by the nanopb options
-// (PERMISSION_MAX_KEYS / PERMISSION_MAX_ACTIVES), the clamps below are defensive only.
 static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) {
     permissionEntry_t *entry = &permissionEntries[index];
     char address[BASE58CHECK_ADDRESS_SIZE + 1];
@@ -86,6 +82,14 @@ static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) 
 static bool is_zero_address(const uint8_t *raw) {
     uint8_t zero_address[ADDRESS_SIZE] = {0};
     return memcmp(raw, zero_address, ADDRESS_SIZE) == 0;
+}
+
+// Fill toAddress from a raw 21-byte address, resolving an Address Book contact if any.
+static void set_recipient_address(const uint8_t *raw) {
+    getBase58FromAddress(raw, toAddress);
+#ifdef HAVE_ADDRESS_BOOK
+    g_recipient_contact = get_address_book_contact(raw);
+#endif
 }
 
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
@@ -229,12 +233,22 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         return io_send_sw(E_INCORRECT_DATA);
     }
     if (txContent.permission_id > 0) {
+        // The fromAddress buffer only reserves 5 bytes for the "Px - " prefix, which fits a
+        // single decimal digit. Refuse multi-digit IDs to avoid truncation and a misaligned
+        // address being displayed/signed (fail closed).
+        if (txContent.permission_id > MAX_PERMISSION_ID) {
+            PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
+            return io_send_sw(E_INCORRECT_DATA);
+        }
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 6, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account, fromAddress + 5);
     } else {
         PRINTF("Regular transaction...\n");
         getBase58FromAddress(txContent.account, fromAddress);
+#ifdef HAVE_ADDRESS_BOOK
+        g_sender_contact = get_address_book_contact(txContent.account);
+#endif
     }
 
     data_warning = ((txContent.dataBytes > 0) ? true : false);
@@ -355,7 +369,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     (txContent.contractType == TRANSFERCONTRACT) ? SUN_DIG : txContent.decimals[0]);
             }
 
-            getBase58FromAddress(txContent.destination, toAddress);
+            set_recipient_address(txContent.destination);
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
@@ -505,9 +519,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
             if (!is_zero_address(txContent.destination)) {
-                getBase58FromAddress(txContent.destination, toAddress);
+                set_recipient_address(txContent.destination);
             } else {
-                getBase58FromAddress(txContent.account, toAddress);
+                set_recipient_address(txContent.account);
             }
 
             ux_flow_display(APPROVAL_FREEZEASSET_TRANSACTION, data_warning);
@@ -520,9 +534,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             if (!is_zero_address(txContent.destination)) {
-                getBase58FromAddress(txContent.destination, toAddress);
+                set_recipient_address(txContent.destination);
             } else {
-                getBase58FromAddress(txContent.account, toAddress);
+                set_recipient_address(txContent.account);
             }
 
             ux_flow_display(APPROVAL_UNFREEZEASSET_TRANSACTION, data_warning);
@@ -535,7 +549,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account, toAddress);
+            set_recipient_address(txContent.account);
 
             ux_flow_display(APPROVAL_FREEZEASSETV2_TRANSACTION, data_warning);
             break;
@@ -546,7 +560,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.account, toAddress);
+            set_recipient_address(txContent.account);
 
             ux_flow_display(APPROVAL_UNFREEZEASSETV2_TRANSACTION, data_warning);
 
@@ -564,7 +578,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             }
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination, toAddress);
+            set_recipient_address(txContent.destination);
 
             ux_flow_display(APPROVAL_DELEGATE_RESOURCE_TRANSACTION, data_warning);
 
@@ -576,19 +590,19 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            getBase58FromAddress(txContent.destination, toAddress);
+            set_recipient_address(txContent.destination);
 
             ux_flow_display(APPROVAL_UNDELEGATE_RESOURCE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWEXPIREUNFREEZECONTRACT:  // Withdraw Expire Unfreeze
-            getBase58FromAddress(txContent.account, toAddress);
+            set_recipient_address(txContent.account);
 
             ux_flow_display(APPROVAL_WITHDRAWEXPIREUNFREEZE_TRANSACTION, data_warning);
 
             break;
         case WITHDRAWBALANCECONTRACT:  // Claim Rewards
-            getBase58FromAddress(txContent.account, toAddress);
+            set_recipient_address(txContent.account);
 
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION, data_warning);
 
