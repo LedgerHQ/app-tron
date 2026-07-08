@@ -77,6 +77,37 @@ static nbgl_layoutTagValueList_t pairList;
 static nbgl_contentInfoLongPress_t infoLongPress;
 static nbgl_tx_infos_t txInfos;
 
+#ifdef HAVE_ADDRESS_BOOK
+static nbgl_contentValueExt_t recipientExt;
+static nbgl_contentValueExt_t senderExt;
+
+// Turn an address field into an Address Book alias: contact name as value, full
+// address kept in the extension, scope shown as sub-name.
+static void apply_contact_alias(nbgl_layoutTagValue_t *field,
+                                const s_ab_contact *contact,
+                                nbgl_contentValueExt_t *ext,
+                                const char *full_address) {
+    memset(ext, 0, sizeof(*ext));
+    ext->aliasType = ADDRESS_BOOK_ALIAS;
+    ext->fullValue = full_address;
+    ext->aliasSubName = (contact->scope[0] != '\0') ? contact->scope : NULL;
+    field->value = contact->contact_name;
+    field->aliasValue = 1;
+    field->extension = ext;
+}
+
+// Substitute contact names on the fields bound to toAddress / fromAddress.
+static void apply_address_book_aliases(void) {
+    for (uint8_t i = 0; i < pairList.nbPairs; i++) {
+        if ((g_recipient_contact != NULL) && (txInfos.fields[i].value == toAddress)) {
+            apply_contact_alias(&txInfos.fields[i], g_recipient_contact, &recipientExt, toAddress);
+        } else if ((g_sender_contact != NULL) && (txInfos.fields[i].value == fromAddress)) {
+            apply_contact_alias(&txInfos.fields[i], g_sender_contact, &senderExt, fromAddress);
+        }
+    }
+}
+#endif  // HAVE_ADDRESS_BOOK
+
 // Static functions declarations
 static void prepareTxInfos(ui_approval_state_t state, bool data_warning);
 static void reviewStart(void);
@@ -465,6 +496,9 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             PRINTF("This should not happen !\n");
             break;
     }
+#ifdef HAVE_ADDRESS_BOOK
+    apply_address_book_aliases();
+#endif
 }
 
 static void display_address_callback(bool confirm) {

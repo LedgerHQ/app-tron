@@ -36,6 +36,11 @@
 #include "swap.h"
 #endif  // HAVE_SWAP
 
+#ifdef HAVE_ADDRESS_BOOK
+#include "mem_utils.h"
+#include "handle_contacts.h"
+#endif  // HAVE_ADDRESS_BOOK
+
 // The settings, stored in NVRAM.
 const internal_storage_t N_storage_real;
 
@@ -58,6 +63,11 @@ void app_main(void) {
     command_t cmd;
 
     nv_app_state_init();
+
+#ifdef HAVE_ADDRESS_BOOK
+    app_mem_init();
+    address_book_contact_cleanup();
+#endif  // HAVE_ADDRESS_BOOK
 
     io_init();
 
