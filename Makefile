@@ -85,4 +85,9 @@ APP_SOURCE_PATH += proto
 # Exclude third-party nanopb from static analysis
 SCAN_BUILD = scan-build --exclude $(NANOPB_DIR)
 
+#######################################################################
+#                       LINK TIME OPTIMIZATION                        #
+#######################################################################
+ENABLE_LINK_TIME_OPTIMIZATION = 1
+
 include $(BOLOS_SDK)/Makefile.standard_app
