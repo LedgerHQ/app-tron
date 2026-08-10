@@ -37,6 +37,7 @@ permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
 const s_ab_contact *g_recipient_contact;  // contact matching toAddress, or NULL
 const s_ab_contact *g_sender_contact;     // contact matching fromAddress, or NULL
 #endif
+const char *g_recipient_service;  // known-service label for toAddress, or NULL
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 messageSigningContext712_t messageSigningContext712;
