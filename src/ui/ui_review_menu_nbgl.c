@@ -58,6 +58,8 @@ static const char *permissionKeyLabel[PERMISSION_MAX_ENTRIES][PERMISSION_MAX_KEY
     {"Active 2 Key 1", "Active 2 Key 2", "Active 2 Key 3"},
 };
 
+static const char *stringLabelService = "Service";
+
 // Enums and structs
 enum {
     DATA_WARNING = 0,
@@ -107,6 +109,32 @@ static void apply_address_book_aliases(void) {
     }
 }
 #endif  // HAVE_ADDRESS_BOOK
+
+// Add the known-service label as its own pair, right above the recipient address.
+// The address field itself is left untouched: the label is shown in addition to
+// the raw address, never in place of it.
+static void insert_known_service_label(void) {
+    if (g_recipient_service == NULL) {
+        return;
+    }
+    for (uint8_t i = 0; i < pairList.nbPairs; i++) {
+        if (txInfos.fields[i].value != toAddress) {
+            continue;
+        }
+        if (pairList.nbPairs >= MAX_TX_FIELDS) {
+            PRINTF("No room left for the known-service label\n");
+            return;
+        }
+        for (uint8_t j = pairList.nbPairs; j > i; j--) {
+            txInfos.fields[j] = txInfos.fields[j - 1];
+        }
+        memset(&txInfos.fields[i], 0, sizeof(txInfos.fields[i]));
+        txInfos.fields[i].item = stringLabelService;
+        txInfos.fields[i].value = g_recipient_service;
+        pairList.nbPairs++;
+        return;
+    }
+}
 
 // Static functions declarations
 static void prepareTxInfos(ui_approval_state_t state, bool data_warning);
@@ -496,6 +524,8 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             PRINTF("This should not happen !\n");
             break;
     }
+    // Must run before the aliases, which overwrite the address field value.
+    insert_known_service_label();
 #ifdef HAVE_ADDRESS_BOOK
     apply_address_book_aliases();
 #endif

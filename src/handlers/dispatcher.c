@@ -41,6 +41,7 @@ int apdu_dispatcher(const command_t *cmd) {
     g_recipient_contact = NULL;
     g_sender_contact = NULL;
 #endif  // HAVE_ADDRESS_BOOK
+    g_recipient_service = NULL;
 
 #ifdef HAVE_SWAP
     if (G_called_from_swap) {
