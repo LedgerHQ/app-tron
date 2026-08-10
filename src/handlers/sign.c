@@ -29,6 +29,7 @@
 #include "app_errors.h"
 #include "parse.h"
 #include "settings.h"
+#include "known_services.h"
 #ifdef HAVE_SWAP
 #include "swap.h"
 #include "handle_swap_sign_transaction.h"
@@ -84,12 +85,14 @@ static bool is_zero_address(const uint8_t *raw) {
     return memcmp(raw, zero_address, ADDRESS_SIZE) == 0;
 }
 
-// Fill toAddress from a raw 21-byte address, resolving an Address Book contact if any.
+// Fill toAddress from a raw 21-byte address, resolving an Address Book contact
+// and a known service if any.
 static void set_recipient_address(const uint8_t *raw) {
     getBase58FromAddress(raw, toAddress);
 #ifdef HAVE_ADDRESS_BOOK
     g_recipient_contact = get_address_book_contact(raw);
 #endif
+    g_recipient_service = get_known_service_label(raw);
 }
 
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {

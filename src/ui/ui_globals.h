@@ -81,6 +81,7 @@ extern const s_ab_contact *g_recipient_contact;
 extern const s_ab_contact *g_sender_contact;
 #endif
 extern permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
+extern const char *g_recipient_service;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;
 extern messageSigningContext712_t messageSigningContext712;

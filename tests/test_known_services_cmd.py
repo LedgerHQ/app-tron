@@ -5,9 +5,11 @@ from application_client.tron_transaction import address_hex, contract, pack_cont
 from ragger.navigator.navigation_scenario import NavigateWithScenario
 from utils import build_trc20_calldata, check_tx_signature
 
-# Tronify platformAddr, as registered in src/known_services.c
+# registered in src/known_services.c
 TRONIFY = "TUFXua1qzfCsFpcZEGXaU7oGFURqQ7RQpy"
-# Tronify's address with its last byte flipped: must NOT be labelled
+# last table entry
+TRONIFY_LAST = "TUSYcK5yf8Et4xNTiUcpfZwmhFsxfdoooo"
+# one byte off TRONIFY: must NOT be labelled
 TRON_ORDINARY_ADDR = "TUFXua1qzfCsFpcZEGXaU7oGFURqJZBtja"
 # A known token address, used as the TRC20 contract
 KNOWN_TOKEN = "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16"
@@ -42,7 +44,7 @@ def test_known_service_trx_transfer(backend, accounts, scenario_navigator):
 def test_known_service_trc20_transfer(backend, accounts, scenario_navigator):
     # Flow 2: the rental fee paid in USDT, recipient carried in the calldata.
     client = TronCommandSender(backend)
-    calldata = build_trc20_calldata(address_hex(TRONIFY), Decimal(1000000))
+    calldata = build_trc20_calldata(address_hex(TRONIFY_LAST), Decimal(1000000))
     tx = pack_contract(
         tron.Transaction.Contract.TriggerSmartContract,
         contract.TriggerSmartContract(
