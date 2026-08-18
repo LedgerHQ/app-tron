@@ -341,6 +341,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case EXCHANGECREATECONTRACT:
 
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
+            // tokenNames[1] can hold a name[id] label up to MAX_TOKEN_LENGTH, wider than toAddress.
+            if (txContent.tokenNamesLength[1] + 1 > sizeof(toAddress)) {
+                return io_send_sw(E_INCORRECT_DATA);
+            }
             memcpy(toAddress, txContent.tokenNames[1], txContent.tokenNamesLength[1] + 1);
             print_amount(txContent.amount[0],
                          (void *) G_io_apdu_buffer,
