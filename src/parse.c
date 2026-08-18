@@ -126,7 +126,7 @@ bool adjustDecimals(const char *src,
 }
 unsigned short print_amount(uint64_t amount, char *out, uint32_t outlen, uint8_t sun) {
     char tmp[20];
-    char tmp2[25];
+    char tmp2[25] = {0};
     uint32_t numDigits = 0, i;
     uint64_t base = 1;
     while (base <= amount) {
@@ -142,7 +142,10 @@ unsigned short print_amount(uint64_t amount, char *out, uint32_t outlen, uint8_t
         base /= 10;
     }
     tmp[i] = '\0';
-    adjustDecimals(tmp, i, tmp2, 25, sun);
+    if (!adjustDecimals(tmp, i, tmp2, sizeof(tmp2), sun)) {
+        out[0] = '\0';
+        return 0;
+    }
     if (strlen(tmp2) < outlen - 1) {
         strlcpy(out, tmp2, outlen);
     } else {
@@ -257,6 +260,9 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
                           details.signature.size) != 1) {
         return false;
     }
+    if (details.precision > MAX_TOKEN_PRECISION) {
+        return false;
+    }
 
     // UPDATE Token with Name[ID]
     char tmp[MAX_TOKEN_LENGTH];
@@ -289,6 +295,9 @@ static bool set_token_info(txContent_t *content,
                            const char *id,
                            int precision) {
     if (token_index >= 2) {
+        return false;
+    }
+    if (precision < 0 || precision > MAX_TOKEN_PRECISION) {
         return false;
     }
 

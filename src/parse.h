@@ -19,6 +19,7 @@
 #define TRC20_DATA_FIELD_SIZE 68
 
 #define SUN_DIG                  6
+#define MAX_TOKEN_PRECISION      18  // TRC20 max; also covers TRC10 (<= 6)
 #define ADD_PRE_FIX_BYTE_MAINNET 0x41
 #define MAX_RAW_SIGNATURE        65
 #define MAX_TOKEN_LENGTH         67
