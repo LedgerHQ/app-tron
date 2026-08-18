@@ -27,12 +27,17 @@
 #include "app_errors.h"
 #include "handlers.h"
 #include "parse.h"
+#include "settings.h"
 #include "ui_globals.h"
 
 static const char SIGN_MAGIC[] = "\x19TRON Signed Message:\n";
 
 int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     cx_sha3_t sha3;
+
+    if (!HAS_SETTING(S_SIGN_BY_HASH)) {
+        return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);
+    }
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
         off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
