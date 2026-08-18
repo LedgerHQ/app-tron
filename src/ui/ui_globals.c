@@ -32,6 +32,7 @@ char TRC20Action[9];
 char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
+permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 messageSigningContext712_t messageSigningContext712;

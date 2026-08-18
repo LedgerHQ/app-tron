@@ -58,6 +58,38 @@ static void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index)
     PRINTF("Amount: %d - %s\n", index, destination + (voteSlot(index, VOTE_AMOUNT)));
 }
 
+// Render one Permission sub-message (owner/witness/active) of an
+// AccountPermissionUpdateContract into permissionEntries[index] for full on-device
+// review. keys_count/actives_count are already bounded by the nanopb options
+// (PERMISSION_MAX_KEYS / PERMISSION_MAX_ACTIVES), the clamps below are defensive only.
+static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) {
+    permissionEntry_t *entry = &permissionEntries[index];
+    char address[BASE58CHECK_ADDRESS_SIZE + 1];
+
+    memset(entry, 0, sizeof(*entry));
+    entry->present = true;
+
+    snprintf(entry->threshold, sizeof(entry->threshold), "%lld", (long long) perm->threshold);
+
+    entry->keysCount = perm->keys_count;
+    if (entry->keysCount > PERMISSION_MAX_KEYS) {
+        entry->keysCount = PERMISSION_MAX_KEYS;
+    }
+    for (uint8_t i = 0; i < entry->keysCount; i++) {
+        getBase58FromAddress(perm->keys[i].address, address);
+        snprintf(entry->keys[i],
+                 sizeof(entry->keys[i]),
+                 "%s (weight %lld)",
+                 address,
+                 (long long) perm->keys[i].weight);
+    }
+
+    bytes_to_string(entry->operations,
+                    sizeof(entry->operations),
+                    perm->operations,
+                    sizeof(perm->operations));
+}
+
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     uint256_t uint256;
     bool data_warning;
@@ -533,20 +565,34 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION, data_warning);
 
             break;
-        case ACCOUNTPERMISSIONUPDATECONTRACT:
-            if (!HAS_SETTING(S_SIGN_BY_HASH)) {
-                return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
-            }
-            // Write fullHash
-            format_hex(transactionContext.hash, 32, fullHash, sizeof(fullHash));
-            // write contract type
-            if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
+        case ACCOUNTPERMISSIONUPDATECONTRACT: {
+            // Never blind-sign a permission update: always render the full diff
+            // (owner/witness/active permissions, their keys, weights, thresholds
+            // and allowed operations) instead of falling back to a hash-only
+            // review, regardless of the Sign by Hash setting.
+            const protocol_AccountPermissionUpdateContract *contract =
+                &msg.account_permission_update_contract;
+
+            if (!contract->has_owner && !contract->has_witness && contract->actives_count == 0) {
+                // Nothing to review; on-chain this is an invalid update anyway.
                 return io_send_sw(E_INCORRECT_DATA);
+            }
+
+            memset(permissionEntries, 0, sizeof(permissionEntries));
+
+            if (contract->has_owner) {
+                fillPermissionEntry(PERMISSION_ENTRY_OWNER, &contract->owner);
+            }
+            if (contract->has_witness) {
+                fillPermissionEntry(PERMISSION_ENTRY_WITNESS, &contract->witness);
+            }
+            for (uint8_t i = 0; i < contract->actives_count && i < PERMISSION_MAX_ACTIVES; i++) {
+                fillPermissionEntry(PERMISSION_ENTRY_ACTIVE_0 + i, &contract->actives[i]);
             }
 
             ux_flow_display(APPROVAL_PERMISSION_UPDATE, data_warning);
 
-            break;
+        } break;
         case INVALID_CONTRACT:
             return io_send_sw(E_INCORRECT_DATA);  // Contract not initialized
             break;

@@ -29,7 +29,9 @@
 
 // Macros
 #define WARNING_TYPES_NUMBER 2
-#define MAX_TX_FIELDS        20
+// Worst case is APPROVAL_PERMISSION_UPDATE: sender (1) + up to PERMISSION_MAX_ENTRIES
+// permissions, each rendering threshold + up to PERMISSION_MAX_KEYS keys + operations.
+#define MAX_TX_FIELDS (1 + PERMISSION_MAX_ENTRIES * (2 + PERMISSION_MAX_KEYS))
 
 static const char *stringLabelSenderAddress = "From";
 static const char *stringLabelRecipientAddress = "To";
@@ -37,6 +39,24 @@ static const char *stringLabelTxAmount = "Amount";
 static const char *stringLabelResource = "Resource";
 static const char *stringLabelHash = "Hash";
 static const char *stringLabelGain = "Gain";
+static const char *permissionThresholdLabel[PERMISSION_MAX_ENTRIES] = {
+    "Owner Threshold",
+    "Witness Threshold",
+    "Active 1 Threshold",
+    "Active 2 Threshold",
+};
+static const char *permissionOperationsLabel[PERMISSION_MAX_ENTRIES] = {
+    "Owner Operations",
+    "Witness Operations",
+    "Active 1 Operations",
+    "Active 2 Operations",
+};
+static const char *permissionKeyLabel[PERMISSION_MAX_ENTRIES][PERMISSION_MAX_KEYS] = {
+    {"Owner Key 1", "Owner Key 2", "Owner Key 3"},
+    {"Witness Key 1", "Witness Key 2", "Witness Key 3"},
+    {"Active 1 Key 1", "Active 1 Key 2", "Active 1 Key 3"},
+    {"Active 2 Key 1", "Active 2 Key 2", "Active 2 Key 3"},
+};
 
 // Enums and structs
 enum {
@@ -202,15 +222,37 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.fields[1].value = fromAddress;
             pairList.nbPairs = 2;
             break;
-        case APPROVAL_PERMISSION_UPDATE:
-            txInfos.fields[0].item = stringLabelHash;
-            txInfos.fields[0].value = fullHash;
-            txInfos.fields[1].item = stringLabelSenderAddress;
-            txInfos.fields[1].value = fromAddress;
-            pairList.nbPairs = 2;
+        case APPROVAL_PERMISSION_UPDATE: {
+            uint8_t fieldCount = 0;
+
+            txInfos.fields[fieldCount].item = stringLabelSenderAddress;
+            txInfos.fields[fieldCount].value = fromAddress;
+            fieldCount++;
+
+            for (uint8_t e = 0; e < PERMISSION_MAX_ENTRIES; e++) {
+                if (!permissionEntries[e].present) {
+                    continue;
+                }
+
+                txInfos.fields[fieldCount].item = permissionThresholdLabel[e];
+                txInfos.fields[fieldCount].value = permissionEntries[e].threshold;
+                fieldCount++;
+
+                for (uint8_t k = 0; k < permissionEntries[e].keysCount; k++) {
+                    txInfos.fields[fieldCount].item = permissionKeyLabel[e][k];
+                    txInfos.fields[fieldCount].value = permissionEntries[e].keys[k];
+                    fieldCount++;
+                }
+
+                txInfos.fields[fieldCount].item = permissionOperationsLabel[e];
+                txInfos.fields[fieldCount].value = permissionEntries[e].operations;
+                fieldCount++;
+            }
+
+            pairList.nbPairs = fieldCount;
             txInfos.flowTitle = "Review transaction to\nUpdate Permission";
             infoLongPress.text = "Sign transaction to\nUpdate Permission";
-            break;
+        } break;
         case APPROVAL_EXCHANGE_CREATE:
             txInfos.fields[0].item = "Token 1";
             txInfos.fields[0].value = fullContract;

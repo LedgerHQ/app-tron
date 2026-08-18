@@ -774,7 +774,9 @@ static bool account_permission_update_contract(txContent_t *content, pb_istream_
     }
 
     COPY_ADDRESS(content->account, &msg.account_permission_update_contract.owner_address);
-    // TODO: Update tx content
+    // owner/witness/actives (Permission sub-messages) are left decoded in
+    // msg.account_permission_update_contract for the signing handler to render
+    // in full on the review screen; see src/handlers/sign.c.
     return true;
 }
 
