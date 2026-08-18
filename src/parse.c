@@ -649,6 +649,8 @@ static bool trigger_smart_contract(txContent_t *content, pb_istream_t *stream) {
     COPY_ADDRESS(content->account, &msg.trigger_smart_contract.owner_address);
     COPY_ADDRESS(content->contractAddress, &msg.trigger_smart_contract.contract_address);
     content->amount[0] = msg.trigger_smart_contract.call_value;
+    content->callTokenValue = msg.trigger_smart_contract.call_token_value;
+    content->callTokenId = msg.trigger_smart_contract.token_id;
 
     tokenDefinition_t *trc20 = getKnownToken(content);
 

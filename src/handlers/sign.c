@@ -252,20 +252,24 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     G_io_apdu_buffer[0] = '\0';
                     G_io_apdu_buffer[100] = '\0';
                     toAddress[0] = '\0';
-                    if (txContent.amount[0] > 0 && txContent.amount[1] > 0) {
+                    if (txContent.amount[0] != 0 && txContent.callTokenValue != 0) {
                         return io_send_sw(E_INCORRECT_DATA);
                     }
                     // call has value
-                    if (txContent.amount[0] > 0) {
+                    if (txContent.amount[0] != 0) {
                         strcpy(toAddress, "TRX");
                         print_amount(txContent.amount[0], (void *) G_io_apdu_buffer, 100, SUN_DIG);
                         customContractField |= (1 << 0x05);
                         customContractField |= (1 << 0x06);
-                    } else if (txContent.amount[1] > 0) {
-                        memcpy(toAddress,
-                               txContent.tokenNames[0],
-                               txContent.tokenNamesLength[0] + 1);
-                        print_amount(txContent.amount[1], (void *) G_io_apdu_buffer, 100, 0);
+                    } else if (txContent.callTokenValue != 0) {
+                        snprintf(toAddress,
+                                 sizeof(toAddress),
+                                 "Token #%lld",
+                                 (long long) txContent.callTokenId);
+                        print_amount((uint64_t) txContent.callTokenValue,
+                                     (void *) G_io_apdu_buffer,
+                                     100,
+                                     0);
                         customContractField |= (1 << 0x05);
                         customContractField |= (1 << 0x06);
                     } else {
@@ -277,6 +281,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     ux_flow_display(APPROVAL_CUSTOM_CONTRACT, data_warning);
 
                     break;
+                }
+
+                // A known TRC20 transfer/approve review only shows the ABI-decoded
+                // token amount; refuse to sign if the raw call also moves TRX or a
+                // TRC10 token that would otherwise stay hidden from the user.
+                if (txContent.amount[0] != 0 || txContent.callTokenValue != 0) {
+                    return io_send_sw(E_INCORRECT_DATA);
                 }
 
                 convertUint256BE(txContent.TRC20Amount, 32, &uint256);
