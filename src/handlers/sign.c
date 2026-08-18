@@ -164,8 +164,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case USTREAM_FINISHED:
             break;
         case USTREAM_FAULT:
+            initTx(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);
         case USTREAM_MISSING_SETTING_DATA_ALLOWED:
+            initTx(&txContext, &txContent);
 #ifdef HAVE_SWAP
             if (G_called_from_swap) {
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
@@ -174,6 +176,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
         default:
             PRINTF("Unexpected parser status\n");
+            initTx(&txContext, &txContent);
             return io_send_sw(txResult);
     }
 
@@ -185,10 +188,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                transactionContext.hash,
                                32));
 
+    if (!HAS_SETTING(S_DATA_ALLOWED) && txContent.dataBytes != 0) {
+        initTx(&txContext, &txContent);
+        return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
+    }
+
     if (txContent.permission_id > 0) {
-        // The fromAddress buffer only reserves 5 bytes for the "Px - " prefix, which fits a
-        // single decimal digit. Refuse multi-digit IDs to avoid truncation and a misaligned
-        // address being displayed/signed (fail closed).
         if (txContent.permission_id > MAX_PERMISSION_ID) {
             PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
             return io_send_sw(E_INCORRECT_DATA);
