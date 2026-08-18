@@ -47,6 +47,10 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         workBuffer += ret;
         dataLength -= ret;
 
+        if (dataLength < 4) {
+            return io_send_sw(E_INCORRECT_LENGTH);
+        }
+
         // Message Length
         txContent.dataBytes = U4BE(workBuffer, 0);
         workBuffer += 4;
