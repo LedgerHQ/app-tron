@@ -830,6 +830,12 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
        so test if chunk has the contract
      */
     if (transaction.contract->has_parameter) {
+        // Refuse a second contract-bearing chunk: it would be hashed but never displayed.
+        if (content->contractSeen) {
+            return USTREAM_FAULT;
+        }
+        content->contractSeen = true;
+
         content->permission_id = transaction.contract->Permission_id;
         content->contractType = (contractType_e) transaction.contract->type;
 

@@ -147,6 +147,7 @@ typedef struct txContent_t {
     uint64_t dataBytes;
     uint8_t permission_id;
     uint32_t customData;
+    bool contractSeen;  // a Contract field was already decoded from an earlier INS_SIGN chunk
 } txContent_t;
 
 typedef struct messageSigningContext712_t {
