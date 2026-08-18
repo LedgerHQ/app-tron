@@ -808,7 +808,7 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
      * and deserializing the nested contract inside the message requires too much
      * stack for Nano S
      */
-    buffer_t contract_buffer;
+    buffer_t contract_buffer = {0};
     transaction.contract->parameter.value.funcs.decode = pb_decode_contract_parameter;
     transaction.contract->parameter.value.arg = &contract_buffer;
 
@@ -835,6 +835,11 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
             return USTREAM_FAULT;
         }
         content->contractSeen = true;
+
+        // has_parameter can be true with an empty Any.value, leaving contract_buffer unset.
+        if (contract_buffer.buf == NULL || contract_buffer.size == 0) {
+            return USTREAM_FAULT;
+        }
 
         content->permission_id = transaction.contract->Permission_id;
         content->contractType = (contractType_e) transaction.contract->type;
