@@ -90,6 +90,11 @@ static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) 
                     sizeof(perm->operations));
 }
 
+static bool is_zero_address(const uint8_t *raw) {
+    uint8_t zero_address[ADDRESS_SIZE] = {0};
+    return memcmp(raw, zero_address, ADDRESS_SIZE) == 0;
+}
+
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     uint256_t uint256;
     bool data_warning;
@@ -476,7 +481,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (!is_zero_address(txContent.destination)) {
                 getBase58FromAddress(txContent.destination, toAddress);
             } else {
                 getBase58FromAddress(txContent.account, toAddress);
@@ -491,7 +496,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             else
                 strcpy(fullContract, "Energy");
 
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (!is_zero_address(txContent.destination)) {
                 getBase58FromAddress(txContent.destination, toAddress);
             } else {
                 getBase58FromAddress(txContent.account, toAddress);
