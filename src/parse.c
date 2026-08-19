@@ -129,14 +129,17 @@ unsigned short print_amount(uint64_t amount, char *out, uint32_t outlen, uint8_t
     char tmp2[25] = {0};
     uint32_t numDigits = 0, i;
     uint64_t base = 1;
-    while (base <= amount) {
-        base *= 10;
+
+    if (amount > 0) {
+        while (base <= amount / 10) {
+            base *= 10;
+            numDigits++;
+        }
         numDigits++;
     }
     if (numDigits > sizeof(tmp) - 1) {
         THROW(E_INCORRECT_LENGTH);
     }
-    base /= 10;
     for (i = 0; i < numDigits; i++) {
         tmp[i] = '0' + ((amount / base) % 10);
         base /= 10;
