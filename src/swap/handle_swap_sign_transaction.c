@@ -84,11 +84,15 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
         }
     }
 
-    // Save recipient
-    strlcpy(swap_validated.recipient,
-            params->destination_address,
-            sizeof(swap_validated.recipient));
-    if (swap_validated.recipient[sizeof(swap_validated.recipient) - 1] != '\0') {
+    // strlcpy() always NUL-terminates, so length must be checked before copying.
+    if (strnlen(params->destination_address, BASE58CHECK_ADDRESS_SIZE + 1) !=
+        BASE58CHECK_ADDRESS_SIZE) {
+        PRINTF("Invalid destination address length\n");
+        return false;
+    }
+    if (strlcpy(swap_validated.recipient,
+               params->destination_address,
+               sizeof(swap_validated.recipient)) >= sizeof(swap_validated.recipient)) {
         PRINTF("Address copy error\n");
         return false;
     }
