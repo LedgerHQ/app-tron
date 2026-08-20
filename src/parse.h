@@ -146,7 +146,7 @@ typedef struct txContent_t {
     int64_t callTokenId;     // TriggerSmartContract.token_id (TRC10 id attached to the call)
     contractType_e contractType;
     uint64_t dataBytes;
-    uint8_t permission_id;
+    int32_t permission_id;
     uint32_t customData;
     bool contractSeen;  // a Contract field was already decoded from an earlier INS_SIGN chunk
 } txContent_t;

@@ -230,11 +230,11 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
     }
 
+    if (txContent.permission_id < 0 || txContent.permission_id > MAX_PERMISSION_ID) {
+        PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
+        return io_send_sw(E_INCORRECT_DATA);
+    }
     if (txContent.permission_id > 0) {
-        if (txContent.permission_id > MAX_PERMISSION_ID) {
-            PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
-            return io_send_sw(E_INCORRECT_DATA);
-        }
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 6, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account, fromAddress + 5);
