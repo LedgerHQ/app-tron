@@ -57,6 +57,11 @@ int handleSignTIP712Message(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_
         workBuffer += 4;
         dataLength -= 4;
     }
+    if (messageSigningContext712.pathLength < 2 ||
+        messageSigningContext712.bip32Path[0] != TRON_BIP32_PREFIX_0 ||
+        messageSigningContext712.bip32Path[1] != TRON_BIP32_PREFIX_1) {
+        return io_send_sw(E_INCORRECT_DATA);
+    }
     if (dataLength < HASH_SIZE * 2) {
         return io_send_sw(E_INCORRECT_DATA);
     }

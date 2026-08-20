@@ -23,6 +23,10 @@
 #ifndef HELPER_H
 #define HELPER_H
 
+// BIP44 "44'/195'"
+#define TRON_BIP32_PREFIX_0 0x8000002C
+#define TRON_BIP32_PREFIX_1 0x800000C3
+
 void getAddressFromPublicKey(const uint8_t *publicKey, uint8_t address[static ADDRESS_SIZE]);
 
 void getBase58FromAddress(const uint8_t address[static ADDRESS_SIZE], char *out);
