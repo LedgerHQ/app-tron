@@ -214,6 +214,11 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowTitle = "Review Transaction";
             infoLongPress.text = "Sign Transaction";
             pairList.nbPairs = 4;
+            if (txContent.contractType == TRIGGERSMARTCONTRACT) {
+                txInfos.fields[4].item = "Max Fee";
+                txInfos.fields[4].value = strings.common.maxFee;
+                pairList.nbPairs = 5;
+            }
             break;
         case APPROVAL_SIMPLE_TRANSACTION:
             txInfos.fields[0].item = stringLabelHash;
@@ -381,7 +386,9 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.fields[3].value = (const char *) G_io_apdu_buffer;
             txInfos.fields[4].item = stringLabelSenderAddress;
             txInfos.fields[4].value = fromAddress;
-            pairList.nbPairs = 5;
+            txInfos.fields[5].item = "Max Fee";
+            txInfos.fields[5].value = strings.common.maxFee;
+            pairList.nbPairs = 6;
             txInfos.flowSubtitle = "Custom Contract";
             break;
         case APPROVAL_SHARED_ECDH_SECRET:

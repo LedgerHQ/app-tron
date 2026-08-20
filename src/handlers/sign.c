@@ -319,6 +319,8 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                         strlcpy((char *) G_io_apdu_buffer, "0", sizeof(G_io_apdu_buffer));
                     }
 
+                    print_amount(txContent.feeLimit, strings.common.maxFee, sizeof(strings.common.maxFee), SUN_DIG);
+
                     // approve custom contract
                     ux_flow_display(APPROVAL_CUSTOM_CONTRACT, data_warning);
 
@@ -353,6 +355,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
+
+            if (txContent.contractType == TRIGGERSMARTCONTRACT) {
+                print_amount(txContent.feeLimit, strings.common.maxFee, sizeof(strings.common.maxFee), SUN_DIG);
+            }
 #ifdef HAVE_SWAP
             // If we are in swap context, do not redisplay the message data
             // Instead, ensure they are identical with what was previously displayed
