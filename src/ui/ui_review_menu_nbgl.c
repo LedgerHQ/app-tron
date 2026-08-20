@@ -363,7 +363,9 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
                                                   strings.tmp.tmp,
                                                   sizeof(strings.tmp.tmp),
                                                   70);
-            pairList.nbPairs = 2;
+            txInfos.fields[2].item = "Sign with";
+            txInfos.fields[2].value = fromAddress;
+            pairList.nbPairs = 3;
             txInfos.flowTitle = "Review message";
             infoLongPress.text = "Sign message";
             break;

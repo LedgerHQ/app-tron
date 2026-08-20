@@ -63,6 +63,18 @@ int handleSignTIP712Message(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_
     memmove(messageSigningContext712.domainHash, workBuffer, HASH_SIZE);
     memmove(messageSigningContext712.messageHash, workBuffer + HASH_SIZE, HASH_SIZE);
 
+    bip32_path_t path;
+    path.length = messageSigningContext712.pathLength;
+    memcpy(path.indices, messageSigningContext712.bip32Path, path.length * sizeof(uint32_t));
+    if (initPublicKeyContext(&path, fromAddress) != 0) {
+        return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
+    }
+#ifdef HAVE_ADDRESS_BOOK
+    uint8_t rawAddress[ADDRESS_SIZE];
+    getAddressFromPublicKey(publicKeyContext.publicKey, rawAddress);
+    g_sender_contact = get_address_book_contact(rawAddress);
+#endif
+
     ux_flow_display(APPROVAL_SIGN_TIP72_TRANSACTION, false);
 
     return 0;
