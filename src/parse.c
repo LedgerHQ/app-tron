@@ -834,7 +834,16 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
     if (!pb_decode(&stream, protocol_Transaction_raw_fields, &transaction)) {
         return USTREAM_FAULT;
     }
-    content->feeLimit = (uint64_t) transaction.fee_limit;
+    // fee_limit has no has_fee_limit flag: a chunk that doesn't re-encode it decodes
+    // it as 0, which must not clobber a nonzero value already seen from an earlier chunk.
+    uint64_t feeLimit = (uint64_t) transaction.fee_limit;
+    if (feeLimit != 0) {
+        if (content->feeLimitSeen && content->feeLimit != feeLimit) {
+            return USTREAM_FAULT;
+        }
+        content->feeLimit = feeLimit;
+        content->feeLimitSeen = true;
+    }
 
     if (!HAS_SETTING(S_DATA_ALLOWED) && content->dataBytes != 0) {
         return USTREAM_MISSING_SETTING_DATA_ALLOWED;
