@@ -366,7 +366,8 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 if (swap_check_validity((char *) G_io_apdu_buffer,  // Amount
                                         fullContract,               // Token name
                                         TRC20ActionSendAllow,       // "Send To"
-                                        toAddress)) {
+                                        toAddress,
+                                        txContent.feeLimit)) {
                     PRINTF("Signing valid swap transaction\n");
                     ui_callback_tx_ok(false);
                 } else {
