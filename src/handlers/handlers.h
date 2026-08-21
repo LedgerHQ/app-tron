@@ -44,8 +44,6 @@
 #define P2_NO_CHAINCODE 0x00
 #define P2_CHAINCODE    0x01
 
-int apdu_dispatcher(const command_t *cmd);
-
 int handleGetPublicKey(uint8_t p1, uint8_t p2, uint8_t *dataBuffer, uint16_t dataLength);
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength);
 int handleSignByHash(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength);
