@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 typedef enum {
     APPROVAL_TRANSFER,
     APPROVAL_SIMPLE_TRANSACTION,
