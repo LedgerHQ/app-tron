@@ -18,6 +18,7 @@
 #include "io.h"
 #include "parser.h"
 
+#include "dispatcher.h"
 #include "handlers.h"
 #include "app_errors.h"
 
