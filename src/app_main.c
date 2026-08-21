@@ -29,6 +29,7 @@
 #include "ui_idle_menu.h"
 #include "settings.h"
 #include "handlers.h"
+#include "dispatcher.h"
 #include "parse.h"
 #include "app_errors.h"
 
