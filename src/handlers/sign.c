@@ -39,18 +39,8 @@
 #define MAX_PERMISSION_ID 9
 
 static void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
-#ifdef HAVE_BAGL
-    memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
-    memcpy(destination + voteSlot(index, VOTE_ADDRESS), from, 5);
-    memcpy(destination + 5 + voteSlot(index, VOTE_ADDRESS), "...", 3);
-    memcpy(destination + 8 + voteSlot(index, VOTE_ADDRESS),
-           from + (BASE58CHECK_ADDRESS_SIZE - 5),
-           5);
-    PRINTF("Vote Address: %d - %s\n", index, destination + (voteSlot(index, VOTE_ADDRESS)));
-#else
     memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
     memcpy(destination + voteSlot(index, VOTE_ADDRESS), from, VOTE_ADDRESS_SIZE);
-#endif
 }
 
 static void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index) {

@@ -19,7 +19,7 @@ ifeq ($(BOLOS_SDK),)
 $(error Environment variable BOLOS_SDK is not set)
 endif
 
-include $(BOLOS_SDK)/Makefile.defines
+include $(BOLOS_SDK)/Makefile.target
 
 APPNAME = Tron
 
@@ -51,6 +51,12 @@ ICON_APEX_P = icons/apex_app_tron.png
 ENABLE_BLUETOOTH = 1
 ENABLE_SWAP = 1
 ENABLE_NBGL_QRCODE = 1
+
+# AccountPermissionUpdateContract must never fall back to hash-only review (see
+# ui_review_menu_nbgl.c). Migrating Nano X/S+ to NBGL gives them the same full
+# permission-detail rendering as Stax/Flex/Apex, instead of the stale BAGL
+# hash-only screen the app used to fall back to on those devices.
+ENABLE_NBGL_FOR_NANO_DEVICES = 1
 
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 DEBUG ?= 0

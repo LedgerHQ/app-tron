@@ -20,15 +20,11 @@
 #include <stdint.h>
 #include "../parse.h"
 
-#define VOTE_ADDRESS 0
-#ifdef HAVE_BAGL
-#define VOTE_ADDRESS_SIZE 15
-#else
-#define VOTE_ADDRESS_SIZE BASE58CHECK_ADDRESS_SIZE + 1
-#endif
-#define VOTE_AMOUNT           VOTE_ADDRESS_SIZE
-#define VOTE_AMOUNT_SIZE      15
-#define VOTE_PACK             (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
+#define VOTE_ADDRESS           0
+#define VOTE_ADDRESS_SIZE      BASE58CHECK_ADDRESS_SIZE + 1
+#define VOTE_AMOUNT            VOTE_ADDRESS_SIZE
+#define VOTE_AMOUNT_SIZE       15
+#define VOTE_PACK              (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
 #define voteSlot(index, type) ((index * VOTE_PACK) + type)
 
 // AccountPermissionUpdateContract review: one entry per Permission sub-message
@@ -53,7 +49,9 @@ typedef struct {
 } permissionEntry_t;
 
 #ifdef HAVE_NBGL
-#if LARGE_ICON_SIZE == 64
+#if defined(SCREEN_SIZE_NANO)
+#define APP_TRON_ICON C_nanox_app_tron
+#elif LARGE_ICON_SIZE == 64
 #define APP_TRON_ICON C_app_tron_64px
 #elif LARGE_ICON_SIZE == 48
 #define APP_TRON_ICON C_app_tron_48px

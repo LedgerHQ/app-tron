@@ -74,7 +74,7 @@ typedef struct {
 
 // Static variables
 static nbgl_layoutTagValueList_t pairList;
-static nbgl_pageInfoLongPress_t infoLongPress;
+static nbgl_contentInfoLongPress_t infoLongPress;
 static nbgl_tx_infos_t txInfos;
 
 // Static functions declarations
@@ -111,7 +111,7 @@ static void customContractWarningChoice(bool accept) {
 }
 
 static void displayDataWarning(void) {
-    nbgl_useCaseChoice(&IMPORTANT_CIRCLE_ICON,
+    nbgl_useCaseChoice(&WARNING_ICON,
                        "WARNING\nThis transaction\ncontains\nextra data",
                        "Reject if you're not sure",
                        "Continue",
@@ -120,7 +120,7 @@ static void displayDataWarning(void) {
 }
 
 static void displayCustomContractWarning(void) {
-    nbgl_useCaseChoice(&IMPORTANT_CIRCLE_ICON,
+    nbgl_useCaseChoice(&WARNING_ICON,
                        "WARNING\nCustom Contract\nProceed with care",
                        "Reject if you're not sure",
                        "Continue",
