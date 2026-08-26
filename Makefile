@@ -58,6 +58,16 @@ ENABLE_NBGL_QRCODE = 1
 # hash-only screen the app used to fall back to on those devices.
 ENABLE_NBGL_FOR_NANO_DEVICES = 1
 
+#######################################################################
+#                           STACK PROTECTOR                           #
+#######################################################################
+ENABLE_STACK_PROTECTOR = 1
+
+#######################################################################
+#                                 LTO                                 #
+#######################################################################
+ENABLE_LINK_TIME_OPTIMIZATION = 1
+
 # Enabling DEBUG flag will enable PRINTF and disable optimizations
 DEBUG ?= 0
 
