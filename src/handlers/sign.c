@@ -591,7 +591,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             if (contract->has_witness) {
                 fillPermissionEntry(PERMISSION_ENTRY_WITNESS, &contract->witness);
             }
-            for (uint8_t i = 0; i < contract->actives_count && i < PERMISSION_MAX_ACTIVES; i++) {
+            for (pb_size_t i = 0; i < contract->actives_count && i < PERMISSION_MAX_ACTIVES; i++) {
                 fillPermissionEntry(PERMISSION_ENTRY_ACTIVE_0 + i, &contract->actives[i]);
             }
 
