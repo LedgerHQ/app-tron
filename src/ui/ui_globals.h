@@ -38,8 +38,9 @@
 #define PERMISSION_MAX_ENTRIES    (PERMISSION_ENTRY_ACTIVE_0 + PERMISSION_MAX_ACTIVES)
 #define PERMISSION_MAX_KEYS       3  // matches protocol.Permission.keys max_count
 #define PERMISSION_THRESHOLD_SIZE 24
+// "<34-char address> (weight <INT64_MIN>)" + NUL, sized for the worst-case signed int64
 #define PERMISSION_KEY_LINE_SIZE \
-    (BASE58CHECK_ADDRESS_SIZE + 1 + 24)    // "<address> (weight <int64>)"
+    (BASE58CHECK_ADDRESS_SIZE + sizeof(" (weight -9223372036854775808)"))
 #define PERMISSION_OPERATIONS_HEX_SIZE 68  // "0x" + 32 bytes hex + NUL
 
 typedef struct {

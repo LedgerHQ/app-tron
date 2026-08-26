@@ -67,11 +67,14 @@ static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) 
     }
     for (uint8_t i = 0; i < entry->keysCount; i++) {
         getBase58FromAddress(perm->keys[i].address, address);
-        snprintf(entry->keys[i],
-                 sizeof(entry->keys[i]),
-                 "%s (weight %lld)",
-                 address,
-                 (long long) perm->keys[i].weight);
+        int written = snprintf(entry->keys[i],
+                               sizeof(entry->keys[i]),
+                               "%s (weight %lld)",
+                               address,
+                               (long long) perm->keys[i].weight);
+        if (written < 0 || (size_t) written >= sizeof(entry->keys[i])) {
+            THROW(E_INCORRECT_DATA);
+        }
     }
 
     bytes_to_string(entry->operations,
