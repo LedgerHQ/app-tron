@@ -28,6 +28,8 @@
 #define SHARED_CTX_FIELD_1_SIZE 256
 #define SHARED_CTX_FIELD_2_SIZE 40
 
+#define MAX_VOTES 5
+
 typedef union {
     protocol_TransferContract transfer_contract;
     protocol_TransferAssetContract transfer_asset_contract;
@@ -129,6 +131,11 @@ typedef struct transactionContext_t {
     uint8_t signatureLength;
 } transactionContext_t;
 
+typedef struct voteEntry_t {
+    uint8_t address[ADDRESS_SIZE];
+    int64_t count;
+} voteEntry_t;
+
 typedef struct txContent_t {
     uint64_t amount[2];
     uint64_t exchangeID;
@@ -154,6 +161,8 @@ typedef struct txContent_t {
     uint32_t customData;
     bool contractSeen;  // a Contract field was already decoded from an earlier INS_SIGN chunk
     bool feeLimitSeen;  // feeLimit was already set from an earlier INS_SIGN chunk
+    uint8_t votesCount;
+    voteEntry_t votes[MAX_VOTES];
 } txContent_t;
 
 typedef struct messageSigningContext712_t {

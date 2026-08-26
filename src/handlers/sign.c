@@ -444,38 +444,40 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             break;
         case VOTEWITNESSCONTRACT: {
             // vote for SR
-            protocol_VoteWitnessContract *contract = &msg.vote_witness_contract;
+            if (txContent.votesCount == 0) {
+                return io_send_sw(E_INCORRECT_DATA);
+            }
 
             PRINTF("Voting!!\n");
-            PRINTF("Count: %d\n", contract->votes_count);
+            PRINTF("Count: %d\n", txContent.votesCount);
             memset(G_io_apdu_buffer, 0, 200);
             txContent.amount[0] = 0;
-            votes_count = contract->votes_count;
+            votes_count = txContent.votesCount;
 #if defined(HAVE_NBGL)
             uint64_t total_votes = 0;
 #endif
 
-            for (int i = 0; i < contract->votes_count; i++) {
-                if (contract->votes[i].vote_count <= 0) {
+            for (int i = 0; i < txContent.votesCount; i++) {
+                if (txContent.votes[i].count <= 0) {
                     return io_send_sw(E_INCORRECT_DATA);
                 }
-                getBase58FromAddress(contract->votes[i].vote_address, fullContract);
+                getBase58FromAddress(txContent.votes[i].address, fullContract);
 #if defined(HAVE_NBGL)
-                uint64_t count = (uint64_t) contract->votes[i].vote_count;
+                uint64_t count = (uint64_t) txContent.votes[i].count;
                 if (UINT64_MAX - total_votes < count) {
                     return io_send_sw(E_INCORRECT_DATA);
                 }
                 total_votes += count;
 #endif
                 fillVoteAddressSlot((void *) G_io_apdu_buffer, (const char *) fullContract, i);
-                fillVoteAmountSlot((void *) G_io_apdu_buffer, contract->votes[i].vote_count, i);
+                fillVoteAmountSlot((void *) G_io_apdu_buffer, txContent.votes[i].count, i);
             }
 
 #if defined(HAVE_NBGL)
             snprintf((char *) fullContract,
                      sizeof(fullContract),
                      "%d: %llu",
-                     contract->votes_count,
+                     txContent.votesCount,
                      (unsigned long long) total_votes);
 #endif
 

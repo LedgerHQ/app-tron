@@ -456,8 +456,17 @@ static bool vote_witness_contract(txContent_t *content, pb_istream_t *stream) {
     if (!pb_decode(stream, protocol_VoteWitnessContract_fields, &msg.vote_witness_contract)) {
         return false;
     }
+    if (msg.vote_witness_contract.votes_count > MAX_VOTES) {
+        return false;
+    }
 
     COPY_ADDRESS(content->account, &msg.vote_witness_contract.owner_address);
+
+    content->votesCount = msg.vote_witness_contract.votes_count;
+    for (uint8_t i = 0; i < content->votesCount; i++) {
+        COPY_ADDRESS(content->votes[i].address, msg.vote_witness_contract.votes[i].vote_address);
+        content->votes[i].count = msg.vote_witness_contract.votes[i].vote_count;
+    }
     return true;
 }
 
