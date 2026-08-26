@@ -238,6 +238,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 else if (txContent.TRC20Method == 2) {
                     strcpy(TRC20ActionSendAllow, "Allow");
                     strcpy(TRC20Action, "Approve");
+                } else if (txContent.TRC20Method == 3) {
+                    // known protocol method: method name, token and amount are
+                    // filled in and displayed further below (APPROVAL_CONTRACT_METHOD)
                 } else {
                     if (!HAS_SETTING(S_CUSTOM_CONTRACT)) {
                         return io_send_sw(E_MISSING_SETTING_CUSTOM_CONTRACT);
@@ -300,10 +303,22 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
+
+            if (txContent.contractType == TRIGGERSMARTCONTRACT && txContent.TRC20Method == 3) {
+                // Known protocol method (USDD PSM / JustLend jUSDD cToken): show
+                // the method name, token, amount and (if present) the argument
+                // address clearly instead of the raw hex selector.
+                if (txContent.destinationSize < ADDRESS_SIZE) {
+                    strcpy(toAddress, "-");
+                }
+                strcpy(contractMethodName, txContent.methodLabel);
+                contractMethodHasAddress = (txContent.destinationSize >= ADDRESS_SIZE);
+                ux_flow_display(APPROVAL_CONTRACT_METHOD, false);
+            }
 #ifdef HAVE_SWAP
             // If we are in swap context, do not redisplay the message data
             // Instead, ensure they are identical with what was previously displayed
-            if (G_called_from_swap) {
+            else if (G_called_from_swap) {
                 if (swap_check_validity((char *) G_io_apdu_buffer,  // Amount
                                         fullContract,               // Token name
                                         TRC20ActionSendAllow,       // "Send To"

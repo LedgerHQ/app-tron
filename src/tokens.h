@@ -34,8 +34,30 @@ typedef struct tokenDefinition_t {
     uint8_t decimals;
 } tokenDefinition_t;
 
-#define NUM_TOKENS_TRC20 382
+// A contract method that is not a plain TRC20 transfer/approve (e.g. USDD PSM
+// buyGem/sellGem, JustLend jUSDD cToken borrow/repay/...). Matched by its unique
+// 4-byte selector and the target contract address, then shown with a clear label
+// instead of the raw hex selector.
+typedef struct knownContractMethod_t {
+    uint8_t contract[21];  // 0x41-prefixed contract address
+    uint32_t selector;     // 4-byte method selector
+    char method[18];       // display name (e.g. "repayBorrowBehalf")
+    char token[10];        // display token name (e.g. "USDD", "jUSDD")
+    uint8_t decimals;
+    uint8_t hasAddress;     // 1 if first argument is an address to display
+    uint8_t labelOnly;      // 1 if args can't be decoded to (uint256) or (address,uint256)
+    char contractName[24];  // display name of the contract (e.g. "JustLend Distributor")
+} knownContractMethod_t;
+
+#define NUM_TOKENS_TRC20 384
+
+#define NUM_PROTOCOL_METHODS 8
 
 extern tokenDefinition_t const TOKENS_TRC20[NUM_TOKENS_TRC20];
 
 extern const uint8_t SELECTOR[][4];
+
+extern knownContractMethod_t const PROTOCOL_METHODS[NUM_PROTOCOL_METHODS];
+
+// Returns the index of the protocol method with the given selector, or -1.
+int8_t findProtocolMethodBySelector(uint32_t selector);

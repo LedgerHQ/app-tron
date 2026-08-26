@@ -49,6 +49,8 @@ extern char addressSummary[40];
 extern char fullContract[MAX_TOKEN_LENGTH];
 extern char TRC20Action[9];
 extern char TRC20ActionSendAllow[8];
+extern char contractMethodName[24];
+extern uint8_t contractMethodHasAddress;
 extern char fullHash[HASH_SIZE * 2 + 1];
 extern int8_t votes_count;
 extern transactionContext_t transactionContext;

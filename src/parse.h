@@ -145,6 +145,8 @@ typedef struct txContent_t {
     uint64_t dataBytes;
     uint8_t permission_id;
     uint32_t customData;
+    uint8_t destinationSize;  // bytes in destination[] (ADDRESS_SIZE when set)
+    char methodLabel[24];     // display name for a known protocol method
 } txContent_t;
 
 typedef struct messageSigningContext712_t {

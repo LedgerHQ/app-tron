@@ -30,6 +30,8 @@ char addressSummary[40];
 char fullContract[MAX_TOKEN_LENGTH];
 char TRC20Action[9];
 char TRC20ActionSendAllow[8];
+char contractMethodName[24];
+uint8_t contractMethodHasAddress;
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
 transactionContext_t transactionContext;

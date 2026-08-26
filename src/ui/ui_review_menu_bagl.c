@@ -913,6 +913,64 @@ UX_DEF(ux_approval_account_permission_update_data_warning_flow,
        &ux_approval_confirm_step,
        &ux_approval_reject_step);
 
+// KNOWN CONTRACT METHOD (USDD PSM / JustLend jUSDD cToken)
+//////////////////////////////////////////////////////////////////////
+UX_STEP_NOCB(ux_approval_cm_header_step, pnn, {&C_icon_certificate, "Review", "Transaction"});
+UX_STEP_NOCB(ux_approval_cm_method_step,
+             bnnn_paging,
+             {.title = "Method", .text = contractMethodName});
+UX_STEP_NOCB(ux_approval_cm_token_step, bnnn_paging, {.title = "Token", .text = fullContract});
+UX_STEP_NOCB(ux_approval_cm_amount_step,
+             bnnn_paging,
+             {.title = "Amount", .text = (char *) G_io_apdu_buffer});
+UX_STEP_NOCB(ux_approval_cm_to_step, bnnn_paging, {.title = "To", .text = toAddress});
+
+// Two static flows (the UX engine PIC-translates the flow array, so a
+// runtime-built mutable array is not allowed): one with the "To" step when the
+// method carries an address argument, one without.
+UX_DEF(ux_approval_cm_flow,
+       &ux_approval_cm_header_step,
+       &ux_approval_cm_method_step,
+       &ux_approval_cm_token_step,
+       &ux_approval_cm_amount_step,
+       &ux_approval_cm_to_step,
+       &ux_approval_from_address_step,
+       &ux_approval_confirm_step,
+       &ux_approval_reject_step);
+
+UX_DEF(ux_approval_cm_flow_no_to,
+       &ux_approval_cm_header_step,
+       &ux_approval_cm_method_step,
+       &ux_approval_cm_token_step,
+       &ux_approval_cm_amount_step,
+       &ux_approval_from_address_step,
+       &ux_approval_confirm_step,
+       &ux_approval_reject_step);
+
+// HASH SIGN with known contract/method (INS 0x05 + host metadata):
+// oversized payloads that cannot go through the standard SIGN flow are signed
+// by hash; when the host supplies the method selector and contract address, the
+// contract and method names are shown instead of "Unknown Type". The hash is
+// still displayed so the user can compare against a trusted source.
+//////////////////////////////////////////////////////////////////////
+UX_STEP_NOCB(ux_approval_hs_header_step, pnn, {&C_icon_certificate, "Review", "Transaction"});
+UX_STEP_NOCB(ux_approval_hs_method_step,
+             bnnn_paging,
+             {.title = "Method", .text = contractMethodName});
+UX_STEP_NOCB(ux_approval_hs_contract_step,
+             bnnn_paging,
+             {.title = "Contract", .text = fullContract});
+UX_STEP_NOCB(ux_approval_hs_hash_step, bnnn_paging, {.title = "Hash", .text = fullHash});
+
+UX_DEF(ux_approval_hs_flow,
+       &ux_approval_hs_header_step,
+       &ux_approval_hs_method_step,
+       &ux_approval_hs_contract_step,
+       &ux_approval_hs_hash_step,
+       &ux_approval_from_address_step,
+       &ux_approval_confirm_step,
+       &ux_approval_reject_step);
+
 void ux_flow_display(ui_approval_state_t state, bool data_warning) {
     switch (state) {
         case APPROVAL_TRANSFER:
@@ -998,6 +1056,14 @@ void ux_flow_display(ui_approval_state_t state, bool data_warning) {
                          ((data_warning == true) ? ux_approval_custom_contract_data_warning_flow
                                                  : ux_approval_custom_contract_flow),
                          NULL);
+            break;
+        case APPROVAL_CONTRACT_METHOD:
+            ux_flow_init(0,
+                         contractMethodHasAddress ? ux_approval_cm_flow : ux_approval_cm_flow_no_to,
+                         NULL);
+            break;
+        case APPROVAL_HASH_SIGN:
+            ux_flow_init(0, ux_approval_hs_flow, NULL);
             break;
         case APPROVAL_SHARED_ECDH_SECRET:
             // reserve a display stack slot if none yet
