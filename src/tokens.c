@@ -1570,7 +1570,7 @@ int verifyTokenNameID(const char *tokenId,
     uint8_t hash[32];
     cx_ecfp_public_key_t publicKey;
 
-    if (strlen(tokenId) > 32) return 0;
+    if (strlen(tokenId) + strlen(tokenName) + 2 > sizeof(buffer)) return 0;
 
     snprintf((char *) buffer, sizeof(buffer), "%s%s%c", tokenId, tokenName, decimals);
 
