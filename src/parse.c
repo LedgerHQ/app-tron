@@ -276,7 +276,14 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
     return true;
 }
 
-static bool printTokenFromID(char *out, size_t outlen, const uint8_t *data, size_t size) {
+// Native-TRX identity comes from the raw wire token ID (a single '_' byte), never from
+// the resulting display name: a signed TRC10 token can legally be named e.g. "TRXBonus".
+static bool printTokenFromID(txContent_t *content,
+                             unsigned int token_index,
+                             const uint8_t *data,
+                             size_t size) {
+    char *out = content->tokenNames[token_index];
+
     if (size != TOKENID_SIZE && size != 1) {
         return false;
     }
@@ -285,10 +292,12 @@ static bool printTokenFromID(char *out, size_t outlen, const uint8_t *data, size
         if (data[0] != '_') {
             return false;
         }
-        strlcpy(out, "TRX", outlen);
+        strlcpy(out, "TRX", MAX_TOKEN_LENGTH);
+        content->tokenIsTrx[token_index] = true;
         return true;
     }
-    strlcpy(out, (char *) data, outlen);
+    strlcpy(out, (char *) data, MAX_TOKEN_LENGTH);
+    content->tokenIsTrx[token_index] = false;
     return true;
 }
 
@@ -420,6 +429,7 @@ static bool transfer_contract(txContent_t *content, pb_istream_t *stream) {
 
     content->tokenNamesLength[0] = 4;
     strcpy(content->tokenNames[0], "TRX");
+    content->tokenIsTrx[0] = true;
     return true;
 }
 
@@ -429,8 +439,8 @@ static bool transfer_asset_contract(txContent_t *content, pb_istream_t *stream) 
     }
     content->amount[0] = msg.transfer_asset_contract.amount;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.transfer_asset_contract.asset_name.bytes,
                           msg.transfer_asset_contract.asset_name.size)) {
         return false;
@@ -686,16 +696,16 @@ static bool exchange_create_contract(txContent_t *content, pb_istream_t *stream)
 
     COPY_ADDRESS(content->account, &msg.exchange_create_contract.owner_address);
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_create_contract.first_token_id.bytes,
                           msg.exchange_create_contract.first_token_id.size)) {
         return false;
     }
     content->tokenNamesLength[0] = strlen(content->tokenNames[0]);
 
-    if (!printTokenFromID(content->tokenNames[1],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          1,
                           msg.exchange_create_contract.second_token_id.bytes,
                           msg.exchange_create_contract.second_token_id.size)) {
         return false;
@@ -714,8 +724,8 @@ static bool exchange_inject_contract(txContent_t *content, pb_istream_t *stream)
     COPY_ADDRESS(content->account, &msg.exchange_inject_contract.owner_address);
     content->exchangeID = msg.exchange_inject_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_inject_contract.token_id.bytes,
                           msg.exchange_inject_contract.token_id.size)) {
         return false;
@@ -735,8 +745,8 @@ static bool exchange_withdraw_contract(txContent_t *content, pb_istream_t *strea
     COPY_ADDRESS(content->account, &msg.exchange_withdraw_contract.owner_address);
     content->exchangeID = msg.exchange_withdraw_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_withdraw_contract.token_id.bytes,
                           msg.exchange_withdraw_contract.token_id.size)) {
         return false;
@@ -756,8 +766,8 @@ static bool exchange_transaction_contract(txContent_t *content, pb_istream_t *st
     COPY_ADDRESS(content->account, &msg.exchange_transaction_contract.owner_address);
     content->exchangeID = msg.exchange_transaction_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_transaction_contract.token_id.bytes,
                           msg.exchange_transaction_contract.token_id.size)) {
         return false;

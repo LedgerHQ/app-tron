@@ -393,15 +393,11 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             print_amount(txContent.amount[0],
                          (void *) G_io_apdu_buffer,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[0], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[0]);
+                         txContent.tokenIsTrx[0] ? SUN_DIG : txContent.decimals[0]);
             print_amount(txContent.amount[1],
                          (void *) G_io_apdu_buffer + 100,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[1], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[1]);
+                         txContent.tokenIsTrx[1] ? SUN_DIG : txContent.decimals[1]);
 
             ux_flow_display(APPROVAL_EXCHANGE_CREATE, data_warning);
 
@@ -414,9 +410,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             print_amount(txContent.amount[0],
                          (void *) G_io_apdu_buffer,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[0], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[0]);
+                         txContent.tokenIsTrx[0] ? SUN_DIG : txContent.decimals[0]);
             // write exchange contract type
             if (!setExchangeContractDetail(txContent.contractType,
                                            (char *) G_io_apdu_buffer + 100,
