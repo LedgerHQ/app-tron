@@ -97,8 +97,8 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
         return false;
     }
     if (strlcpy(swap_validated.recipient,
-               params->destination_address,
-               sizeof(swap_validated.recipient)) >= sizeof(swap_validated.recipient)) {
+                params->destination_address,
+                sizeof(swap_validated.recipient)) >= sizeof(swap_validated.recipient)) {
         PRINTF("Address copy error\n");
         return false;
     }

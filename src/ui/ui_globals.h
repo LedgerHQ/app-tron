@@ -20,24 +20,26 @@
 #include <stdint.h>
 #include "../parse.h"
 
-#define VOTE_ADDRESS           0
-#define VOTE_ADDRESS_SIZE      BASE58CHECK_ADDRESS_SIZE + 1
-#define VOTE_AMOUNT            VOTE_ADDRESS_SIZE
-#define VOTE_AMOUNT_SIZE       15
-#define VOTE_PACK              (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
+#define VOTE_ADDRESS          0
+#define VOTE_ADDRESS_SIZE     BASE58CHECK_ADDRESS_SIZE + 1
+#define VOTE_AMOUNT           VOTE_ADDRESS_SIZE
+#define VOTE_AMOUNT_SIZE      15
+#define VOTE_PACK             (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
 #define voteSlot(index, type) ((index * VOTE_PACK) + type)
 
 // AccountPermissionUpdateContract review: one entry per Permission sub-message
 // (owner, witness, and each active permission), fully rendered on-device so the
 // app never falls back to blind hash-only signing for this contract type.
-#define PERMISSION_ENTRY_OWNER         0
-#define PERMISSION_ENTRY_WITNESS       1
-#define PERMISSION_ENTRY_ACTIVE_0      2
-#define PERMISSION_MAX_ACTIVES         2  // matches protocol.AccountPermissionUpdateContract.actives max_count
-#define PERMISSION_MAX_ENTRIES         (PERMISSION_ENTRY_ACTIVE_0 + PERMISSION_MAX_ACTIVES)
-#define PERMISSION_MAX_KEYS            3  // matches protocol.Permission.keys max_count
-#define PERMISSION_THRESHOLD_SIZE      24
-#define PERMISSION_KEY_LINE_SIZE       (BASE58CHECK_ADDRESS_SIZE + 1 + 24)  // "<address> (weight <int64>)"
+#define PERMISSION_ENTRY_OWNER    0
+#define PERMISSION_ENTRY_WITNESS  1
+#define PERMISSION_ENTRY_ACTIVE_0 2
+#define PERMISSION_MAX_ACTIVES \
+    2  // matches protocol.AccountPermissionUpdateContract.actives max_count
+#define PERMISSION_MAX_ENTRIES    (PERMISSION_ENTRY_ACTIVE_0 + PERMISSION_MAX_ACTIVES)
+#define PERMISSION_MAX_KEYS       3  // matches protocol.Permission.keys max_count
+#define PERMISSION_THRESHOLD_SIZE 24
+#define PERMISSION_KEY_LINE_SIZE \
+    (BASE58CHECK_ADDRESS_SIZE + 1 + 24)    // "<address> (weight <int64>)"
 #define PERMISSION_OPERATIONS_HEX_SIZE 68  // "0x" + 32 bytes hex + NUL
 
 typedef struct {

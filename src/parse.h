@@ -152,8 +152,9 @@ typedef struct txContent_t {
     uint8_t resource;
     uint8_t TRC20Method;
     uint32_t customSelector;
-    int64_t callTokenValue;  // TriggerSmartContract.call_token_value (TRC10 value attached to the call)
-    int64_t callTokenId;     // TriggerSmartContract.token_id (TRC10 id attached to the call)
+    int64_t
+        callTokenValue;  // TriggerSmartContract.call_token_value (TRC10 value attached to the call)
+    int64_t callTokenId;  // TriggerSmartContract.token_id (TRC10 id attached to the call)
     contractType_e contractType;
     uint64_t dataBytes;
     uint64_t feeLimit;

@@ -233,15 +233,15 @@ bool ui_callback_signMessage712_v0_ok(bool display_menu) {
     io_seproxyhal_io_heartbeat();
     unsigned int signatureLength = sizeof(signature);
     err = cx_ecdsa_sign_no_throw(&privateKey,
-                               CX_RND_RFC6979 | CX_LAST,
-                               CX_SHA256,
-                               hash,
-                               sizeof(hash),
-                               signature,
-                               &signatureLength,
-                               &info);
+                                 CX_RND_RFC6979 | CX_LAST,
+                                 CX_SHA256,
+                                 hash,
+                                 sizeof(hash),
+                                 signature,
+                                 &signatureLength,
+                                 &info);
 
-    if(err != CX_OK) {
+    if (err != CX_OK) {
         goto end;
     }
 
