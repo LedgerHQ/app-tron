@@ -126,23 +126,29 @@ bool adjustDecimals(const char *src,
 }
 unsigned short print_amount(uint64_t amount, char *out, uint32_t outlen, uint8_t sun) {
     char tmp[20];
-    char tmp2[25];
+    char tmp2[25] = {0};
     uint32_t numDigits = 0, i;
     uint64_t base = 1;
-    while (base <= amount) {
-        base *= 10;
+
+    if (amount > 0) {
+        while (base <= amount / 10) {
+            base *= 10;
+            numDigits++;
+        }
         numDigits++;
     }
     if (numDigits > sizeof(tmp) - 1) {
         THROW(E_INCORRECT_LENGTH);
     }
-    base /= 10;
     for (i = 0; i < numDigits; i++) {
         tmp[i] = '0' + ((amount / base) % 10);
         base /= 10;
     }
     tmp[i] = '\0';
-    adjustDecimals(tmp, i, tmp2, 25, sun);
+    if (!adjustDecimals(tmp, i, tmp2, sizeof(tmp2), sun)) {
+        out[0] = '\0';
+        return 0;
+    }
     if (strlen(tmp2) < outlen - 1) {
         strlcpy(out, tmp2, outlen);
     } else {
@@ -257,6 +263,9 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
                           details.signature.size) != 1) {
         return false;
     }
+    if (details.precision > MAX_TOKEN_PRECISION) {
+        return false;
+    }
 
     // UPDATE Token with Name[ID]
     char tmp[MAX_TOKEN_LENGTH];
@@ -267,7 +276,14 @@ bool parseTokenName(uint8_t token_id, uint8_t *data, uint32_t dataLength, txCont
     return true;
 }
 
-static bool printTokenFromID(char *out, size_t outlen, const uint8_t *data, size_t size) {
+// Native-TRX identity comes from the raw wire token ID (a single '_' byte), never from
+// the resulting display name: a signed TRC10 token can legally be named e.g. "TRXBonus".
+static bool printTokenFromID(txContent_t *content,
+                             unsigned int token_index,
+                             const uint8_t *data,
+                             size_t size) {
+    char *out = content->tokenNames[token_index];
+
     if (size != TOKENID_SIZE && size != 1) {
         return false;
     }
@@ -276,10 +292,12 @@ static bool printTokenFromID(char *out, size_t outlen, const uint8_t *data, size
         if (data[0] != '_') {
             return false;
         }
-        strlcpy(out, "TRX", outlen);
+        strlcpy(out, "TRX", MAX_TOKEN_LENGTH);
+        content->tokenIsTrx[token_index] = true;
         return true;
     }
-    strlcpy(out, (char *) data, outlen);
+    strlcpy(out, (char *) data, MAX_TOKEN_LENGTH);
+    content->tokenIsTrx[token_index] = false;
     return true;
 }
 
@@ -289,6 +307,9 @@ static bool set_token_info(txContent_t *content,
                            const char *id,
                            int precision) {
     if (token_index >= 2) {
+        return false;
+    }
+    if (precision < 0 || precision > MAX_TOKEN_PRECISION) {
         return false;
     }
 
@@ -392,6 +413,12 @@ void initTx(txContext_t *context, txContent_t *content) {
     cx_sha256_init(&context->sha2);  // init sha
 }
 
+void terminate_signing_session(txContext_t *context, txContent_t *content) {
+    memset(context, 0, sizeof(txContext_t));
+    memset(content, 0, sizeof(txContent_t));
+    content->contractType = INVALID_CONTRACT;
+}
+
 #define COPY_ADDRESS(a, b) memcpy((a), (b), ADDRESS_SIZE)
 
 contract_t msg;
@@ -408,6 +435,7 @@ static bool transfer_contract(txContent_t *content, pb_istream_t *stream) {
 
     content->tokenNamesLength[0] = 4;
     strcpy(content->tokenNames[0], "TRX");
+    content->tokenIsTrx[0] = true;
     return true;
 }
 
@@ -417,8 +445,8 @@ static bool transfer_asset_contract(txContent_t *content, pb_istream_t *stream) 
     }
     content->amount[0] = msg.transfer_asset_contract.amount;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.transfer_asset_contract.asset_name.bytes,
                           msg.transfer_asset_contract.asset_name.size)) {
         return false;
@@ -434,8 +462,17 @@ static bool vote_witness_contract(txContent_t *content, pb_istream_t *stream) {
     if (!pb_decode(stream, protocol_VoteWitnessContract_fields, &msg.vote_witness_contract)) {
         return false;
     }
+    if (msg.vote_witness_contract.votes_count > MAX_VOTES) {
+        return false;
+    }
 
     COPY_ADDRESS(content->account, &msg.vote_witness_contract.owner_address);
+
+    content->votesCount = msg.vote_witness_contract.votes_count;
+    for (uint8_t i = 0; i < content->votesCount; i++) {
+        COPY_ADDRESS(content->votes[i].address, msg.vote_witness_contract.votes[i].vote_address);
+        content->votes[i].count = msg.vote_witness_contract.votes[i].vote_count;
+    }
     return true;
 }
 
@@ -649,6 +686,8 @@ static bool trigger_smart_contract(txContent_t *content, pb_istream_t *stream) {
     COPY_ADDRESS(content->account, &msg.trigger_smart_contract.owner_address);
     COPY_ADDRESS(content->contractAddress, &msg.trigger_smart_contract.contract_address);
     content->amount[0] = msg.trigger_smart_contract.call_value;
+    content->callTokenValue = msg.trigger_smart_contract.call_token_value;
+    content->callTokenId = msg.trigger_smart_contract.token_id;
 
     tokenDefinition_t *trc20 = getKnownToken(content);
 
@@ -672,16 +711,16 @@ static bool exchange_create_contract(txContent_t *content, pb_istream_t *stream)
 
     COPY_ADDRESS(content->account, &msg.exchange_create_contract.owner_address);
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_create_contract.first_token_id.bytes,
                           msg.exchange_create_contract.first_token_id.size)) {
         return false;
     }
     content->tokenNamesLength[0] = strlen(content->tokenNames[0]);
 
-    if (!printTokenFromID(content->tokenNames[1],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          1,
                           msg.exchange_create_contract.second_token_id.bytes,
                           msg.exchange_create_contract.second_token_id.size)) {
         return false;
@@ -700,8 +739,8 @@ static bool exchange_inject_contract(txContent_t *content, pb_istream_t *stream)
     COPY_ADDRESS(content->account, &msg.exchange_inject_contract.owner_address);
     content->exchangeID = msg.exchange_inject_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_inject_contract.token_id.bytes,
                           msg.exchange_inject_contract.token_id.size)) {
         return false;
@@ -721,8 +760,8 @@ static bool exchange_withdraw_contract(txContent_t *content, pb_istream_t *strea
     COPY_ADDRESS(content->account, &msg.exchange_withdraw_contract.owner_address);
     content->exchangeID = msg.exchange_withdraw_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_withdraw_contract.token_id.bytes,
                           msg.exchange_withdraw_contract.token_id.size)) {
         return false;
@@ -742,8 +781,8 @@ static bool exchange_transaction_contract(txContent_t *content, pb_istream_t *st
     COPY_ADDRESS(content->account, &msg.exchange_transaction_contract.owner_address);
     content->exchangeID = msg.exchange_transaction_contract.exchange_id;
 
-    if (!printTokenFromID(content->tokenNames[0],
-                          MAX_TOKEN_LENGTH,
+    if (!printTokenFromID(content,
+                          0,
                           msg.exchange_transaction_contract.token_id.bytes,
                           msg.exchange_transaction_contract.token_id.size)) {
         return false;
@@ -763,21 +802,28 @@ static bool account_permission_update_contract(txContent_t *content, pb_istream_
     }
 
     COPY_ADDRESS(content->account, &msg.account_permission_update_contract.owner_address);
-    // TODO: Update tx content
+    // owner/witness/actives (Permission sub-messages) are left decoded in
+    // msg.account_permission_update_contract for the signing handler to render
+    // in full on the review screen; see src/handlers/sign.c.
     return true;
 }
 
 typedef struct {
     const uint8_t *buf;
     size_t size;
+    bool captured;
 } buffer_t;
 
 bool pb_decode_contract_parameter(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     PB_UNUSED(field);
     buffer_t *buffer = *arg;
 
+    if (buffer->captured) {
+        return false;
+    }
     buffer->buf = stream->state;
     buffer->size = stream->bytes_left;
+    buffer->captured = true;
     return true;
 }
 
@@ -806,7 +852,7 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
      * and deserializing the nested contract inside the message requires too much
      * stack for Nano S
      */
-    buffer_t contract_buffer;
+    buffer_t contract_buffer = {0};
     transaction.contract->parameter.value.funcs.decode = pb_decode_contract_parameter;
     transaction.contract->parameter.value.arg = &contract_buffer;
 
@@ -818,6 +864,16 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
     if (!pb_decode(&stream, protocol_Transaction_raw_fields, &transaction)) {
         return USTREAM_FAULT;
     }
+    // fee_limit has no has_fee_limit flag: a chunk that doesn't re-encode it decodes
+    // it as 0, which must not clobber a nonzero value already seen from an earlier chunk.
+    uint64_t feeLimit = (uint64_t) transaction.fee_limit;
+    if (feeLimit != 0) {
+        if (content->feeLimitSeen && content->feeLimit != feeLimit) {
+            return USTREAM_FAULT;
+        }
+        content->feeLimit = feeLimit;
+        content->feeLimitSeen = true;
+    }
 
     if (!HAS_SETTING(S_DATA_ALLOWED) && content->dataBytes != 0) {
         return USTREAM_MISSING_SETTING_DATA_ALLOWED;
@@ -828,6 +884,21 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
        so test if chunk has the contract
      */
     if (transaction.contract->has_parameter) {
+        // Refuse a second contract-bearing chunk: it would be hashed but never displayed.
+        if (content->contractSeen) {
+            return USTREAM_FAULT;
+        }
+        content->contractSeen = true;
+
+        // has_parameter can be true with an empty Any.value, leaving contract_buffer unset.
+        if (contract_buffer.buf == NULL || contract_buffer.size == 0) {
+            return USTREAM_FAULT;
+        }
+        if (contract_buffer.buf < buffer || contract_buffer.buf > buffer + length ||
+            contract_buffer.size > (size_t) (buffer + length - contract_buffer.buf)) {
+            return USTREAM_FAULT;
+        }
+
         content->permission_id = transaction.contract->Permission_id;
         content->contractType = (contractType_e) transaction.contract->type;
 

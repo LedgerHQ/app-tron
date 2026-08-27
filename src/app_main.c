@@ -67,8 +67,7 @@ void app_main(void) {
     }
 #endif  // HAVE_SWAP
 
-    // Reset context
-    explicit_bzero(&txContent, sizeof(txContent));
+    terminate_signing_session(&txContext, &txContent);
 
     for (;;) {
         BEGIN_TRY {
@@ -106,6 +105,7 @@ void app_main(void) {
                 }
             }
             CATCH(EXCEPTION_IO_RESET) {
+                terminate_signing_session(&txContext, &txContent);
                 CLOSE_TRY;
                 THROW(EXCEPTION_IO_RESET);
             }

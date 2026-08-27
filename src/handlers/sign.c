@@ -39,23 +39,53 @@
 #define MAX_PERMISSION_ID 9
 
 static void fillVoteAddressSlot(void *destination, const char *from, uint8_t index) {
-#ifdef HAVE_BAGL
-    memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
-    memcpy(destination + voteSlot(index, VOTE_ADDRESS), from, 5);
-    memcpy(destination + 5 + voteSlot(index, VOTE_ADDRESS), "...", 3);
-    memcpy(destination + 8 + voteSlot(index, VOTE_ADDRESS),
-           from + (BASE58CHECK_ADDRESS_SIZE - 5),
-           5);
-    PRINTF("Vote Address: %d - %s\n", index, destination + (voteSlot(index, VOTE_ADDRESS)));
-#else
     memset(destination + voteSlot(index, VOTE_ADDRESS), 0, VOTE_PACK);
     memcpy(destination + voteSlot(index, VOTE_ADDRESS), from, VOTE_ADDRESS_SIZE);
-#endif
 }
 
 static void fillVoteAmountSlot(void *destination, uint64_t value, uint8_t index) {
     print_amount(value, destination + voteSlot(index, VOTE_AMOUNT), VOTE_AMOUNT_SIZE, 0);
     PRINTF("Amount: %d - %s\n", index, destination + (voteSlot(index, VOTE_AMOUNT)));
+}
+
+// Render one Permission sub-message (owner/witness/active) of an
+// AccountPermissionUpdateContract into permissionEntries[index] for full on-device
+// review. keys_count/actives_count are already bounded by the nanopb options
+// (PERMISSION_MAX_KEYS / PERMISSION_MAX_ACTIVES), the clamps below are defensive only.
+static void fillPermissionEntry(uint8_t index, const protocol_Permission *perm) {
+    permissionEntry_t *entry = &permissionEntries[index];
+    char address[BASE58CHECK_ADDRESS_SIZE + 1];
+
+    memset(entry, 0, sizeof(*entry));
+    entry->present = true;
+
+    snprintf(entry->threshold, sizeof(entry->threshold), "%lld", (long long) perm->threshold);
+
+    entry->keysCount = perm->keys_count;
+    if (entry->keysCount > PERMISSION_MAX_KEYS) {
+        entry->keysCount = PERMISSION_MAX_KEYS;
+    }
+    for (uint8_t i = 0; i < entry->keysCount; i++) {
+        getBase58FromAddress(perm->keys[i].address, address);
+        int written = snprintf(entry->keys[i],
+                               sizeof(entry->keys[i]),
+                               "%s (weight %lld)",
+                               address,
+                               (long long) perm->keys[i].weight);
+        if (written < 0 || (size_t) written >= sizeof(entry->keys[i])) {
+            THROW(E_INCORRECT_DATA);
+        }
+    }
+
+    bytes_to_string(entry->operations,
+                    sizeof(entry->operations),
+                    perm->operations,
+                    sizeof(perm->operations));
+}
+
+static bool is_zero_address(const uint8_t *raw) {
+    uint8_t zero_address[ADDRESS_SIZE] = {0};
+    return memcmp(raw, zero_address, ADDRESS_SIZE) == 0;
 }
 
 int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
@@ -164,8 +194,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case USTREAM_FINISHED:
             break;
         case USTREAM_FAULT:
+            initTx(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);
         case USTREAM_MISSING_SETTING_DATA_ALLOWED:
+            initTx(&txContext, &txContent);
 #ifdef HAVE_SWAP
             if (G_called_from_swap) {
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
@@ -174,6 +206,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
         default:
             PRINTF("Unexpected parser status\n");
+            initTx(&txContext, &txContent);
             return io_send_sw(txResult);
     }
 
@@ -185,14 +218,17 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                transactionContext.hash,
                                32));
 
+    if (!HAS_SETTING(S_DATA_ALLOWED) && txContent.dataBytes != 0) {
+        terminate_signing_session(&txContext, &txContent);
+        return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
+    }
+
+    if (txContent.permission_id < 0 || txContent.permission_id > MAX_PERMISSION_ID) {
+        PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
+        terminate_signing_session(&txContext, &txContent);
+        return io_send_sw(E_INCORRECT_DATA);
+    }
     if (txContent.permission_id > 0) {
-        // The fromAddress buffer only reserves 5 bytes for the "Px - " prefix, which fits a
-        // single decimal digit. Refuse multi-digit IDs to avoid truncation and a misaligned
-        // address being displayed/signed (fail closed).
-        if (txContent.permission_id > MAX_PERMISSION_ID) {
-            PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
-            return io_send_sw(E_INCORRECT_DATA);
-        }
         PRINTF("Set permission_id...\n");
         snprintf((char *) fromAddress, 6, "P%d - ", txContent.permission_id);
         getBase58FromAddress(txContent.account, fromAddress + 5);
@@ -208,6 +244,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         if ((txContent.contractType != TRANSFERCONTRACT) &&      // TRX Transfer
             (txContent.contractType != TRIGGERSMARTCONTRACT)) {  // TRC20 Transfer
             PRINTF("Refused contract type when in SWAP mode\n");
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_SWAP_CHECKING_FAIL);
         }
 
@@ -215,12 +252,14 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             if (txContent.TRC20Method != 1) {
                 // Only transfer method allowed for TRC20
                 PRINTF("Refused method type when in SWAP mode\n");
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
             }
         }
 
         if (data_warning) {
             PRINTF("Refused data warning when in SWAP mode\n");
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_SWAP_CHECKING_FAIL);
         }
     }
@@ -240,6 +279,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     strcpy(TRC20Action, "Approve");
                 } else {
                     if (!HAS_SETTING(S_CUSTOM_CONTRACT)) {
+                        terminate_signing_session(&txContext, &txContent);
                         return io_send_sw(E_MISSING_SETTING_CUSTOM_CONTRACT);
                     }
                     customContractField = 1;
@@ -252,20 +292,25 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     G_io_apdu_buffer[0] = '\0';
                     G_io_apdu_buffer[100] = '\0';
                     toAddress[0] = '\0';
-                    if (txContent.amount[0] > 0 && txContent.amount[1] > 0) {
+                    if (txContent.amount[0] != 0 && txContent.callTokenValue != 0) {
+                        terminate_signing_session(&txContext, &txContent);
                         return io_send_sw(E_INCORRECT_DATA);
                     }
                     // call has value
-                    if (txContent.amount[0] > 0) {
+                    if (txContent.amount[0] != 0) {
                         strcpy(toAddress, "TRX");
                         print_amount(txContent.amount[0], (void *) G_io_apdu_buffer, 100, SUN_DIG);
                         customContractField |= (1 << 0x05);
                         customContractField |= (1 << 0x06);
-                    } else if (txContent.amount[1] > 0) {
-                        memcpy(toAddress,
-                               txContent.tokenNames[0],
-                               txContent.tokenNamesLength[0] + 1);
-                        print_amount(txContent.amount[1], (void *) G_io_apdu_buffer, 100, 0);
+                    } else if (txContent.callTokenValue != 0) {
+                        snprintf(toAddress,
+                                 sizeof(toAddress),
+                                 "Token #%lld",
+                                 (long long) txContent.callTokenId);
+                        print_amount((uint64_t) txContent.callTokenValue,
+                                     (void *) G_io_apdu_buffer,
+                                     100,
+                                     0);
                         customContractField |= (1 << 0x05);
                         customContractField |= (1 << 0x06);
                     } else {
@@ -273,10 +318,23 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                         strlcpy((char *) G_io_apdu_buffer, "0", sizeof(G_io_apdu_buffer));
                     }
 
+                    print_amount(txContent.feeLimit,
+                                 strings.common.maxFee,
+                                 sizeof(strings.common.maxFee),
+                                 SUN_DIG);
+
                     // approve custom contract
                     ux_flow_display(APPROVAL_CUSTOM_CONTRACT, data_warning);
 
                     break;
+                }
+
+                // A known TRC20 transfer/approve review only shows the ABI-decoded
+                // token amount; refuse to sign if the raw call also moves TRX or a
+                // TRC10 token that would otherwise stay hidden from the user.
+                if (txContent.amount[0] != 0 || txContent.callTokenValue != 0) {
+                    terminate_signing_session(&txContext, &txContent);
+                    return io_send_sw(E_INCORRECT_DATA);
                 }
 
                 convertUint256BE(txContent.TRC20Amount, 32, &uint256);
@@ -286,6 +344,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                     (char *) G_io_apdu_buffer,
                                     100,
                                     txContent.decimals[0])) {
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_INCORRECT_LENGTH);
                 }
             } else {
@@ -300,6 +359,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             // get token name if any
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
+
+            if (txContent.contractType == TRIGGERSMARTCONTRACT) {
+                print_amount(txContent.feeLimit,
+                             strings.common.maxFee,
+                             sizeof(strings.common.maxFee),
+                             SUN_DIG);
+            }
 #ifdef HAVE_SWAP
             // If we are in swap context, do not redisplay the message data
             // Instead, ensure they are identical with what was previously displayed
@@ -307,11 +373,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 if (swap_check_validity((char *) G_io_apdu_buffer,  // Amount
                                         fullContract,               // Token name
                                         TRC20ActionSendAllow,       // "Send To"
-                                        toAddress)) {
+                                        toAddress,
+                                        txContent.feeLimit)) {
                     PRINTF("Signing valid swap transaction\n");
                     ui_callback_tx_ok(false);
                 } else {
                     PRINTF("Refused signing incorrect Swap transaction\n");
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_SWAP_CHECKING_FAIL);
                 }
             } else {
@@ -325,19 +393,20 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case EXCHANGECREATECONTRACT:
 
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
+            // tokenNames[1] can hold a name[id] label up to MAX_TOKEN_LENGTH, wider than toAddress.
+            if (txContent.tokenNamesLength[1] + 1 > sizeof(toAddress)) {
+                terminate_signing_session(&txContext, &txContent);
+                return io_send_sw(E_INCORRECT_DATA);
+            }
             memcpy(toAddress, txContent.tokenNames[1], txContent.tokenNamesLength[1] + 1);
             print_amount(txContent.amount[0],
                          (void *) G_io_apdu_buffer,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[0], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[0]);
+                         txContent.tokenIsTrx[0] ? SUN_DIG : txContent.decimals[0]);
             print_amount(txContent.amount[1],
                          (void *) G_io_apdu_buffer + 100,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[1], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[1]);
+                         txContent.tokenIsTrx[1] ? SUN_DIG : txContent.decimals[1]);
 
             ux_flow_display(APPROVAL_EXCHANGE_CREATE, data_warning);
 
@@ -350,13 +419,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             print_amount(txContent.amount[0],
                          (void *) G_io_apdu_buffer,
                          100,
-                         (strncmp((const char *) txContent.tokenNames[0], "TRX", 3) == 0)
-                             ? SUN_DIG
-                             : txContent.decimals[0]);
+                         txContent.tokenIsTrx[0] ? SUN_DIG : txContent.decimals[0]);
             // write exchange contract type
             if (!setExchangeContractDetail(txContent.contractType,
                                            (char *) G_io_apdu_buffer + 100,
                                            sizeof(G_io_apdu_buffer) - 100)) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
@@ -386,32 +454,44 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             break;
         case VOTEWITNESSCONTRACT: {
             // vote for SR
-            protocol_VoteWitnessContract *contract = &msg.vote_witness_contract;
+            if (txContent.votesCount == 0) {
+                terminate_signing_session(&txContext, &txContent);
+                return io_send_sw(E_INCORRECT_DATA);
+            }
 
             PRINTF("Voting!!\n");
-            PRINTF("Count: %d\n", contract->votes_count);
+            PRINTF("Count: %d\n", txContent.votesCount);
             memset(G_io_apdu_buffer, 0, 200);
             txContent.amount[0] = 0;
-            votes_count = contract->votes_count;
+            votes_count = txContent.votesCount;
 #if defined(HAVE_NBGL)
-            uint32_t total_votes = 0;
+            uint64_t total_votes = 0;
 #endif
 
-            for (int i = 0; i < contract->votes_count; i++) {
-                getBase58FromAddress(contract->votes[i].vote_address, fullContract);
+            for (int i = 0; i < txContent.votesCount; i++) {
+                if (txContent.votes[i].count <= 0) {
+                    terminate_signing_session(&txContext, &txContent);
+                    return io_send_sw(E_INCORRECT_DATA);
+                }
+                getBase58FromAddress(txContent.votes[i].address, fullContract);
 #if defined(HAVE_NBGL)
-                total_votes += (unsigned int) contract->votes[i].vote_count;
+                uint64_t count = (uint64_t) txContent.votes[i].count;
+                if (UINT64_MAX - total_votes < count) {
+                    terminate_signing_session(&txContext, &txContent);
+                    return io_send_sw(E_INCORRECT_DATA);
+                }
+                total_votes += count;
 #endif
                 fillVoteAddressSlot((void *) G_io_apdu_buffer, (const char *) fullContract, i);
-                fillVoteAmountSlot((void *) G_io_apdu_buffer, contract->votes[i].vote_count, i);
+                fillVoteAmountSlot((void *) G_io_apdu_buffer, txContent.votes[i].count, i);
             }
 
 #if defined(HAVE_NBGL)
             snprintf((char *) fullContract,
                      sizeof(fullContract),
-                     "%d: %u",
-                     contract->votes_count,
-                     total_votes);
+                     "%d: %llu",
+                     txContent.votesCount,
+                     (unsigned long long) total_votes);
 #endif
 
             ux_flow_display(APPROVAL_WITNESSVOTE_TRANSACTION, data_warning);
@@ -424,7 +504,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 strcpy(fullContract, "Energy");
 
             print_amount(txContent.amount[0], (char *) G_io_apdu_buffer, 100, SUN_DIG);
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (!is_zero_address(txContent.destination)) {
                 getBase58FromAddress(txContent.destination, toAddress);
             } else {
                 getBase58FromAddress(txContent.account, toAddress);
@@ -439,7 +519,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             else
                 strcpy(fullContract, "Energy");
 
-            if (strlen((const char *) txContent.destination) > 0) {
+            if (!is_zero_address(txContent.destination)) {
                 getBase58FromAddress(txContent.destination, toAddress);
             } else {
                 getBase58FromAddress(txContent.account, toAddress);
@@ -513,31 +593,49 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             ux_flow_display(APPROVAL_WITHDRAWBALANCE_TRANSACTION, data_warning);
 
             break;
-        case ACCOUNTPERMISSIONUPDATECONTRACT:
-            if (!HAS_SETTING(S_SIGN_BY_HASH)) {
-                return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
-            }
-            // Write fullHash
-            format_hex(transactionContext.hash, 32, fullHash, sizeof(fullHash));
-            // write contract type
-            if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
+        case ACCOUNTPERMISSIONUPDATECONTRACT: {
+            // Never blind-sign a permission update: always render the full diff
+            // (owner/witness/active permissions, their keys, weights, thresholds
+            // and allowed operations) instead of falling back to a hash-only
+            // review, regardless of the Sign by Hash setting.
+            const protocol_AccountPermissionUpdateContract *contract =
+                &msg.account_permission_update_contract;
+
+            if (!contract->has_owner && !contract->has_witness && contract->actives_count == 0) {
+                // Nothing to review; on-chain this is an invalid update anyway.
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
+            }
+
+            memset(permissionEntries, 0, sizeof(permissionEntries));
+
+            if (contract->has_owner) {
+                fillPermissionEntry(PERMISSION_ENTRY_OWNER, &contract->owner);
+            }
+            if (contract->has_witness) {
+                fillPermissionEntry(PERMISSION_ENTRY_WITNESS, &contract->witness);
+            }
+            for (pb_size_t i = 0; i < contract->actives_count && i < PERMISSION_MAX_ACTIVES; i++) {
+                fillPermissionEntry(PERMISSION_ENTRY_ACTIVE_0 + i, &contract->actives[i]);
             }
 
             ux_flow_display(APPROVAL_PERMISSION_UPDATE, data_warning);
 
-            break;
+        } break;
         case INVALID_CONTRACT:
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);  // Contract not initialized
             break;
         default:
             if (!HAS_SETTING(S_SIGN_BY_HASH)) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
             }
             // Write fullHash
             format_hex(transactionContext.hash, 32, fullHash, sizeof(fullHash));
             // write contract type
             if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 

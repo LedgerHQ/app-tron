@@ -19,6 +19,7 @@
 #define TRC20_DATA_FIELD_SIZE 68
 
 #define SUN_DIG                  6
+#define MAX_TOKEN_PRECISION      18  // TRC20 max; also covers TRC10 (<= 6)
 #define ADD_PRE_FIX_BYTE_MAINNET 0x41
 #define MAX_RAW_SIGNATURE        65
 #define MAX_TOKEN_LENGTH         67
@@ -26,6 +27,8 @@
 #define NETWORK_STRING_MAX_SIZE 16
 #define SHARED_CTX_FIELD_1_SIZE 256
 #define SHARED_CTX_FIELD_2_SIZE 40
+
+#define MAX_VOTES 5
 
 typedef union {
     protocol_TransferContract transfer_contract;
@@ -128,6 +131,11 @@ typedef struct transactionContext_t {
     uint8_t signatureLength;
 } transactionContext_t;
 
+typedef struct voteEntry_t {
+    uint8_t address[ADDRESS_SIZE];
+    int64_t count;
+} voteEntry_t;
+
 typedef struct txContent_t {
     uint64_t amount[2];
     uint64_t exchangeID;
@@ -138,13 +146,24 @@ typedef struct txContent_t {
     uint8_t decimals[2];
     char tokenNames[2][MAX_TOKEN_LENGTH];
     uint8_t tokenNamesLength[2];
+    // Set from the raw wire token ID (single '_' byte), never inferred from tokenNames:
+    // a signed TRC10 name can legally start with "TRX" (e.g. "TRXBonus") without being native TRX.
+    bool tokenIsTrx[2];
     uint8_t resource;
     uint8_t TRC20Method;
     uint32_t customSelector;
+    int64_t
+        callTokenValue;  // TriggerSmartContract.call_token_value (TRC10 value attached to the call)
+    int64_t callTokenId;  // TriggerSmartContract.token_id (TRC10 id attached to the call)
     contractType_e contractType;
     uint64_t dataBytes;
-    uint8_t permission_id;
+    uint64_t feeLimit;
+    int32_t permission_id;
     uint32_t customData;
+    bool contractSeen;  // a Contract field was already decoded from an earlier INS_SIGN chunk
+    bool feeLimitSeen;  // feeLimit was already set from an earlier INS_SIGN chunk
+    uint8_t votesCount;
+    voteEntry_t votes[MAX_VOTES];
 } txContent_t;
 
 typedef struct messageSigningContext712_t {
@@ -186,6 +205,7 @@ bool adjustDecimals(const char *src,
                     uint8_t decimals);
 
 void initTx(txContext_t *context, txContent_t *content);
+void terminate_signing_session(txContext_t *context, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
 

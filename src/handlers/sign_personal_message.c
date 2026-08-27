@@ -27,20 +27,35 @@
 #include "app_errors.h"
 #include "handlers.h"
 #include "parse.h"
+#include "settings.h"
 #include "ui_globals.h"
 
 static const char SIGN_MAGIC[] = "\x19TRON Signed Message:\n";
 
-int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
+// Keccak state must survive across P1_MORE chunks, each handled by a fresh call.
+static struct {
     cx_sha3_t sha3;
+    bool initialized;
+} personal_msg_ctx;
+
+int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
+    if (!HAS_SETTING(S_SIGN_BY_HASH)) {
+        return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);
+    }
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
         off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
         if (ret < 0) {
+            explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
             return io_send_sw(E_INCORRECT_BIP32_PATH);
         }
         workBuffer += ret;
         dataLength -= ret;
+
+        if (dataLength < 4) {
+            explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
+            return io_send_sw(E_INCORRECT_LENGTH);
+        }
 
         // Message Length
         txContent.dataBytes = U4BE(workBuffer, 0);
@@ -48,8 +63,9 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         dataLength -= 4;
 
         // Initialize message header + length
-        CX_ASSERT(cx_keccak_init_no_throw(&sha3, 256));
-        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3,
+        CX_ASSERT(cx_keccak_init_no_throw(&personal_msg_ctx.sha3, 256));
+        personal_msg_ctx.initialized = true;
+        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
                                    0,
                                    (const uint8_t *) SIGN_MAGIC,
                                    sizeof(SIGN_MAGIC) - 1,
@@ -58,10 +74,14 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
 
         char tmp[11];
         snprintf((char *) tmp, 11, "%d", (uint32_t) txContent.dataBytes);
-        CX_ASSERT(
-            cx_hash_no_throw((cx_hash_t *) &sha3, 0, (const uint8_t *) tmp, strlen(tmp), NULL, 0));
+        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
+                                   0,
+                                   (const uint8_t *) tmp,
+                                   strlen(tmp),
+                                   NULL,
+                                   0));
 
-    } else if (p1 != P1_MORE) {
+    } else if (p1 != P1_MORE || !personal_msg_ctx.initialized) {
         return io_send_sw(E_INCORRECT_P1_P2);
     }
 
@@ -69,34 +89,25 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         return io_send_sw(E_INCORRECT_P1_P2);
     }
     if (dataLength > txContent.dataBytes) {
+        explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
         return io_send_sw(E_INCORRECT_LENGTH);
     }
 
-    CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3, 0, workBuffer, dataLength, NULL, 0));
+    CX_ASSERT(
+        cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3, 0, workBuffer, dataLength, NULL, 0));
     txContent.dataBytes -= dataLength;
     if (txContent.dataBytes == 0) {
-        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &sha3,
+        CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
                                    CX_LAST,
                                    workBuffer,
                                    0,
                                    transactionContext.hash,
                                    32));
-#ifdef HAVE_BAGL
-#define HASH_LENGTH 4
-        format_hex(transactionContext.hash, HASH_LENGTH / 2, fullContract, sizeof(fullContract));
-        fullContract[HASH_LENGTH] = '.';
-        fullContract[HASH_LENGTH + 1] = '.';
-        fullContract[HASH_LENGTH + 2] = '.';
-        format_hex(transactionContext.hash + 32 - HASH_LENGTH / 2,
-                   HASH_LENGTH / 2,
-                   fullContract + HASH_LENGTH + 3,
-                   sizeof(fullContract) - (HASH_LENGTH + 3));
-#else
+        explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
         format_hex(transactionContext.hash,
                    sizeof(transactionContext.hash),
                    fullContract,
                    sizeof(fullContract));
-#endif
         if (initPublicKeyContext(&transactionContext.bip32_path, fromAddress) != 0) {
             return io_send_sw(E_SECURITY_STATUS_NOT_SATISFIED);
         }

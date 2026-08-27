@@ -32,6 +32,7 @@ char TRC20Action[9];
 char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
+permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 messageSigningContext712_t messageSigningContext712;
@@ -71,6 +72,8 @@ bool ui_callback_signMessage_ok(bool display_menu) {
 bool ui_callback_tx_cancel(bool display_menu) {
     io_send_sw(E_CONDITIONS_OF_USE_NOT_SATISFIED);
 
+    terminate_signing_session(&txContext, &txContent);
+
     if (display_menu) {
         // Display back the original UX
         ui_idle();
@@ -90,6 +93,8 @@ bool ui_callback_tx_ok(bool display_menu) {
                                  transactionContext.signatureLength,
                                  E_OK);
     }
+
+    terminate_signing_session(&txContext, &txContent);
 
     if (display_menu) {
         // Display back the original UX
@@ -231,15 +236,17 @@ bool ui_callback_signMessage712_v0_ok(bool display_menu) {
 
     io_seproxyhal_io_heartbeat();
     unsigned int signatureLength = sizeof(signature);
-    if (cx_ecdsa_sign_no_throw(&privateKey,
-                               CX_RND_RFC6979 | CX_LAST,
-                               CX_SHA256,
-                               hash,
-                               sizeof(hash),
-                               signature,
-                               &signatureLength,
-                               &info) != CX_OK) {
-        return false;
+    err = cx_ecdsa_sign_no_throw(&privateKey,
+                                 CX_RND_RFC6979 | CX_LAST,
+                                 CX_SHA256,
+                                 hash,
+                                 sizeof(hash),
+                                 signature,
+                                 &signatureLength,
+                                 &info);
+
+    if (err != CX_OK) {
+        goto end;
     }
 
     format_signature_out(signature);

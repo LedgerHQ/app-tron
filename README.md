@@ -16,7 +16,7 @@ It will allow you, whether you are developing on macOS, Windows or Linux to quic
 * Make sure you have an X11 server running:
     * On Ubuntu Linux, it should be running by default.
     * On macOS, install and launch [XQuartz](https://www.xquartz.org/) (make sure to go to XQuartz > Preferences > Security and check "Allow client connections").
-    * On Windows, install and launch [VcXsrv](https://sourceforge.net/projects/vcxsrv/) (make sure to configure it to disable access control).
+    * On Windows, install and launch [VcXsrv](https://sourceforge.net/projects/vcxsrv/) with access control enabled, and bind it to localhost where possible.
 * Install [VSCode](https://code.visualstudio.com/download) and add [Ledger's extension](https://marketplace.visualstudio.com/items?itemName=LedgerHQ.ledger-dev-tools).
 * Open the `app-tron` folder with VSCode.
 * Use Ledger extension's sidebar menu or open the tasks menu with `ctrl + shift + b` (`command + shift + b` on a Mac) to conveniently execute actions:

@@ -44,6 +44,12 @@ typedef struct _protocol_AccountCreateContract {
 
 typedef struct _protocol_AccountPermissionUpdateContract { 
     pb_byte_t owner_address[21]; 
+    bool has_owner;
+    protocol_Permission owner; 
+    bool has_witness;
+    protocol_Permission witness; 
+    pb_size_t actives_count;
+    protocol_Permission actives[2]; 
 } protocol_AccountPermissionUpdateContract;
 
 /* Update account name. Account name is not unique now. */
@@ -282,7 +288,7 @@ extern "C" {
 #define protocol_ExchangeInjectContract_init_default {{0}, 0, {0, {0}}, 0}
 #define protocol_ExchangeWithdrawContract_init_default {{0}, 0, {0, {0}}, 0}
 #define protocol_ExchangeTransactionContract_init_default {{0}, 0, {0, {0}}, 0, 0}
-#define protocol_AccountPermissionUpdateContract_init_default {{0}}
+#define protocol_AccountPermissionUpdateContract_init_default {{0}, false, protocol_Permission_init_default, false, protocol_Permission_init_default, 0, {protocol_Permission_init_default, protocol_Permission_init_default}}
 #define protocol_AccountCreateContract_init_zero {{{NULL}, NULL}, {{NULL}, NULL}, _protocol_AccountType_MIN}
 #define protocol_AccountUpdateContract_init_zero {{{NULL}, NULL}, {0}}
 #define protocol_TransferContract_init_zero      {{0}, {0}, 0}
@@ -315,7 +321,7 @@ extern "C" {
 #define protocol_ExchangeInjectContract_init_zero {{0}, 0, {0, {0}}, 0}
 #define protocol_ExchangeWithdrawContract_init_zero {{0}, 0, {0, {0}}, 0}
 #define protocol_ExchangeTransactionContract_init_zero {{0}, 0, {0, {0}}, 0, 0}
-#define protocol_AccountPermissionUpdateContract_init_zero {{0}}
+#define protocol_AccountPermissionUpdateContract_init_zero {{0}, false, protocol_Permission_init_zero, false, protocol_Permission_init_zero, 0, {protocol_Permission_init_zero, protocol_Permission_init_zero}}
 
 /* Field tags (for use in manual encoding/decoding) */
 #define protocol_DeployContract_owner_address_tag 1
@@ -329,6 +335,9 @@ extern "C" {
 #define protocol_AccountCreateContract_account_address_tag 2
 #define protocol_AccountCreateContract_type_tag  3
 #define protocol_AccountPermissionUpdateContract_owner_address_tag 1
+#define protocol_AccountPermissionUpdateContract_owner_tag 2
+#define protocol_AccountPermissionUpdateContract_witness_tag 3
+#define protocol_AccountPermissionUpdateContract_actives_tag 4
 #define protocol_AccountUpdateContract_account_name_tag 1
 #define protocol_AccountUpdateContract_owner_address_tag 2
 #define protocol_AssetIssueContract_owner_address_tag 1
@@ -677,9 +686,15 @@ X(a, STATIC,   SINGULAR, INT64,    expected,          5)
 #define protocol_ExchangeTransactionContract_DEFAULT NULL
 
 #define protocol_AccountPermissionUpdateContract_FIELDLIST(X, a) \
-X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1)
+X(a, STATIC,   SINGULAR, FIXED_LENGTH_BYTES, owner_address,     1) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  owner,             2) \
+X(a, STATIC,   OPTIONAL, MESSAGE,  witness,           3) \
+X(a, STATIC,   REPEATED, MESSAGE,  actives,           4)
 #define protocol_AccountPermissionUpdateContract_CALLBACK NULL
 #define protocol_AccountPermissionUpdateContract_DEFAULT NULL
+#define protocol_AccountPermissionUpdateContract_owner_MSGTYPE protocol_Permission
+#define protocol_AccountPermissionUpdateContract_witness_MSGTYPE protocol_Permission
+#define protocol_AccountPermissionUpdateContract_actives_MSGTYPE protocol_Permission
 
 extern const pb_msgdesc_t protocol_AccountCreateContract_msg;
 extern const pb_msgdesc_t protocol_AccountUpdateContract_msg;
@@ -762,7 +777,6 @@ extern const pb_msgdesc_t protocol_AccountPermissionUpdateContract_msg;
 /* protocol_UnfreezeAssetContract_size depends on runtime parameters */
 /* protocol_UpdateAssetContract_size depends on runtime parameters */
 /* protocol_TriggerSmartContract_size depends on runtime parameters */
-#define protocol_AccountPermissionUpdateContract_size 23
 #define protocol_AssetIssueContract_FrozenSupply_size 22
 #define protocol_DelegateResourceContract_size   61
 #define protocol_ExchangeCreateContract_size     65
@@ -784,6 +798,9 @@ extern const pb_msgdesc_t protocol_AccountPermissionUpdateContract_msg;
 #define protocol_VoteWitnessContract_size        203
 #define protocol_WithdrawBalanceContract_size    23
 #define protocol_WithdrawExpireUnfreezeContract_size 23
+#if defined(protocol_Permission_size) && defined(protocol_Permission_size) && defined(protocol_Permission_size)
+#define protocol_AccountPermissionUpdateContract_size (47 + protocol_Permission_size + protocol_Permission_size + 2*protocol_Permission_size)
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

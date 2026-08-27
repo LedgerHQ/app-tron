@@ -102,7 +102,7 @@ PB_BIND(protocol_ExchangeWithdrawContract, protocol_ExchangeWithdrawContract, AU
 PB_BIND(protocol_ExchangeTransactionContract, protocol_ExchangeTransactionContract, AUTO)
 
 
-PB_BIND(protocol_AccountPermissionUpdateContract, protocol_AccountPermissionUpdateContract, AUTO)
+PB_BIND(protocol_AccountPermissionUpdateContract, protocol_AccountPermissionUpdateContract, 2)
 
 
 

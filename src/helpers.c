@@ -127,6 +127,13 @@ off_t read_bip32_path(const uint8_t *buffer, size_t length, bip32_path_t *path) 
         path->indices[i] = U4BE(buffer, 0);
         buffer += 4;
     }
+
+    if (path_length < 2 || path->indices[0] != TRON_BIP32_PREFIX_0 ||
+        path->indices[1] != TRON_BIP32_PREFIX_1) {
+        PRINTF("Path is not under Tron's subtree\n");
+        return -1;
+    }
+
     return 1 + 4 * path_length;
 }
 
