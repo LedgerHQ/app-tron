@@ -9,21 +9,12 @@ on:
       - develop
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   src_lint_check:
-    name: Lint check on source files
+    name: Check linting using the reusable workflow
     uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_lint.yml@v1
     with:
-      version: 11
-      source: src/
-
-  tests_lint_check:
-    name: Lint check on tests files
-    runs-on: ubuntu-latest
-    steps:
-    - name: Clone
-      uses: actions/checkout@v3
-    - run: pip install yapf toml
-    - name: Yapf source formatting
-      run: |
-        yapf tests/ --recursive -d
+      source: ./src/
