@@ -413,6 +413,12 @@ void initTx(txContext_t *context, txContent_t *content) {
     cx_sha256_init(&context->sha2);  // init sha
 }
 
+void terminate_signing_session(txContext_t *context, txContent_t *content) {
+    memset(context, 0, sizeof(txContext_t));
+    memset(content, 0, sizeof(txContent_t));
+    content->contractType = INVALID_CONTRACT;
+}
+
 #define COPY_ADDRESS(a, b) memcpy((a), (b), ADDRESS_SIZE)
 
 contract_t msg;
@@ -805,14 +811,19 @@ static bool account_permission_update_contract(txContent_t *content, pb_istream_
 typedef struct {
     const uint8_t *buf;
     size_t size;
+    bool captured;
 } buffer_t;
 
 bool pb_decode_contract_parameter(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     PB_UNUSED(field);
     buffer_t *buffer = *arg;
 
+    if (buffer->captured) {
+        return false;
+    }
     buffer->buf = stream->state;
     buffer->size = stream->bytes_left;
+    buffer->captured = true;
     return true;
 }
 
@@ -881,6 +892,10 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
 
         // has_parameter can be true with an empty Any.value, leaving contract_buffer unset.
         if (contract_buffer.buf == NULL || contract_buffer.size == 0) {
+            return USTREAM_FAULT;
+        }
+        if (contract_buffer.buf < buffer || contract_buffer.buf > buffer + length ||
+            contract_buffer.size > (size_t) (buffer + length - contract_buffer.buf)) {
             return USTREAM_FAULT;
         }
 

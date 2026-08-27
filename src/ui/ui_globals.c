@@ -72,6 +72,8 @@ bool ui_callback_signMessage_ok(bool display_menu) {
 bool ui_callback_tx_cancel(bool display_menu) {
     io_send_sw(E_CONDITIONS_OF_USE_NOT_SATISFIED);
 
+    terminate_signing_session(&txContext, &txContent);
+
     if (display_menu) {
         // Display back the original UX
         ui_idle();
@@ -91,6 +93,8 @@ bool ui_callback_tx_ok(bool display_menu) {
                                  transactionContext.signatureLength,
                                  E_OK);
     }
+
+    terminate_signing_session(&txContext, &txContent);
 
     if (display_menu) {
         // Display back the original UX

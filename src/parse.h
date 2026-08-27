@@ -205,6 +205,7 @@ bool adjustDecimals(const char *src,
                     uint8_t decimals);
 
 void initTx(txContext_t *context, txContent_t *content);
+void terminate_signing_session(txContext_t *context, txContent_t *content);
 
 parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content);
 

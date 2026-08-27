@@ -219,12 +219,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                32));
 
     if (!HAS_SETTING(S_DATA_ALLOWED) && txContent.dataBytes != 0) {
-        initTx(&txContext, &txContent);
+        terminate_signing_session(&txContext, &txContent);
         return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
     }
 
     if (txContent.permission_id < 0 || txContent.permission_id > MAX_PERMISSION_ID) {
         PRINTF("Unsupported permission_id: %d\n", txContent.permission_id);
+        terminate_signing_session(&txContext, &txContent);
         return io_send_sw(E_INCORRECT_DATA);
     }
     if (txContent.permission_id > 0) {
@@ -243,6 +244,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         if ((txContent.contractType != TRANSFERCONTRACT) &&      // TRX Transfer
             (txContent.contractType != TRIGGERSMARTCONTRACT)) {  // TRC20 Transfer
             PRINTF("Refused contract type when in SWAP mode\n");
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_SWAP_CHECKING_FAIL);
         }
 
@@ -250,12 +252,14 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             if (txContent.TRC20Method != 1) {
                 // Only transfer method allowed for TRC20
                 PRINTF("Refused method type when in SWAP mode\n");
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
             }
         }
 
         if (data_warning) {
             PRINTF("Refused data warning when in SWAP mode\n");
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_SWAP_CHECKING_FAIL);
         }
     }
@@ -275,6 +279,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     strcpy(TRC20Action, "Approve");
                 } else {
                     if (!HAS_SETTING(S_CUSTOM_CONTRACT)) {
+                        terminate_signing_session(&txContext, &txContent);
                         return io_send_sw(E_MISSING_SETTING_CUSTOM_CONTRACT);
                     }
                     customContractField = 1;
@@ -288,6 +293,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     G_io_apdu_buffer[100] = '\0';
                     toAddress[0] = '\0';
                     if (txContent.amount[0] != 0 && txContent.callTokenValue != 0) {
+                        terminate_signing_session(&txContext, &txContent);
                         return io_send_sw(E_INCORRECT_DATA);
                     }
                     // call has value
@@ -327,6 +333,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 // token amount; refuse to sign if the raw call also moves TRX or a
                 // TRC10 token that would otherwise stay hidden from the user.
                 if (txContent.amount[0] != 0 || txContent.callTokenValue != 0) {
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_INCORRECT_DATA);
                 }
 
@@ -337,6 +344,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                                     (char *) G_io_apdu_buffer,
                                     100,
                                     txContent.decimals[0])) {
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_INCORRECT_LENGTH);
                 }
             } else {
@@ -371,6 +379,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     ui_callback_tx_ok(false);
                 } else {
                     PRINTF("Refused signing incorrect Swap transaction\n");
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_SWAP_CHECKING_FAIL);
                 }
             } else {
@@ -386,6 +395,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             memcpy(fullContract, txContent.tokenNames[0], txContent.tokenNamesLength[0] + 1);
             // tokenNames[1] can hold a name[id] label up to MAX_TOKEN_LENGTH, wider than toAddress.
             if (txContent.tokenNamesLength[1] + 1 > sizeof(toAddress)) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
             memcpy(toAddress, txContent.tokenNames[1], txContent.tokenNamesLength[1] + 1);
@@ -414,6 +424,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             if (!setExchangeContractDetail(txContent.contractType,
                                            (char *) G_io_apdu_buffer + 100,
                                            sizeof(G_io_apdu_buffer) - 100)) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
@@ -444,6 +455,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case VOTEWITNESSCONTRACT: {
             // vote for SR
             if (txContent.votesCount == 0) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
@@ -458,12 +470,14 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             for (int i = 0; i < txContent.votesCount; i++) {
                 if (txContent.votes[i].count <= 0) {
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_INCORRECT_DATA);
                 }
                 getBase58FromAddress(txContent.votes[i].address, fullContract);
 #if defined(HAVE_NBGL)
                 uint64_t count = (uint64_t) txContent.votes[i].count;
                 if (UINT64_MAX - total_votes < count) {
+                    terminate_signing_session(&txContext, &txContent);
                     return io_send_sw(E_INCORRECT_DATA);
                 }
                 total_votes += count;
@@ -589,6 +603,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
             if (!contract->has_owner && !contract->has_witness && contract->actives_count == 0) {
                 // Nothing to review; on-chain this is an invalid update anyway.
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
@@ -608,16 +623,19 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
         } break;
         case INVALID_CONTRACT:
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);  // Contract not initialized
             break;
         default:
             if (!HAS_SETTING(S_SIGN_BY_HASH)) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);  // reject
             }
             // Write fullHash
             format_hex(transactionContext.hash, 32, fullHash, sizeof(fullHash));
             // write contract type
             if (!setContractType(txContent.contractType, fullContract, sizeof(fullContract))) {
+                terminate_signing_session(&txContext, &txContent);
                 return io_send_sw(E_INCORRECT_DATA);
             }
 
