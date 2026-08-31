@@ -165,7 +165,7 @@ bool swap_check_validity(const char *amount,
     }
     uint256_t parsedFeeLimit;
     convertUint256BE(feeLimitBE, sizeof(feeLimitBE), &parsedFeeLimit);
-    if (!equal256(&parsedFeeLimit, &G_swap_validated.fee_amount)) {
+    if (gt256(&parsedFeeLimit, &G_swap_validated.fee_amount)) {
         PRINTF("Refused transaction with unexpected fee\n");
         return false;
     }
