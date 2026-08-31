@@ -29,7 +29,7 @@ APPVERSION = $(file < VERSION)
 
 APPVERSION_M=$(call splitVersion, $(APPVERSION), 1)
 APPVERSION_N=$(call splitVersion, $(APPVERSION), 2)
-APPVERSION_P=$(call splitVersion, $(APPVERSION), 3)
+APPVERSION_P=$(firstword $(subst -, ,$(call splitVersion, $(APPVERSION), 3)))
 
 # - <VARIANT_PARAM> is the name of the parameter which should be set
 #   to specify the variant that should be build.
