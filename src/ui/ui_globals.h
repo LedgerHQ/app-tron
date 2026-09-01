@@ -19,6 +19,9 @@
 
 #include <stdint.h>
 #include "../parse.h"
+#ifdef HAVE_ADDRESS_BOOK
+#include "handle_contacts.h"
+#endif
 
 #define VOTE_ADDRESS          0
 #define VOTE_ADDRESS_SIZE     BASE58CHECK_ADDRESS_SIZE + 1
@@ -73,7 +76,12 @@ extern char TRC20Action[9];
 extern char TRC20ActionSendAllow[8];
 extern char fullHash[HASH_SIZE * 2 + 1];
 extern int8_t votes_count;
+#ifdef HAVE_ADDRESS_BOOK
+extern const s_ab_contact *g_recipient_contact;
+extern const s_ab_contact *g_sender_contact;
+#endif
 extern permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
+extern const char *g_recipient_service;
 extern transactionContext_t transactionContext;
 extern publicKeyContext_t publicKeyContext;
 extern messageSigningContext712_t messageSigningContext712;

@@ -18,6 +18,7 @@
 #include "io.h"
 #include "parser.h"
 
+#include "dispatcher.h"
 #include "handlers.h"
 #include "app_errors.h"
 
@@ -25,11 +26,23 @@
 #include "swap.h"
 #endif  // HAVE_SWAP
 
+#ifdef HAVE_ADDRESS_BOOK
+#include "ui_globals.h"
+#endif  // HAVE_ADDRESS_BOOK
+
 // Check ADPU and process the assigned task
 int apdu_dispatcher(const command_t *cmd) {
     if (cmd->cla != CLA) {
         return io_send_sw(E_CLA_NOT_SUPPORTED);
     }
+
+#ifdef HAVE_ADDRESS_BOOK
+    // Start each command with no resolved contact; handleSign sets them just
+    // before the review, so a stale contact can never leak to another flow.
+    g_recipient_contact = NULL;
+    g_sender_contact = NULL;
+#endif  // HAVE_ADDRESS_BOOK
+    g_recipient_service = NULL;
 
 #ifdef HAVE_SWAP
     if (G_called_from_swap) {
