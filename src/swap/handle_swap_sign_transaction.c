@@ -27,7 +27,6 @@ typedef struct swap_validated_s {
     uint8_t decimals;
     char ticker[MAX_SWAP_TOKEN_LENGTH];
     uint256_t amount;
-    uint256_t fee_amount;
     char recipient[BASE58CHECK_ADDRESS_SIZE + 1];
 } swap_validated_t;
 
@@ -55,13 +54,8 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
         return false;
     }
 
-    if (params->amount == NULL || params->amount_length > 32) {
-        PRINTF("Invalid amount\n");
-        return false;
-    }
-
-    if (params->fee_amount == NULL || params->fee_amount_length > 32) {
-        PRINTF("Invalid fee amount\n");
+    if (params->amount == NULL) {
+        PRINTF("Amount expected\n");
         return false;
     }
 
@@ -104,7 +98,6 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
     }
 
     convertUint256BE(params->amount, params->amount_length, &swap_validated.amount);
-    convertUint256BE(params->fee_amount, params->fee_amount_length, &swap_validated.fee_amount);
 
     swap_validated.initialized = true;
 
@@ -147,8 +140,7 @@ static bool check_swap_amount(const char *amount, const uint8_t decimals) {
 bool swap_check_validity(const char *amount,
                          const char *tokenName,
                          const char *action,
-                         const char *toAddress,
-                         uint64_t feeLimit) {
+                         const char *toAddress) {
     PRINTF("Inside Tron swap_check_validity\n");
 
     if (!G_swap_validated.initialized) {
@@ -156,17 +148,6 @@ bool swap_check_validity(const char *amount,
     }
 
     if (!check_swap_amount(amount, G_swap_validated.decimals)) {
-        return false;
-    }
-
-    uint8_t feeLimitBE[8];
-    for (uint8_t i = 0; i < sizeof(feeLimitBE); i++) {
-        feeLimitBE[i] = (feeLimit >> ((sizeof(feeLimitBE) - 1 - i) * 8)) & 0xFF;
-    }
-    uint256_t parsedFeeLimit;
-    convertUint256BE(feeLimitBE, sizeof(feeLimitBE), &parsedFeeLimit);
-    if (!equal256(&parsedFeeLimit, &G_swap_validated.fee_amount)) {
-        PRINTF("Refused transaction with unexpected fee\n");
         return false;
     }
 
