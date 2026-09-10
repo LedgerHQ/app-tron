@@ -21,15 +21,25 @@
 #include "settings.h"
 #include "app_errors.h"
 
+// Public wire bits, independent from internal settings.h positions.
+#define CONFIG_BIT_DATA_ALLOWED    0
+#define CONFIG_BIT_CUSTOM_CONTRACT 1
+#define CONFIG_BIT_RESERVED        2
+#define CONFIG_BIT_SIGN_BY_HASH    3
+
 int handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     UNUSED(p1);
     UNUSED(p2);
     UNUSED(workBuffer);
     UNUSED(dataLength);
 
-    // Add info to buffer
+    uint8_t config = 0;
+    config |= HAS_SETTING(S_DATA_ALLOWED) << CONFIG_BIT_DATA_ALLOWED;
+    config |= HAS_SETTING(S_CUSTOM_CONTRACT) << CONFIG_BIT_CUSTOM_CONTRACT;
+    config |= HAS_SETTING(S_SIGN_BY_HASH) << CONFIG_BIT_SIGN_BY_HASH;
+
     uint8_t resp[4] = {0};
-    resp[0] = N_settings & 0x0f;
+    resp[0] = config;
     resp[1] = MAJOR_VERSION;
     resp[2] = MINOR_VERSION;
     resp[3] = PATCH_VERSION;

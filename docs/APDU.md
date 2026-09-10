@@ -192,14 +192,16 @@ ignored.
 [1 byte] patch version
 ```
 
-**Settings flag bits** (defined in [`src/settings.h`](../src/settings.h))
+**Settings flag bits.** This is the public wire layout, fixed for client compatibility (see
+[`handleGetAppConfiguration`](../src/handlers/get_app_configuration.c)) — it is independent from the
+internal NVRAM bit positions in [`src/settings.h`](../src/settings.h), which have changed over time.
 
-| Bit | Constant             | Meaning                                |
-| --- | -------------------- | -------------------------------------- |
-| 0   | `S_DATA_ALLOWED`     | Allow contracts carrying `data`        |
-| 1   | `S_CUSTOM_CONTRACT`  | Allow arbitrary smart-contract calls   |
-| 2   | `S_TRUNCATE_ADDRESS` | Display truncated addresses            |
-| 3   | `S_SIGN_BY_HASH`     | Allow blind signing by hash            |
+| Bit | Constant                     | Meaning                                          |
+| --- | ---------------------------- | ------------------------------------------------- |
+| 0   | `CONFIG_BIT_DATA_ALLOWED`    | Allow contracts carrying `data`                  |
+| 1   | `CONFIG_BIT_CUSTOM_CONTRACT` | Allow arbitrary smart-contract calls             |
+| 2   | `CONFIG_BIT_RESERVED`        | Retired `truncateAddress` setting, always `0`    |
+| 3   | `CONFIG_BIT_SIGN_BY_HASH`    | Allow blind signing by hash                      |
 
 ---
 
