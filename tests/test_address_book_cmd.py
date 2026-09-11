@@ -32,9 +32,8 @@ from ragger.tlv import BlockchainFamily, LedgerStructType
 # Default test values
 FAMILY = BlockchainFamily.TRON
 DEFAULT_BIP32_PATH = "m/44'/195'/0'/0/0"
-# Identity HMACs are always derived from this path, hardcoded in the SDK
-# (s_identity_path in address_book_crypto.c). Ledger Accounts use the real path.
-IDENTITY_HMAC_PATH = "m/44'/60'/0'/0/0"
+# OS-fixed HMAC derivation path (speculos#680), not a real account path.
+ADDRESS_BOOK_HMAC_PATH = "m/0'/0'/0'/0'"
 DEFAULT_CONTACT_NAME = "Alice"
 DEFAULT_SCOPE = "Trx Address 1"
 DEFAULT_ADDRESS = base58.b58decode_check("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")  # 21 bytes
@@ -60,36 +59,36 @@ def _bip32_path_to_list(path: str) -> list:
     return [struct.unpack(">I", raw[1 + i * 4 : 5 + i * 4])[0] for i in range(n)]
 
 
-def _derive_privkey(bip32_path: str) -> bytes:
+def _derive_privkey() -> bytes:
     ctx = Bip32Slip10Secp256k1.FromSeed(Bip39SeedGenerator(SPECULOS_MNEMONIC).Generate())
-    for level in _bip32_path_to_list(bip32_path):
+    for level in _bip32_path_to_list(ADDRESS_BOOK_HMAC_PATH):
         ctx = ctx.ChildKey(level)
     return ctx.PrivateKey().Raw().ToBytes()
 
 
-def _hmac_key(salt: bytes, bip32_path: str) -> bytes:
-    return hashlib.sha256(salt + _derive_privkey(bip32_path)).digest()
+def _hmac_key(salt: bytes) -> bytes:
+    return hashlib.sha256(salt + _derive_privkey()).digest()
 
 
 def compute_hmac_name(gid: bytes, contact_name: str) -> bytes:
     # message: gid(32) | name_len(1) | name
     name = contact_name.encode("utf-8")
     msg = gid + bytes([len(name)]) + name
-    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_IDENTITY, IDENTITY_HMAC_PATH), msg, hashlib.sha256).digest()
+    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_IDENTITY), msg, hashlib.sha256).digest()
 
 
 def compute_hmac_rest(gid: bytes, scope: str, address: bytes) -> bytes:
     # message: gid(32) | scope_len(1) | scope | id_len(1) | address | family(1)
     scope_b = scope.encode("utf-8")
     msg = gid + bytes([len(scope_b)]) + scope_b + bytes([len(address)]) + address + bytes([FAMILY])
-    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_IDENTITY, IDENTITY_HMAC_PATH), msg, hashlib.sha256).digest()
+    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_IDENTITY), msg, hashlib.sha256).digest()
 
 
-def compute_hmac_proof_ledger_account(bip32_path: str, contact_name: str) -> bytes:
+def compute_hmac_proof_ledger_account(contact_name: str) -> bytes:
     # message: name_len(1) | name | family(1)
     name = contact_name.encode("utf-8")
     msg = bytes([len(name)]) + name + bytes([FAMILY])
-    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_LEDGER_ACCOUNT, bip32_path), msg, hashlib.sha256).digest()
+    return hmac_module.new(_hmac_key(HMAC_KDF_SALT_LEDGER_ACCOUNT), msg, hashlib.sha256).digest()
 
 
 # =============================================================================
@@ -185,7 +184,7 @@ def _register_ledger_account(nav, client, do_compare=True, derivation_path=DEFAU
     return check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_REGISTER_LEDGER_ACCOUNT,
-        compute_hmac_proof_ledger_account(derivation_path, contact_name),
+        compute_hmac_proof_ledger_account(contact_name),
     )
 
 
@@ -329,7 +328,7 @@ def test_address_book_ledger_account_edit(backend, scenario_navigator):
     check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_EDIT_LEDGER_ACCOUNT,
-        compute_hmac_proof_ledger_account(DEFAULT_BIP32_PATH, new_name),
+        compute_hmac_proof_ledger_account(new_name),
     )
 
 
