@@ -32,7 +32,7 @@ enum {
 
 #define NB_INFO_FIELDS 3
 static const char *const infoTypes[] = {"Version", "Developer", "Copyright"};
-static const char *const infoContents[] = {APPVERSION, "Klever", "(c) 2024 Ledger"};
+static const char *const infoContents[] = {APPVERSION, "Ledger", "(c) 2026 Ledger SAS."};
 
 #define NB_SETTINGS_SWITCHES 3
 #define SETTING_IDX(token)   (token - SWITCH_ALLOW_TX_DATA_TOKEN)
@@ -91,10 +91,12 @@ void ui_idle(void) {
     switches[1].tuneId = TUNE_TAP_CASUAL;
     switches[1].initState = (HAS_SETTING(S_CUSTOM_CONTRACT)) ? ON_STATE : OFF_STATE;
     switches[2].text = "Blind signing";
-#ifdef TARGET_STAX
+#if defined(TARGET_STAX)
     switches[2].subText = "Allow transaction blind signing";
-#else
+#elif defined(SCREEN_SIZE_WALLET)
     switches[2].subText = "Allow transaction blind\nsigning";
+#else
+    switches[2].subText = "Allow blind\nsigning";
 #endif
     switches[2].token = SWITCH_ALLOW_HASH_TX_TOKEN;
     switches[2].tuneId = TUNE_TAP_CASUAL;
