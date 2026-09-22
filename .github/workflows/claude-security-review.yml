@@ -2,10 +2,13 @@ name: Claude Security Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
 
 jobs:
   security-review:
+    # Runs automatically on every PR update, or on demand by (re-)applying the
+    # "security-review" label from the PR sidebar.
+    if: github.event.action != 'labeled' || github.event.label.name == 'security-review'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,5 +38,11 @@ jobs:
           claude_args: '--allowedTools "Bash(gh pr comment:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Remove the trigger label
+        if: github.event.action == 'labeled'
+        run: gh pr edit "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --remove-label security-review
         env:
           GH_TOKEN: ${{ github.token }}
