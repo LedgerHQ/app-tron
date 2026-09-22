@@ -1,0 +1,11 @@
+name: Claude Security Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened, labeled]
+
+jobs:
+  security-review:
+    uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_claude_security_review.yml@v1
+    secrets:
+      claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
