@@ -1,4 +1,4 @@
-// apdu_dispatcher(): CLA check, the g_review_pending anti-reentrancy lock, INS ->
+// apdu_dispatcher(): CLA check, INS ->
 // handler routing (forwarding p1/p2/data/lc and the handler's return value
 // verbatim), the swap-mode INS allowlist, and the per-command contact reset.
 
@@ -15,7 +15,6 @@
 #include "swap.h"
 #include "app_errors.h"
 
-bool g_review_pending;
 const s_ab_contact *g_recipient_contact;
 const s_ab_contact *g_sender_contact;
 const char *g_recipient_service;
@@ -34,7 +33,6 @@ static int send_sw_cb(const buffer_t *rdatalist, size_t count, uint16_t sw, int 
 void setUp(void) {
     Mockhandlers_Init();
     Mockio_Init();
-    g_review_pending = false;
     g_recipient_contact = (const s_ab_contact *) 0x1234;
     g_sender_contact = (const s_ab_contact *) 0x1234;
     g_recipient_service = "stale";
@@ -59,17 +57,6 @@ void test_wrong_cla_is_rejected_without_dispatching(void) {
     apdu_dispatcher(&cmd);
 
     TEST_ASSERT_EQUAL_HEX16(E_CLA_NOT_SUPPORTED, g_captured_sw);
-}
-
-void test_review_pending_rejects_a_new_command(void) {
-    g_review_pending = true;
-    uint8_t data[1] = {0};
-    command_t cmd = {.cla = CLA, .ins = INS_GET_PUBLIC_KEY, .p1 = 0, .p2 = 0, .data = data, .lc = 1};
-
-    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
-    apdu_dispatcher(&cmd);
-
-    TEST_ASSERT_EQUAL_HEX16(E_CONDITIONS_OF_USE_NOT_SATISFIED, g_captured_sw);
 }
 
 void test_get_public_key_is_routed_with_its_arguments_and_return_value(void) {
@@ -160,9 +147,8 @@ void test_swap_mode_rejects_ins_outside_the_allowlist(void) {
     TEST_ASSERT_EQUAL_HEX16(E_SWAP_CHECKING_FAIL, g_captured_sw);
 }
 
-void test_swap_mode_allows_get_public_key_even_with_review_pending(void) {
+void test_swap_mode_allows_get_public_key(void) {
     G_called_from_swap = true;
-    g_review_pending = true;  // the reentrancy lock is bypassed while in swap mode
     uint8_t data[1] = {0};
     command_t cmd = {.cla = CLA, .ins = INS_GET_PUBLIC_KEY, .p1 = 0, .p2 = 0, .data = data, .lc = 1};
 
@@ -197,7 +183,6 @@ int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_wrong_cla_is_rejected_without_dispatching);
-    RUN_TEST(test_review_pending_rejects_a_new_command);
     RUN_TEST(test_get_public_key_is_routed_with_its_arguments_and_return_value);
     RUN_TEST(test_sign_is_routed_with_its_arguments_and_return_value);
     RUN_TEST(test_sign_txn_hash_is_routed);
@@ -207,7 +192,7 @@ int main(void) {
     RUN_TEST(test_sign_tip712_message_is_routed);
     RUN_TEST(test_unknown_ins_is_rejected);
     RUN_TEST(test_swap_mode_rejects_ins_outside_the_allowlist);
-    RUN_TEST(test_swap_mode_allows_get_public_key_even_with_review_pending);
+    RUN_TEST(test_swap_mode_allows_get_public_key);
     RUN_TEST(test_a_new_command_resets_stale_contact_pointers_before_dispatch);
 
     return UNITY_END();

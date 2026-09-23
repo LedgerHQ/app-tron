@@ -265,7 +265,6 @@ ledger_unit_tests_add_test(
     MOCK_HEADERS  ${SDK_DIR}/lib_standard_app/io.h
     INCLUDE_DIRS  ${UT_INCLUDE_DIRS} ${UT_INCLUDE_DIRS_SDK}
     COMPILE_DEFS  ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
-                  MAJOR_VERSION=0 MINOR_VERSION=8 PATCH_VERSION=0
 )
 
 ledger_unit_tests_add_test(

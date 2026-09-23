@@ -67,7 +67,8 @@ void test_no_duplicate_trc20_addresses(void) {
 // verifyTokenNameID / verifyExchangeID: forward the SDK's signature-verification result.
 
 void test_verifyTokenNameID_rejects_oversized_tokenId_without_touching_crypto(void) {
-    char token_id[34];
+    // The guard trips on strlen(tokenId) + strlen(tokenName) + 2 > 65, so 59 + 6 + 2 = 67.
+    char token_id[60];
     memset(token_id, 'A', sizeof(token_id) - 1);
     token_id[sizeof(token_id) - 1] = '\0';
 

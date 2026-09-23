@@ -31,6 +31,12 @@
 #define S_SIGN_BY_HASH    2
 uint8_t N_storage_real = 0;
 
+// fillPermissionEntry() THROWs on key-line truncation; abort rather than pull in the SDK.
+void os_longjmp(unsigned int exception) {
+    (void) exception;
+    abort();
+}
+
 // --- Stand-in globals normally defined in app_main.c/ui_globals.c ---
 txContext_t txContext;
 txContent_t txContent;
@@ -98,6 +104,9 @@ void setUp(void) {
     Mockui_review_menu_Init();
     Mockui_globals_Init();
     Mockhandle_swap_sign_transaction_Init();
+
+    // handleSign() tears the session down on every exit path; not what these tests assert.
+    terminate_signing_session_Ignore();
 
     N_storage_real = 0;
     memset(&txContext, 0, sizeof(txContext));
@@ -822,11 +831,12 @@ void test_exchange_transaction_contract_formats_token_pair_and_amounts(void) {
 void test_vote_witness_contract_fills_one_slot_per_vote(void) {
     finalize_setup();
     txContent.contractType = VOTEWITNESSCONTRACT;
-    msg.vote_witness_contract.votes_count = 2;
-    memset(msg.vote_witness_contract.votes[0].vote_address, 0x11, ADDRESS_SIZE);
-    msg.vote_witness_contract.votes[0].vote_count = 100;
-    memset(msg.vote_witness_contract.votes[1].vote_address, 0x22, ADDRESS_SIZE);
-    msg.vote_witness_contract.votes[1].vote_count = 200;
+    // processTx() is mocked, so the votes must be placed in txContent, not in the raw contract.
+    txContent.votesCount = 2;
+    memset(txContent.votes[0].address, 0x11, ADDRESS_SIZE);
+    txContent.votes[0].count = 100;
+    memset(txContent.votes[1].address, 0x22, ADDRESS_SIZE);
+    txContent.votes[1].count = 200;
 
     getBase58FromAddress_ExpectAnyArgs();
     print_amount_ExpectAnyArgsAndReturn(0);

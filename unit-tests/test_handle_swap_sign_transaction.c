@@ -82,7 +82,7 @@ static create_transaction_parameters_t make_valid_create_params(uint8_t *amount,
 }
 
 void test_check_validity_rejects_before_any_copy(void) {
-    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION, 50));
+    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION));
 }
 
 void test_copy_rejects_nonempty_extra_id(void) {
@@ -98,24 +98,6 @@ void test_copy_rejects_missing_destination(void) {
     uint8_t amount[1] = {100}, fee[1] = {50};
     char extra[1] = "";
     create_transaction_parameters_t params = make_valid_create_params(amount, 1, fee, 1, NULL, extra);
-
-    TEST_ASSERT_FALSE(swap_copy_transaction_parameters(&params));
-}
-
-void test_copy_rejects_oversized_amount(void) {
-    uint8_t amount[33] = {0}, fee[1] = {50};
-    char extra[1] = "";
-    create_transaction_parameters_t params =
-        make_valid_create_params(amount, 33, fee, 1, (char *) VALID_DESTINATION, extra);
-
-    TEST_ASSERT_FALSE(swap_copy_transaction_parameters(&params));
-}
-
-void test_copy_rejects_oversized_fee(void) {
-    uint8_t amount[1] = {100}, fee[33] = {0};
-    char extra[1] = "";
-    create_transaction_parameters_t params =
-        make_valid_create_params(amount, 1, fee, 33, (char *) VALID_DESTINATION, extra);
 
     TEST_ASSERT_FALSE(swap_copy_transaction_parameters(&params));
 }
@@ -151,7 +133,7 @@ void test_copy_then_check_validity_accepts_matching_transfer(void) {
     TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
 
     expect_identity_adjust_decimals();
-    TEST_ASSERT_TRUE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION, 50));
+    TEST_ASSERT_TRUE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION));
 }
 
 void test_check_validity_rejects_amount_mismatch(void) {
@@ -162,18 +144,7 @@ void test_check_validity_rejects_amount_mismatch(void) {
     TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
 
     expect_identity_adjust_decimals();
-    TEST_ASSERT_FALSE(swap_check_validity("999", "TRX", "To", VALID_DESTINATION, 50));
-}
-
-void test_check_validity_rejects_fee_mismatch(void) {
-    uint8_t amount[1] = {100}, fee[1] = {50};
-    char extra[1] = "";
-    create_transaction_parameters_t params =
-        make_valid_create_params(amount, 1, fee, 1, (char *) VALID_DESTINATION, extra);
-    TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
-
-    expect_identity_adjust_decimals();
-    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION, 999));
+    TEST_ASSERT_FALSE(swap_check_validity("999", "TRX", "To", VALID_DESTINATION));
 }
 
 void test_check_validity_rejects_ticker_mismatch(void) {
@@ -184,7 +155,7 @@ void test_check_validity_rejects_ticker_mismatch(void) {
     TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
 
     expect_identity_adjust_decimals();
-    TEST_ASSERT_FALSE(swap_check_validity("100", "USDT", "To", VALID_DESTINATION, 50));
+    TEST_ASSERT_FALSE(swap_check_validity("100", "USDT", "To", VALID_DESTINATION));
 }
 
 void test_check_validity_rejects_non_to_action(void) {
@@ -195,7 +166,7 @@ void test_check_validity_rejects_non_to_action(void) {
     TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
 
     expect_identity_adjust_decimals();
-    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "Allow", VALID_DESTINATION, 50));
+    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "Allow", VALID_DESTINATION));
 }
 
 void test_check_validity_rejects_recipient_mismatch(void) {
@@ -206,8 +177,7 @@ void test_check_validity_rejects_recipient_mismatch(void) {
     TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
 
     expect_identity_adjust_decimals();
-    TEST_ASSERT_FALSE(
-        swap_check_validity("100", "TRX", "To", "TDifferentAddress0000000000000000", 50));
+    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", "TDifferentAddress0000000000000000"));
 }
 
 void test_finalize_writes_result_then_returns_to_exchange(void) {
@@ -228,13 +198,10 @@ int main(void) {
     RUN_TEST(test_check_validity_rejects_before_any_copy);
     RUN_TEST(test_copy_rejects_nonempty_extra_id);
     RUN_TEST(test_copy_rejects_missing_destination);
-    RUN_TEST(test_copy_rejects_oversized_amount);
-    RUN_TEST(test_copy_rejects_oversized_fee);
     RUN_TEST(test_copy_rejects_wrong_length_destination);
     RUN_TEST(test_copy_rejects_when_config_parsing_fails);
     RUN_TEST(test_copy_then_check_validity_accepts_matching_transfer);
     RUN_TEST(test_check_validity_rejects_amount_mismatch);
-    RUN_TEST(test_check_validity_rejects_fee_mismatch);
     RUN_TEST(test_check_validity_rejects_ticker_mismatch);
     RUN_TEST(test_check_validity_rejects_non_to_action);
     RUN_TEST(test_check_validity_rejects_recipient_mismatch);

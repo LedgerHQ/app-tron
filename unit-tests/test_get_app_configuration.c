@@ -45,25 +45,26 @@ void test_response_layout_and_version(void) {
 
     TEST_ASSERT_EQUAL(0x4242, ret);
     TEST_ASSERT_EQUAL_UINT32(4, g_captured_size);
-    TEST_ASSERT_EQUAL_HEX8(0x05, g_captured[0]);
+    // NVM S_SIGN_BY_HASH (bit 2) is reported on APDU bit 3; bit 2 is reserved. See docs/APDU.md.
+    TEST_ASSERT_EQUAL_HEX8(0x09, g_captured[0]);
     TEST_ASSERT_EQUAL_HEX8(MAJOR_VERSION, g_captured[1]);
     TEST_ASSERT_EQUAL_HEX8(MINOR_VERSION, g_captured[2]);
     TEST_ASSERT_EQUAL_HEX8(PATCH_VERSION, g_captured[3]);
 }
 
-void test_settings_high_nibble_is_masked_out(void) {
+void test_reserved_bit_and_high_nibble_are_masked_out(void) {
     N_storage_real = 0xFF;
 
     handleGetAppConfiguration(0, 0, NULL, 0);
 
-    TEST_ASSERT_EQUAL_HEX8(0x0F, g_captured[0]);
+    TEST_ASSERT_EQUAL_HEX8(0x0B, g_captured[0]);
 }
 
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_response_layout_and_version);
-    RUN_TEST(test_settings_high_nibble_is_masked_out);
+    RUN_TEST(test_reserved_bit_and_high_nibble_are_masked_out);
 
     return UNITY_END();
 }

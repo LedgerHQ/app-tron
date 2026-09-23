@@ -49,6 +49,15 @@ cx_err_t cx_ecdomain_parameters_length(cx_curve_t cv, size_t *length) {
 
 void format_signature_out(const uint8_t *signature);
 
+// Signing-session state ui_globals.c reaches into, normally owned by app_main.c/parse.c.
+txContext_t txContext;
+txContent_t txContent;
+
+void terminate_signing_session(txContext_t *context, txContent_t *content) {
+    (void) context;
+    (void) content;
+}
+
 static uint16_t g_captured_sw;
 static uint8_t g_captured_resp[300];
 static size_t g_captured_size;
@@ -79,7 +88,6 @@ void setUp(void) {
     memset(&transactionContext, 0, sizeof(transactionContext));
     memset(&publicKeyContext, 0, sizeof(publicKeyContext));
     memset(&messageSigningContext712, 0, sizeof(messageSigningContext712));
-    g_review_pending = true;
     g_captured_sw = 0;
     g_captured_size = 0;
     memset(g_captured_resp, 0, sizeof(g_captured_resp));
@@ -109,13 +117,12 @@ void tearDown(void) {
 
 // --- ui_callback_address_ok ---
 
-void test_address_ok_sends_pubkey_and_clears_review_pending(void) {
+void test_address_ok_sends_pubkey(void) {
     helper_send_response_pubkey_ExpectAnyArgsAndReturn(0);
 
     bool ret = ui_callback_address_ok(false);
 
     TEST_ASSERT_TRUE(ret);
-    TEST_ASSERT_FALSE(g_review_pending);
 }
 
 void test_address_ok_redisplays_idle_menu_when_asked(void) {
@@ -169,7 +176,6 @@ void test_tx_cancel_reports_conditions_not_satisfied(void) {
 
     TEST_ASSERT_TRUE(ret);
     TEST_ASSERT_EQUAL_HEX16(E_CONDITIONS_OF_USE_NOT_SATISFIED, g_captured_sw);
-    TEST_ASSERT_FALSE(g_review_pending);
 }
 
 // --- ui_callback_ecdh_ok ---
@@ -339,13 +345,12 @@ void test_signMessage712_v0_cancel_writes_rejection_sw_directly(void) {
     TEST_ASSERT_TRUE(ret);
     TEST_ASSERT_EQUAL_HEX8(0x69, G_io_apdu_buffer[0]);
     TEST_ASSERT_EQUAL_HEX8(0x85, G_io_apdu_buffer[1]);
-    TEST_ASSERT_FALSE(g_review_pending);
 }
 
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_address_ok_sends_pubkey_and_clears_review_pending);
+    RUN_TEST(test_address_ok_sends_pubkey);
     RUN_TEST(test_address_ok_redisplays_idle_menu_when_asked);
     RUN_TEST(test_tx_ok_sends_signature_on_success);
     RUN_TEST(test_tx_ok_reports_security_error_on_signing_failure);
