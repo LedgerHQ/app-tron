@@ -142,7 +142,7 @@ void test_rejects_path_outside_tron_subtree(void) {
 }
 
 void test_rejects_truncated_hash_tail(void) {
-    uint8_t buf[1 + 8 + 63];  // one byte short of the 64-byte domain+message hash
+    uint8_t buf[1 + 8 + 64];  // the `- 1` below is what truncates the reported length
     size_t len = build_payload(buf, VALID_PATH, 2, DOMAIN_HASH, MESSAGE_HASH) - 1;
     io_send_response_buffers_ExpectAnyArgsAndReturn(0);
     handleSignTIP712Message(0, 0, buf, len);

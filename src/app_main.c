@@ -66,8 +66,8 @@ void app_main(void) {
     nv_app_state_init();
 
 #ifdef HAVE_ADDRESS_BOOK
-    app_mem_init();
     address_book_contact_cleanup();
+    app_mem_init();
 #endif  // HAVE_ADDRESS_BOOK
 
     io_init();
