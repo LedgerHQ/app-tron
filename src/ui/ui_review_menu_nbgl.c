@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "app_errors.h"
+#include "io.h"
 #include "ux.h"
 #include "nbgl_use_case.h"
 #include "ui_globals.h"
@@ -113,9 +114,9 @@ static void apply_address_book_aliases(void) {
 // Add the known-service label as its own pair, right above the recipient address.
 // The address field itself is left untouched: the label is shown in addition to
 // the raw address, never in place of it.
-static void insert_known_service_label(void) {
+static bool insert_known_service_label(void) {
     if (g_recipient_service == NULL) {
-        return;
+        return true;
     }
     for (uint8_t i = 0; i < pairList.nbPairs; i++) {
         if (txInfos.fields[i].value != toAddress) {
@@ -123,7 +124,7 @@ static void insert_known_service_label(void) {
         }
         if (pairList.nbPairs >= MAX_TX_FIELDS) {
             PRINTF("No room left for the known-service label\n");
-            return;
+            return false;
         }
         for (uint8_t j = pairList.nbPairs; j > i; j--) {
             txInfos.fields[j] = txInfos.fields[j - 1];
@@ -132,12 +133,13 @@ static void insert_known_service_label(void) {
         txInfos.fields[i].item = stringLabelService;
         txInfos.fields[i].value = g_recipient_service;
         pairList.nbPairs++;
-        return;
+        return true;
     }
+    return true;
 }
 
 // Static functions declarations
-static void prepareTxInfos(ui_approval_state_t state, bool data_warning);
+static bool prepareTxInfos(ui_approval_state_t state, bool data_warning);
 static void reviewStart(void);
 static void displayTransaction(void);
 static void displayDataWarning(void);
@@ -246,7 +248,7 @@ static char *format_hash(const uint8_t *hash, char *buffer, size_t buffer_size, 
     return buffer + offset;
 }
 
-static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
+static bool prepareTxInfos(ui_approval_state_t state, bool data_warning) {
     memset(&txInfos, 0, sizeof(txInfos));
     memset(&infoLongPress, 0, sizeof(infoLongPress));
 
@@ -525,10 +527,13 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             break;
     }
     // Must run before the aliases, which overwrite the address field value.
-    insert_known_service_label();
+    if (!insert_known_service_label()) {
+        return false;
+    }
 #ifdef HAVE_ADDRESS_BOOK
     apply_address_book_aliases();
 #endif
+    return true;
 }
 
 static void display_address_callback(bool confirm) {
@@ -551,7 +556,12 @@ void ux_flow_display(ui_approval_state_t state, bool data_warning) {
                                   display_address_callback);
     } else {
         // Prepare transaction infos to be displayed (field values etc.)
-        prepareTxInfos(state, data_warning);
+        if (!prepareTxInfos(state, data_warning)) {
+            terminate_signing_session(&txContext, &txContent);
+            io_send_sw(E_INCORRECT_DATA);
+            ui_idle();
+            return;
+        }
         // Display transaction
         reviewStart();
     }
