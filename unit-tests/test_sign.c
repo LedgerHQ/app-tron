@@ -516,6 +516,41 @@ void test_swap_mode_signs_immediately_when_amounts_match(void) {
     TEST_ASSERT_EQUAL(0, ret);
 }
 
+void test_swap_mode_rejects_fee_limit_above_cap(void) {
+    finalize_setup();
+    G_called_from_swap = true;
+    txContent.contractType = TRANSFERCONTRACT;
+    txContent.amount[0] = 1000000;
+    strcpy(txContent.tokenNames[0], "TRX");
+    txContent.tokenNamesLength[0] = 3;
+    txContent.feeLimit = MAX_SWAP_FEE_LIMIT + 1;
+
+    print_amount_ExpectAnyArgsAndReturn(0);
+    expect_set_recipient_address();
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+    // swap_check_validity must NOT be called: no expectation queued for it.
+
+    handleSign(P1_LAST, 0, NULL, 0);
+    TEST_ASSERT_EQUAL_HEX16(E_SWAP_CHECKING_FAIL, g_captured_sw);
+}
+
+void test_swap_mode_accepts_fee_limit_at_cap(void) {
+    finalize_setup();
+    G_called_from_swap = true;
+    txContent.contractType = TRANSFERCONTRACT;
+    txContent.amount[0] = 1000000;
+    strcpy(txContent.tokenNames[0], "TRX");
+    txContent.tokenNamesLength[0] = 3;
+    txContent.feeLimit = MAX_SWAP_FEE_LIMIT;
+
+    print_amount_ExpectAnyArgsAndReturn(0);
+    expect_set_recipient_address();
+    swap_check_validity_ExpectAnyArgsAndReturn(true);
+    ui_callback_tx_ok_ExpectAnyArgsAndReturn(true);
+
+    TEST_ASSERT_EQUAL(0, handleSign(P1_LAST, 0, NULL, 0));
+}
+
 void test_swap_mode_refuses_to_sign_when_validity_check_fails(void) {
     finalize_setup();
     G_called_from_swap = true;
@@ -1209,6 +1244,8 @@ int main(void) {
     RUN_TEST(test_swap_mode_rejects_trc20_methods_other_than_transfer);
     RUN_TEST(test_swap_mode_rejects_data_warning);
     RUN_TEST(test_swap_mode_signs_immediately_when_amounts_match);
+    RUN_TEST(test_swap_mode_rejects_fee_limit_above_cap);
+    RUN_TEST(test_swap_mode_accepts_fee_limit_at_cap);
     RUN_TEST(test_swap_mode_refuses_to_sign_when_validity_check_fails);
     RUN_TEST(test_trigger_smart_contract_trc20_transfer_success);
     RUN_TEST(test_trigger_smart_contract_trc20_approve);

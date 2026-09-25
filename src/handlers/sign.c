@@ -387,6 +387,11 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             // If we are in swap context, do not redisplay the message data
             // Instead, ensure they are identical with what was previously displayed
             if (G_called_from_swap) {
+                if (txContent.feeLimit > MAX_SWAP_FEE_LIMIT) {
+                    PRINTF("Refused swap transaction with fee_limit above the cap\n");
+                    terminate_signing_session(&txContext, &txContent);
+                    return io_send_sw(E_SWAP_CHECKING_FAIL);
+                }
                 if (swap_check_validity((char *) G_io_apdu_buffer,  // Amount
                                         fullContract,               // Token name
                                         TRC20ActionSendAllow,       // "Send To"

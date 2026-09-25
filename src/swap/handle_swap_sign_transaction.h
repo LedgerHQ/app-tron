@@ -19,6 +19,7 @@
 #include <stdbool.h>
 
 #define MAX_SWAP_TOKEN_LENGTH 15
+#define MAX_SWAP_FEE_LIMIT    100000000ULL  // 100 TRX, in SUN
 
 bool swap_check_validity(const char *amount,
                          const char *tokenName,
