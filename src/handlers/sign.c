@@ -277,6 +277,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 else if (txContent.TRC20Method == 2) {
                     strcpy(TRC20ActionSendAllow, "Allow");
                     strcpy(TRC20Action, "Approve");
+                } else if (txContent.TRC20Method == 3) {
+                    // known protocol method: method name, token and amount are
+                    // filled in and displayed further below (APPROVAL_CONTRACT_METHOD)
                 } else {
                     if (!HAS_SETTING(S_CUSTOM_CONTRACT)) {
                         terminate_signing_session(&txContext, &txContent);
@@ -366,10 +369,26 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                              sizeof(strings.common.maxFee),
                              SUN_DIG);
             }
+            if (txContent.contractType == TRIGGERSMARTCONTRACT && txContent.TRC20Method == 3) {
+                // Known protocol method (USDD PSM / JustLend jUSDD cToken): show
+                // the method name, token, amount and (if present) the argument
+                // address clearly instead of the raw hex selector.
+                if (txContent.destinationSize < ADDRESS_SIZE) {
+                    strcpy(toAddress, "-");
+                }
+                strcpy(contractMethodName, txContent.methodLabel);
+                strcpy(contractMethodContract, txContent.contractLabel);
+                strcpy(contractMethodRecipientLabel, txContent.recipientLabel);
+                contractMethodHasAddress = (txContent.destinationSize >= ADDRESS_SIZE);
+                // Propagate the transaction-data warning: an exotic tx can carry
+                // data the parser did not decode, and that must never be hidden
+                // behind a clean clear-signing screen.
+                ux_flow_display(APPROVAL_CONTRACT_METHOD, data_warning);
+            }
 #ifdef HAVE_SWAP
             // If we are in swap context, do not redisplay the message data
             // Instead, ensure they are identical with what was previously displayed
-            if (G_called_from_swap) {
+            else if (G_called_from_swap) {
                 if (swap_check_validity((char *) G_io_apdu_buffer,  // Amount
                                         fullContract,               // Token name
                                         TRC20ActionSendAllow,       // "Send To"
@@ -385,7 +404,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 ux_flow_display(APPROVAL_TRANSFER, data_warning);
             }
 #else   // HAVE_SWAP
-            ux_flow_display(APPROVAL_TRANSFER, data_warning);
+            // Keep the known-method review: without this else, this build would
+            // call ux_flow_display(APPROVAL_TRANSFER) unconditionally and
+            // overwrite the APPROVAL_CONTRACT_METHOD screen queued above.
+            else {
+                ux_flow_display(APPROVAL_TRANSFER, data_warning);
+            }
 #endif  // HAVE_SWAP
 
             break;

@@ -620,6 +620,16 @@ static bool account_update_contract(txContent_t *content, pb_istream_t *stream) 
     return true;
 }
 
+static void set_known_method_display(txContent_t *content, const knownContractMethod_t *m) {
+    content->TRC20Method = 3;
+    content->decimals[0] = m->decimals;
+    content->tokenNamesLength[0] = (uint8_t) (strlen(m->token) + 1);
+    memmove(content->tokenNames[0], m->token, content->tokenNamesLength[0]);
+    memcpy(content->methodLabel, m->method, strlen(m->method) + 1);
+    memcpy(content->contractLabel, m->contractName, strlen(m->contractName) + 1);
+    memcpy(content->recipientLabel, m->addressLabel, strlen(m->addressLabel) + 1);
+}
+
 bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
                                            const pb_field_t *field,
                                            void **arg) {
@@ -638,6 +648,47 @@ bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
     }
 
     content->customSelector = U4BE(buf, 0);
+
+    // Known protocol methods (USDD PSM / JustLend jUSDD cToken): decode the
+    // arguments for a clear display. Matched by unique selector here; the target
+    // contract address is verified in trigger_smart_contract (only known after
+    // pb_decode returns), so a shape mismatch must fall through to the generic
+    // path below rather than aborting: an unrelated contract with a colliding
+    // selector still has to reach the gated custom-contract review.
+    {
+        int8_t pm = findProtocolMethodBySelector(content->customSelector);
+        if (pm >= 0) {
+            const knownContractMethod_t *m =
+                (const knownContractMethod_t *) PIC(&PROTOCOL_METHODS[pm]);
+            if (m->hasAddress && stream->bytes_left == 32 + 32) {
+                // (address, uint256): 32 + 32
+                set_known_method_display(content, m);
+                if (!pb_read(stream, buf, 32)) {
+                    return false;
+                }
+                memcpy(content->destination, buf + (32 - 21), ADDRESS_SIZE);
+                content->destination[0] = ADD_PRE_FIX_BYTE_MAINNET;
+                content->destinationSize = ADDRESS_SIZE;
+                if (!pb_read(stream, buf, 32)) {
+                    return false;
+                }
+                memmove(content->TRC20Amount, buf, 32);
+                return true;
+            }
+            if (!m->hasAddress && stream->bytes_left == 32) {
+                // (uint256): 32
+                set_known_method_display(content, m);
+                if (!pb_read(stream, buf, 32)) {
+                    return false;
+                }
+                memmove(content->TRC20Amount, buf, 32);
+                content->destinationSize = 0;
+                return true;
+            }
+            // Selector matched but the argument shape does not: consume the
+            // field through the generic path below.
+        }
+    }
 
     if (memcmp(buf, SELECTOR[0], 4) == 0) {
         content->TRC20Method = 1;  // a9059cbb -> transfer(address,uint256)
@@ -688,6 +739,19 @@ static bool trigger_smart_contract(txContent_t *content, pb_istream_t *stream) {
     content->amount[0] = msg.trigger_smart_contract.call_value;
     content->callTokenValue = msg.trigger_smart_contract.call_token_value;
     content->callTokenId = msg.trigger_smart_contract.token_id;
+
+    if (content->TRC20Method == 3) {
+        // Known protocol method, already decoded in pb_decode_trigger_smart_contract_data.
+        // Verify the target contract matches the expected one; otherwise fall back
+        // to the generic (raw) display.
+        int8_t pm = findProtocolMethodBySelector(content->customSelector);
+        const knownContractMethod_t *m =
+            (pm >= 0) ? (const knownContractMethod_t *) PIC(&PROTOCOL_METHODS[pm]) : NULL;
+        if (m == NULL || memcmp(content->contractAddress, m->contract, ADDRESS_SIZE) != 0) {
+            content->TRC20Method = 0;
+        }
+        return true;
+    }
 
     tokenDefinition_t *trc20 = getKnownToken(content);
 
