@@ -270,3 +270,34 @@ def test_sign_by_hash_metadata_rejected(backend, device, navigator, accounts):
     with pytest.raises(ExceptionRAPDU) as e:
         backend.exchange(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00, data)
     assert e.value.status == Errors.INCORRECT_LENGTH
+
+
+# =============================================================================
+# A known selector with a non-conforming argument shape must fall back to the
+# generic (gated custom-contract) path instead of aborting the parse.
+# =============================================================================
+
+
+def _wrong_shape_calldata(selector: int) -> bytes:
+    '''buyGem-shaped selector with a 3-word argument list (96 bytes), which the
+    (address,uint256) decoder rejects.'''
+    return selector.to_bytes(4, 'big') + u256(1) + u256(2) + u256(3)
+
+
+def test_known_selector_wrong_calldata_length_unknown_contract(
+        backend, device, navigator, accounts, scenario_navigator):
+    settings_toggle(device, navigator, [SettingID.CUSTOM_CONTRACT])
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"],
+                       bytes.fromhex(address_hex(UNKNOWN_CONTRACT)),
+                       _wrong_shape_calldata(SEL_BUY_GEM))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx, warning=True)
+
+
+def test_known_selector_wrong_calldata_length_known_contract(
+        backend, device, navigator, accounts, scenario_navigator):
+    settings_toggle(device, navigator, [SettingID.CUSTOM_CONTRACT])
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], USDD_PSM,
+                       _wrong_shape_calldata(SEL_BUY_GEM))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx, warning=True)

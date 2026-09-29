@@ -620,6 +620,16 @@ static bool account_update_contract(txContent_t *content, pb_istream_t *stream) 
     return true;
 }
 
+static void set_known_method_display(txContent_t *content, const knownContractMethod_t *m) {
+    content->TRC20Method = 3;
+    content->decimals[0] = m->decimals;
+    content->tokenNamesLength[0] = (uint8_t) (strlen(m->token) + 1);
+    memmove(content->tokenNames[0], m->token, content->tokenNamesLength[0]);
+    memcpy(content->methodLabel, m->method, strlen(m->method) + 1);
+    memcpy(content->contractLabel, m->contractName, strlen(m->contractName) + 1);
+    memcpy(content->recipientLabel, m->addressLabel, strlen(m->addressLabel) + 1);
+}
+
 bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
                                            const pb_field_t *field,
                                            void **arg) {
@@ -642,24 +652,17 @@ bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
     // Known protocol methods (USDD PSM / JustLend jUSDD cToken): decode the
     // arguments for a clear display. Matched by unique selector here; the target
     // contract address is verified in trigger_smart_contract (only known after
-    // pb_decode returns).
+    // pb_decode returns), so a shape mismatch must fall through to the generic
+    // path below rather than aborting: an unrelated contract with a colliding
+    // selector still has to reach the gated custom-contract review.
     {
         int8_t pm = findProtocolMethodBySelector(content->customSelector);
         if (pm >= 0) {
             const knownContractMethod_t *m =
                 (const knownContractMethod_t *) PIC(&PROTOCOL_METHODS[pm]);
-            content->TRC20Method = 3;
-            content->decimals[0] = m->decimals;
-            content->tokenNamesLength[0] = (uint8_t) (strlen(m->token) + 1);
-            memmove(content->tokenNames[0], m->token, content->tokenNamesLength[0]);
-            memcpy(content->methodLabel, m->method, strlen(m->method) + 1);
-            memcpy(content->contractLabel, m->contractName, strlen(m->contractName) + 1);
-            memcpy(content->recipientLabel, m->addressLabel, strlen(m->addressLabel) + 1);
-            if (m->hasAddress) {
+            if (m->hasAddress && stream->bytes_left == 32 + 32) {
                 // (address, uint256): 32 + 32
-                if (stream->bytes_left != 32 + 32) {
-                    return false;
-                }
+                set_known_method_display(content, m);
                 if (!pb_read(stream, buf, 32)) {
                     return false;
                 }
@@ -670,18 +673,20 @@ bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
                     return false;
                 }
                 memmove(content->TRC20Amount, buf, 32);
-            } else {
+                return true;
+            }
+            if (!m->hasAddress && stream->bytes_left == 32) {
                 // (uint256): 32
-                if (stream->bytes_left != 32) {
-                    return false;
-                }
+                set_known_method_display(content, m);
                 if (!pb_read(stream, buf, 32)) {
                     return false;
                 }
                 memmove(content->TRC20Amount, buf, 32);
                 content->destinationSize = 0;
+                return true;
             }
-            return true;
+            // Selector matched but the argument shape does not: consume the
+            // field through the generic path below.
         }
     }
 
