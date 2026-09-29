@@ -3,5 +3,8 @@ build_directory = "./"
 sdk = "C"
 devices = ["nanox", "nanos+", "stax", "flex", "apex_p"]
 
-[tests]
-pytest_directory = "./tests/"
+[unit_tests]
+directory = "./unit-tests/"
+
+[pytest.standalone]
+directory = "./tests"
