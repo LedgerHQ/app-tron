@@ -404,7 +404,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                 ux_flow_display(APPROVAL_TRANSFER, data_warning);
             }
 #else   // HAVE_SWAP
-            ux_flow_display(APPROVAL_TRANSFER, data_warning);
+            // Keep the known-method review: without this else, this build would
+            // call ux_flow_display(APPROVAL_TRANSFER) unconditionally and
+            // overwrite the APPROVAL_CONTRACT_METHOD screen queued above.
+            else {
+                ux_flow_display(APPROVAL_TRANSFER, data_warning);
+            }
 #endif  // HAVE_SWAP
 
             break;
