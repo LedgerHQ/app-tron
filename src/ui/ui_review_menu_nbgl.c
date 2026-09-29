@@ -421,19 +421,6 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowTitle = "Review Transaction";
             infoLongPress.text = "Sign Transaction";
             break;
-        case APPROVAL_HASH_SIGN:
-            txInfos.fields[0].item = "Method";
-            txInfos.fields[0].value = contractMethodName;
-            txInfos.fields[1].item = "Contract";
-            txInfos.fields[1].value = fullContract;
-            txInfos.fields[2].item = stringLabelHash;
-            txInfos.fields[2].value = fullHash;
-            txInfos.fields[3].item = stringLabelSenderAddress;
-            txInfos.fields[3].value = fromAddress;
-            pairList.nbPairs = 4;
-            txInfos.flowTitle = "Review Transaction";
-            infoLongPress.text = "Sign Transaction";
-            break;
         case APPROVAL_SHARED_ECDH_SECRET:
             txInfos.fields[0].item = "ECDH Address";
             txInfos.fields[0].value = fromAddress;

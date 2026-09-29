@@ -45,7 +45,6 @@ typedef struct knownContractMethod_t {
     char token[10];        // display token name (e.g. "USDD", "jUSDD")
     uint8_t decimals;
     uint8_t hasAddress;     // 1 if first argument is an address to display
-    uint8_t labelOnly;      // 1 if args can't be decoded to (uint256) or (address,uint256)
     char contractName[24];  // display name of the contract (e.g. "JustLend Distributor")
     // Label for the address argument when hasAddress is set. Needed because the
     // role/token received is method-specific: USDD PSM sellGem pays the USDT
@@ -56,7 +55,7 @@ typedef struct knownContractMethod_t {
 
 #define NUM_TOKENS_TRC20 384
 
-#define NUM_PROTOCOL_METHODS 8
+#define NUM_PROTOCOL_METHODS 7
 
 extern tokenDefinition_t const TOKENS_TRC20[NUM_TOKENS_TRC20];
 

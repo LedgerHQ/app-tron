@@ -9,12 +9,6 @@ Every contract method added to the app is covered:
   - JustLend DAO jUSDD cToken (TKFRELGGoRgiayhwJTNNLqCNjFoLBh3Mnf)
       mint(uint256) / borrow(uint256) / repayBorrow(uint256) /
       repayBorrowBehalf(address,uint256) / redeemUnderlying(uint256)
-  - JustLend DAO MultiMerkleDistributor (TUsyCPRyQdMsn9WnJcssBFXtzg6bUVbty6)
-      multiClaim((uint256,uint256,uint256[],bytes32[])[]) — the ABI encoding of
-      this method is always larger than a single APDU chunk (the app's nanopb
-      parser cannot reassemble a submessage split across chunks), so it is only
-      reachable through the sign-by-hash flow (INS 0x05) with the extended
-      host-supplied metadata (method selector + contract address).
 
 New TRC20 token entries:
 
@@ -23,8 +17,8 @@ New TRC20 token entries:
   - jUSDD (TKFRELGGoRgiayhwJTNNLqCNjFoLBh3Mnf)
 
 Negative tests verify the safety of the matching: a known selector sent to an
-unknown contract falls back to the gated custom-contract display, and unknown
-sign-by-hash metadata falls back to "Unknown Type".
+unknown contract falls back to the gated custom-contract display, and the
+sign-by-hash extended payload is rejected (only the 32-byte hash is signed).
 
 The PSM/JustLend review screens show only bound facts (method, contract,
 decoded amount and address argument) plus the fee limit; the swap counterparty
@@ -41,26 +35,26 @@ Usage:
 '''
 from hashlib import sha256
 
+import pytest
 from ragger.bip import pack_derivation_path
+from ragger.error import ExceptionRAPDU
 from ragger.navigator import NavInsID
 from ragger.navigator.navigation_scenario import NavigateWithScenario
 
 from application_client.settings import SettingID, settings_toggle
-from application_client.tron_command_sender import CLA, InsType, TronCommandSender
+from application_client.tron_command_sender import CLA, Errors, InsType, TronCommandSender
 from application_client.tron_transaction import (
     address_hex,
     contract,
     pack_contract,
     tron,
 )
-from utils import check_hash_signature, check_tx_signature
+from utils import check_tx_signature
 
 # Mainnet contracts (0x41-prefixed 21-byte addresses)
 USDD_PSM = bytes.fromhex("411113ae08a16489a7b76f2ccc52290ab54e2783d8")
 JUSDD_CTOKEN = bytes.fromhex("4165c9fede72ba73cd1b0dca2a974c070153dc6fcb")
 USDD2_TOKEN = bytes.fromhex("41e91a7411e56ce79e83570570f49b9fc35b7727c5")
-JUSTLEND_DISTRIBUTOR = bytes.fromhex(
-    "41cf6cc9591f7b424295294d8138a8b2edbafc6ee8")
 UNKNOWN_CONTRACT = "TTg3AAJBYsDNjx5Moc5EPNsgJSa4anJQ3M"
 
 # Method selectors (keccak256 of the signature, first 4 bytes)
@@ -71,7 +65,6 @@ SEL_BORROW = 0xc5ebeaec  # borrow(uint256)
 SEL_REPAY_BORROW = 0x0e752702  # repayBorrow(uint256)
 SEL_REPAY_BORROW_BEHALF = 0x2608f818  # repayBorrowBehalf(address,uint256)
 SEL_REDEEM_UNDERLYING = 0x852a12e3  # redeemUnderlying(uint256)
-SEL_MULTI_CLAIM = 0xe75c13d5  # multiClaim((uint256,uint256,uint256[],bytes32[])[])
 SEL_TRC20_TRANSFER = 0xa9059cbb  # transfer(address,uint256)
 
 
@@ -94,21 +87,6 @@ def call_address_uint256(selector: int, address: bytes, amount: int) -> bytes:
 def call_uint256(selector: int, amount: int) -> bytes:
     '''Calldata for (uint256) methods: mint, borrow, repayBorrow, redeemUnderlying.'''
     return selector.to_bytes(4, 'big') + u256(amount)
-
-
-def build_multiclaim_calldata(window_index: int, amount: int) -> bytes:
-    '''Minimal valid ABI encoding of
-    multiClaim((uint256,uint256,uint256[],bytes32[])[]) with one element and
-    empty arrays (292 bytes — larger than one APDU chunk, hence sign-by-hash).'''
-    return (SEL_MULTI_CLAIM.to_bytes(4, 'big') +
-            u256(0x20) +  # offset to array
-            u256(1) +  # array length
-            u256(0x20) +  # tuple offset in array
-            u256(window_index) + u256(amount) +  # static tuple fields
-            u256(0x80) +  # offset to uint256[]
-            u256(0xa0) +  # offset to bytes32[]
-            u256(0) +  # uint256[] length
-            u256(0))  # bytes32[] length
 
 
 def _pack_trigger(owner_address_hex: str, contract_address: bytes, data: bytes) -> bytes:
@@ -274,46 +252,21 @@ def test_known_selector_unknown_contract(backend, device, navigator, accounts,
 
 
 # =============================================================================
-# JustLend MultiMerkleDistributor multiClaim: sign-by-hash with metadata
+# Sign-by-hash: only the legacy 32-byte payload is accepted
 # =============================================================================
 
 
-def _multiclaim_sign_by_hash(backend, device, navigator, accounts,
-                             scenario_navigator, selector: int) -> None:
-    '''multiClaim cannot go through the standard SIGN flow (its calldata always
-    exceeds one APDU chunk). Build the transaction, send only sha256(raw_data)
-    through INS 0x05 with the extended metadata (selector + contract address),
-    and check the signature covers the hash.'''
+def test_sign_by_hash_metadata_rejected(backend, device, navigator, accounts):
+    '''The extended host-metadata payload (hash || selector || address) is not
+    verifiable and must be rejected; only the legacy 32-byte hash is signed.'''
     settings_toggle(device, navigator, [SettingID.SIGN_BY_HASH])
     client = TronCommandSender(backend)
-    tx = _pack_trigger(accounts[0]["addressHex"], JUSTLEND_DISTRIBUTOR,
-                       build_multiclaim_calldata(1, 1266 * 10**18))
-
-    data = pack_derivation_path(accounts[0]["path"])
-    data += sha256(tx).digest()
-    data += selector.to_bytes(4, 'big')
-    data += JUSTLEND_DISTRIBUTOR
-
-    with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00, data):
-        _approve(scenario_navigator)
-
-    resp = client.get_async_response()
-    assert resp.status == 0x9000
-    signature = resp.data[0:65]
-    assert check_hash_signature(sha256(tx).digest(), signature,
-                                accounts[0]["publicKey"][2:])
-    assert check_tx_signature(tx, signature, accounts[0]["publicKey"][2:])
-
-
-def test_multiclaim_sign_by_hash(backend, device, navigator, accounts,
-                                 scenario_navigator):
-    _multiclaim_sign_by_hash(backend, device, navigator, accounts,
-                             scenario_navigator, SEL_MULTI_CLAIM)
-
-
-def test_sign_by_hash_unknown_metadata(backend, device, navigator, accounts,
-                                       scenario_navigator):
-    '''Unknown selector in the extended metadata falls back to the legacy
-    "Unknown Type" display.'''
-    _multiclaim_sign_by_hash(backend, device, navigator, accounts,
-                             scenario_navigator, 0xdeadbeef)
+    tx = _pack_trigger(accounts[0]["addressHex"], USDD_PSM,
+                       call_address_uint256(SEL_BUY_GEM,
+                                            bytes.fromhex(accounts[0]["addressHex"]),
+                                            1000000))
+    data = pack_derivation_path(accounts[0]["path"]) + sha256(tx).digest()
+    data += SEL_BUY_GEM.to_bytes(4, 'big') + USDD_PSM
+    with pytest.raises(ExceptionRAPDU) as e:
+        backend.exchange(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00, data)
+    assert e.value.status == Errors.INCORRECT_LENGTH
