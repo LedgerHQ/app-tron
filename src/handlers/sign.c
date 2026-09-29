@@ -377,8 +377,13 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     strcpy(toAddress, "-");
                 }
                 strcpy(contractMethodName, txContent.methodLabel);
+                strcpy(contractMethodContract, txContent.contractLabel);
+                strcpy(contractMethodRecipientLabel, txContent.recipientLabel);
                 contractMethodHasAddress = (txContent.destinationSize >= ADDRESS_SIZE);
-                ux_flow_display(APPROVAL_CONTRACT_METHOD, false);
+                // Propagate the transaction-data warning: an exotic tx can carry
+                // data the parser did not decode, and that must never be hidden
+                // behind a clean clear-signing screen.
+                ux_flow_display(APPROVAL_CONTRACT_METHOD, data_warning);
             }
 #ifdef HAVE_SWAP
             // If we are in swap context, do not redisplay the message data

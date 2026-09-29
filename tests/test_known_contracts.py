@@ -26,6 +26,10 @@ Negative tests verify the safety of the matching: a known selector sent to an
 unknown contract falls back to the gated custom-contract display, and unknown
 sign-by-hash metadata falls back to "Unknown Type".
 
+The PSM/JustLend review screens show only bound facts (method, contract,
+decoded amount and address argument) plus the fee limit; the swap counterparty
+amount and rate are not derivable from the calldata and are not shown.
+
 All transactions are built locally with the standard test mnemonic account
 (m/44'/195'/0'/0/0) — no personal on-chain data is used.
 
@@ -35,19 +39,21 @@ Usage:
     # 2nd run: compare against golden
     pytest tests/test_known_contracts.py -v --device=nanox
 '''
-import sys
 from hashlib import sha256
-from inspect import currentframe
-from pathlib import Path
 
-import pytest
+from ragger.bip import pack_derivation_path
+from ragger.navigator import NavInsID
+from ragger.navigator.navigation_scenario import NavigateWithScenario
 
-from tron import TronClient, CLA, InsType, pack_derivation_path
-from utils import check_tx_signature, check_hash_signature
-
-sys.path.append(f"{Path(__file__).parent.parent.resolve()}/proto")
-from core import Contract_pb2 as contract
-from core import Tron_pb2 as tron
+from application_client.settings import SettingID, settings_toggle
+from application_client.tron_command_sender import CLA, InsType, TronCommandSender
+from application_client.tron_transaction import (
+    address_hex,
+    contract,
+    pack_contract,
+    tron,
+)
+from utils import check_hash_signature, check_tx_signature
 
 # Mainnet contracts (0x41-prefixed 21-byte addresses)
 USDD_PSM = bytes.fromhex("411113ae08a16489a7b76f2ccc52290ab54e2783d8")
@@ -55,6 +61,7 @@ JUSDD_CTOKEN = bytes.fromhex("4165c9fede72ba73cd1b0dca2a974c070153dc6fcb")
 USDD2_TOKEN = bytes.fromhex("41e91a7411e56ce79e83570570f49b9fc35b7727c5")
 JUSTLEND_DISTRIBUTOR = bytes.fromhex(
     "41cf6cc9591f7b424295294d8138a8b2edbafc6ee8")
+UNKNOWN_CONTRACT = "TTg3AAJBYsDNjx5Moc5EPNsgJSa4anJQ3M"
 
 # Method selectors (keccak256 of the signature, first 4 bytes)
 SEL_BUY_GEM = 0x8d7ef9bb  # buyGem(address,uint256)
@@ -104,176 +111,209 @@ def build_multiclaim_calldata(window_index: int, amount: int) -> bytes:
             u256(0))  # bytes32[] length
 
 
-@pytest.mark.usefixtures('configuration')
-class TestKnownContractMethods():
-    '''Sign each added contract method and check the signature.'''
+def _pack_trigger(owner_address_hex: str, contract_address: bytes, data: bytes) -> bytes:
+    return pack_contract(
+        tron.Transaction.Contract.TriggerSmartContract,
+        contract.TriggerSmartContract(
+            owner_address=bytes.fromhex(owner_address_hex),
+            contract_address=contract_address,
+            data=data))
 
-    def sign_and_validate(self, client, firmware, tx, warning_approve=False):
-        path = Path(currentframe().f_back.f_code.co_name)
-        text = "Sign" if firmware.is_nano else "Hold to sign"
-        resp = client.sign(client.getAccount(0)['path'],
-                           tx,
-                           snappath=path,
-                           text=text,
-                           warning_approve=warning_approve)
-        assert check_tx_signature(tx, resp.data[0:65],
-                                  client.getAccount(0)['publicKey'][2:])
 
-    def pack_trigger(self, client, contract_address, data):
-        return client.packContract(
-            tron.Transaction.Contract.TriggerSmartContract,
-            contract.TriggerSmartContract(owner_address=bytes.fromhex(
-                client.getAccount(0)['addressHex']),
-                                          contract_address=contract_address,
-                                          data=data))
+def _approve(scenario_navigator: NavigateWithScenario, warning: bool = False) -> None:
+    '''Approve a Tron transaction review, across devices.
 
-    # --- USDD PSM: gem amounts are denominated in the 6-decimal USDT collateral
+    Nano finish text varies ("Sign transaction", ...), so match the common
+    "Sign [Tt]ransaction" prefix; a warning page (if any) is simply navigated
+    past. On touch devices the standard flow applies, with a dedicated
+    warning-dismiss variant when the tx raises a warning.
+    '''
+    nav = scenario_navigator
+    if nav.backend.device.is_nano:
+        if warning:
+            nav.navigator.navigate_until_text_and_compare(
+                NavInsID.RIGHT_CLICK, [NavInsID.BOTH_CLICK], "Continue",
+                nav.screenshot_path, f"{nav.test_name}/warning",
+                screen_change_before_first_instruction=False)
+            nav.navigator.navigate_until_text_and_compare(
+                NavInsID.RIGHT_CLICK, [NavInsID.BOTH_CLICK], "Sign [Tt]ransaction",
+                nav.screenshot_path, nav.test_name,
+                screen_change_before_first_instruction=False)
+        else:
+            nav.review_approve(custom_screen_text="Sign [Tt]ransaction")
+    else:
+        if warning:
+            nav.navigator.navigate_and_compare(
+                nav.screenshot_path, f"{nav.test_name}/warning",
+                [NavInsID.USE_CASE_CHOICE_CONFIRM],
+                screen_change_before_first_instruction=False)
+        nav.review_approve()
 
-    def test_psm_buy_gem(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, USDD_PSM,
-                               call_address_uint256(
-                                   SEL_BUY_GEM,
-                                   bytes.fromhex(
-                                       client.getAccount(0)['addressHex']),
-                                   27300000200))  # 27,300.0002 USDT
-        self.sign_and_validate(client, firmware, tx)
 
-    def test_psm_sell_gem(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, USDD_PSM,
-                               call_address_uint256(
-                                   SEL_SELL_GEM,
-                                   bytes.fromhex(
-                                       client.getAccount(0)['addressHex']),
-                                   160000000000))  # 160,000 USDT
-        self.sign_and_validate(client, firmware, tx)
+def _sign_and_check(client: TronCommandSender, account: dict,
+                    scenario_navigator: NavigateWithScenario, tx: bytes,
+                    warning: bool = False) -> None:
+    with client.sign_tx(account["path"], tx):
+        _approve(scenario_navigator, warning)
+    resp = client.get_async_response().data
+    assert check_tx_signature(tx, resp[0:65], account["publicKey"][2:])
 
-    # --- JustLend DAO jUSDD cToken: 18-decimal USDD amounts
 
-    def test_jusdd_mint(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, JUSDD_CTOKEN,
-                               call_uint256(SEL_MINT, 160000 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
+# =============================================================================
+# USDD PSM: gem amounts are denominated in the 6-decimal USDT collateral
+# =============================================================================
 
-    def test_jusdd_borrow(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, JUSDD_CTOKEN,
-                               call_uint256(SEL_BORROW, 27300 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
 
-    def test_jusdd_repay_borrow(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, JUSDD_CTOKEN,
-                               call_uint256(SEL_REPAY_BORROW, 12345 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
+def test_psm_buy_gem(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], USDD_PSM,
+        call_address_uint256(SEL_BUY_GEM,
+                             bytes.fromhex(accounts[0]["addressHex"]),
+                             27300000200))  # 27,300.0002 USDT
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-    def test_jusdd_repay_borrow_behalf(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(
-            client, JUSDD_CTOKEN,
-            call_address_uint256(
-                SEL_REPAY_BORROW_BEHALF,
-                bytes.fromhex(
-                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
-                500 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
 
-    def test_jusdd_redeem_underlying(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(
-            client, JUSDD_CTOKEN,
-            call_uint256(SEL_REDEEM_UNDERLYING, 27300 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
+def test_psm_sell_gem(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], USDD_PSM,
+        call_address_uint256(SEL_SELL_GEM,
+                             bytes.fromhex(accounts[0]["addressHex"]),
+                             160000000000))  # 160,000 USDT
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-    # --- New TRC20 token entries (plain transfer on the token contract)
 
-    def test_usdd2_trc20_transfer(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(
-            client, USDD2_TOKEN,
-            call_address_uint256(
-                SEL_TRC20_TRANSFER,
-                bytes.fromhex(
-                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
-                100 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
+# =============================================================================
+# JustLend DAO jUSDD cToken: 18-decimal USDD amounts
+# =============================================================================
 
-    def test_jusdd_trc20_transfer(self, backend, firmware, navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(
-            client, JUSDD_CTOKEN,
-            call_address_uint256(
-                SEL_TRC20_TRANSFER,
-                bytes.fromhex(
-                    client.address_hex("TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
-                100 * 10**18))
-        self.sign_and_validate(client, firmware, tx)
 
-    # --- Negative: known selector sent to an unknown contract must NOT get the
-    #     known-method display; it falls back to the custom-contract flow.
+def test_jusdd_mint(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], JUSDD_CTOKEN,
+                       call_uint256(SEL_MINT, 160000 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-    def test_known_selector_unknown_contract(self, backend, firmware,
-                                             navigator):
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(
-            client,
-            bytes.fromhex(
-                client.address_hex("TTg3AAJBYsDNjx5Moc5EPNsgJSa4anJQ3M")),
-            call_address_uint256(
-                SEL_BUY_GEM, bytes.fromhex(client.getAccount(0)['addressHex']),
-                1000000))
-        self.sign_and_validate(client, firmware, tx, warning_approve=True)
 
-    # --- JustLend MultiMerkleDistributor multiClaim: sign-by-hash with metadata
+def test_jusdd_borrow(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], JUSDD_CTOKEN,
+                       call_uint256(SEL_BORROW, 27300 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-    def test_multiclaim_sign_by_hash(self, backend, firmware, navigator):
-        '''multiClaim cannot go through the standard SIGN flow (its calldata
-        always exceeds one APDU chunk). Build the transaction, send only
-        sha256(raw_data) through INS 0x05 with the extended metadata (selector
-        + contract address), and check the signature covers the hash.'''
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, JUSTLEND_DISTRIBUTOR,
-                               build_multiclaim_calldata(1, 1266 * 10**18))
 
-        data = pack_derivation_path(client.getAccount(0)['path'])
-        data += sha256(tx).digest()
-        # Extended metadata: multiClaim selector + distributor address, so the
-        # screens show the contract and method instead of "Unknown Type".
-        data += SEL_MULTI_CLAIM.to_bytes(4, 'big')
-        data += JUSTLEND_DISTRIBUTOR
+def test_jusdd_repay_borrow(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], JUSDD_CTOKEN,
+                       call_uint256(SEL_REPAY_BORROW, 12345 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-        with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00,
-                                    data):
-            text = "Sign" if firmware.is_nano else "Hold to sign"
-            client.navigate(Path(currentframe().f_code.co_name), text)
 
-        resp = backend.last_async_response
-        assert resp.status == 0x9000
-        signature = resp.data[0:65]
-        public_key = client.getAccount(0)['publicKey'][2:]
-        assert check_hash_signature(sha256(tx).digest(), signature, public_key)
-        assert check_tx_signature(tx, signature, public_key)
+def test_jusdd_repay_borrow_behalf(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], JUSDD_CTOKEN,
+        call_address_uint256(SEL_REPAY_BORROW_BEHALF,
+                             bytes.fromhex(address_hex(
+                                 "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                             500 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-    def test_sign_by_hash_unknown_metadata(self, backend, firmware, navigator):
-        '''Unknown selector in the extended metadata falls back to the legacy
-        "Unknown Type" display.'''
-        client = TronClient(backend, firmware, navigator)
-        tx = self.pack_trigger(client, JUSTLEND_DISTRIBUTOR,
-                               build_multiclaim_calldata(1, 1266 * 10**18))
 
-        data = pack_derivation_path(client.getAccount(0)['path'])
-        data += sha256(tx).digest()
-        data += (0xdeadbeef).to_bytes(4, 'big')  # unknown selector
-        data += JUSTLEND_DISTRIBUTOR
+def test_jusdd_redeem_underlying(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], JUSDD_CTOKEN,
+                       call_uint256(SEL_REDEEM_UNDERLYING, 27300 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
-        with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00,
-                                    data):
-            text = "Sign" if firmware.is_nano else "Hold to sign"
-            client.navigate(Path(currentframe().f_code.co_name), text)
 
-        resp = backend.last_async_response
-        assert resp.status == 0x9000
-        assert check_tx_signature(tx, resp.data[0:65],
-                                  client.getAccount(0)['publicKey'][2:])
+# =============================================================================
+# New TRC20 token entries (plain transfer on the token contract)
+# =============================================================================
+
+
+def test_usdd2_trc20_transfer(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], USDD2_TOKEN,
+        call_address_uint256(SEL_TRC20_TRANSFER,
+                             bytes.fromhex(address_hex(
+                                 "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                             100 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
+
+
+def test_jusdd_trc20_transfer(backend, accounts, scenario_navigator):
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], JUSDD_CTOKEN,
+        call_address_uint256(SEL_TRC20_TRANSFER,
+                             bytes.fromhex(address_hex(
+                                 "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16")),
+                             100 * 10**18))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx)
+
+
+# =============================================================================
+# Negative: known selector sent to an unknown contract must NOT get the
+# known-method display; it falls back to the custom-contract flow.
+# =============================================================================
+
+
+def test_known_selector_unknown_contract(backend, device, navigator, accounts,
+                                         scenario_navigator):
+    settings_toggle(device, navigator, [SettingID.CUSTOM_CONTRACT])
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(
+        accounts[0]["addressHex"], bytes.fromhex(address_hex(UNKNOWN_CONTRACT)),
+        call_address_uint256(SEL_BUY_GEM,
+                             bytes.fromhex(accounts[0]["addressHex"]),
+                             1000000))
+    _sign_and_check(client, accounts[0], scenario_navigator, tx, warning=True)
+
+
+# =============================================================================
+# JustLend MultiMerkleDistributor multiClaim: sign-by-hash with metadata
+# =============================================================================
+
+
+def _multiclaim_sign_by_hash(backend, device, navigator, accounts,
+                             scenario_navigator, selector: int) -> None:
+    '''multiClaim cannot go through the standard SIGN flow (its calldata always
+    exceeds one APDU chunk). Build the transaction, send only sha256(raw_data)
+    through INS 0x05 with the extended metadata (selector + contract address),
+    and check the signature covers the hash.'''
+    settings_toggle(device, navigator, [SettingID.SIGN_BY_HASH])
+    client = TronCommandSender(backend)
+    tx = _pack_trigger(accounts[0]["addressHex"], JUSTLEND_DISTRIBUTOR,
+                       build_multiclaim_calldata(1, 1266 * 10**18))
+
+    data = pack_derivation_path(accounts[0]["path"])
+    data += sha256(tx).digest()
+    data += selector.to_bytes(4, 'big')
+    data += JUSTLEND_DISTRIBUTOR
+
+    with backend.exchange_async(CLA, InsType.SIGN_TXN_HASH, 0x00, 0x00, data):
+        _approve(scenario_navigator)
+
+    resp = client.get_async_response()
+    assert resp.status == 0x9000
+    signature = resp.data[0:65]
+    assert check_hash_signature(sha256(tx).digest(), signature,
+                                accounts[0]["publicKey"][2:])
+    assert check_tx_signature(tx, signature, accounts[0]["publicKey"][2:])
+
+
+def test_multiclaim_sign_by_hash(backend, device, navigator, accounts,
+                                 scenario_navigator):
+    _multiclaim_sign_by_hash(backend, device, navigator, accounts,
+                             scenario_navigator, SEL_MULTI_CLAIM)
+
+
+def test_sign_by_hash_unknown_metadata(backend, device, navigator, accounts,
+                                       scenario_navigator):
+    '''Unknown selector in the extended metadata falls back to the legacy
+    "Unknown Type" display.'''
+    _multiclaim_sign_by_hash(backend, device, navigator, accounts,
+                             scenario_navigator, 0xdeadbeef)

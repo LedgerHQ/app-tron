@@ -166,6 +166,8 @@ typedef struct txContent_t {
     voteEntry_t votes[MAX_VOTES];
     uint8_t destinationSize;  // bytes in destination[] (ADDRESS_SIZE when set)
     char methodLabel[24];     // display name for a known protocol method
+    char contractLabel[24];   // display name of the known protocol contract
+    char recipientLabel[16];  // display label for the decoded address argument
 } txContent_t;
 
 typedef struct messageSigningContext712_t {

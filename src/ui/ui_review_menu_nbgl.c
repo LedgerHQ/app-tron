@@ -392,19 +392,32 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             txInfos.flowSubtitle = "Custom Contract";
             break;
         case APPROVAL_CONTRACT_METHOD:
+            // Known protocol method (USDD PSM buyGem/sellGem, JustLend jUSDD
+            // cToken methods). Only bound facts and fixed properties of the
+            // allowlisted contract are shown: method, contract, the decoded
+            // amount and its token, the decoded address argument (with a
+            // method-specific role label), the maximum fee and the sender. The
+            // swap counterparty amount and rate are not in the calldata and are
+            // deliberately not shown.
             txInfos.fields[0].item = "Method";
             txInfos.fields[0].value = contractMethodName;
-            txInfos.fields[1].item = "Token";
-            txInfos.fields[1].value = fullContract;
+            txInfos.fields[1].item = "Contract";
+            txInfos.fields[1].value = contractMethodContract;
             txInfos.fields[2].item = stringLabelTxAmount;
             txInfos.fields[2].value = (const char *) G_io_apdu_buffer;
+            txInfos.fields[3].item = "Token";
+            txInfos.fields[3].value = fullContract;
             if (contractMethodHasAddress) {
-                txInfos.fields[3].item = stringLabelRecipientAddress;
-                txInfos.fields[3].value = toAddress;
+                txInfos.fields[4].item = (contractMethodRecipientLabel[0] != '\0')
+                                             ? contractMethodRecipientLabel
+                                             : stringLabelRecipientAddress;
+                txInfos.fields[4].value = toAddress;
             }
-            txInfos.fields[contractMethodHasAddress ? 4 : 3].item = stringLabelSenderAddress;
-            txInfos.fields[contractMethodHasAddress ? 4 : 3].value = fromAddress;
-            pairList.nbPairs = contractMethodHasAddress ? 5 : 4;
+            txInfos.fields[contractMethodHasAddress ? 5 : 4].item = "Max Fee";
+            txInfos.fields[contractMethodHasAddress ? 5 : 4].value = strings.common.maxFee;
+            txInfos.fields[contractMethodHasAddress ? 6 : 5].item = stringLabelSenderAddress;
+            txInfos.fields[contractMethodHasAddress ? 6 : 5].value = fromAddress;
+            pairList.nbPairs = contractMethodHasAddress ? 7 : 6;
             txInfos.flowTitle = "Review Transaction";
             infoLongPress.text = "Sign Transaction";
             break;

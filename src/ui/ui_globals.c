@@ -31,6 +31,8 @@ char fullContract[MAX_TOKEN_LENGTH];
 char TRC20Action[9];
 char TRC20ActionSendAllow[8];
 char contractMethodName[24];
+char contractMethodContract[24];
+char contractMethodRecipientLabel[16];
 uint8_t contractMethodHasAddress;
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;

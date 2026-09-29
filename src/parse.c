@@ -653,6 +653,8 @@ bool pb_decode_trigger_smart_contract_data(pb_istream_t *stream,
             content->tokenNamesLength[0] = (uint8_t) (strlen(m->token) + 1);
             memmove(content->tokenNames[0], m->token, content->tokenNamesLength[0]);
             memcpy(content->methodLabel, m->method, strlen(m->method) + 1);
+            memcpy(content->contractLabel, m->contractName, strlen(m->contractName) + 1);
+            memcpy(content->recipientLabel, m->addressLabel, strlen(m->addressLabel) + 1);
             if (m->labelOnly) {
                 // Complex arguments (e.g. multiClaim nested arrays): only the
                 // method/token labels are known, no amount/address to display.
