@@ -33,6 +33,11 @@ char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];
 int8_t votes_count;
 permissionEntry_t permissionEntries[PERMISSION_MAX_ENTRIES];
+#ifdef HAVE_ADDRESS_BOOK
+const s_ab_contact *g_recipient_contact;  // contact matching toAddress, or NULL
+const s_ab_contact *g_sender_contact;     // contact matching fromAddress, or NULL
+#endif
+const char *g_recipient_service;  // known-service label for toAddress, or NULL
 transactionContext_t transactionContext;
 publicKeyContext_t publicKeyContext;
 messageSigningContext712_t messageSigningContext712;
@@ -235,7 +240,7 @@ bool ui_callback_signMessage712_v0_ok(bool display_menu) {
     }
 
     io_seproxyhal_io_heartbeat();
-    unsigned int signatureLength = sizeof(signature);
+    size_t signatureLength = sizeof(signature);
     err = cx_ecdsa_sign_no_throw(&privateKey,
                                  CX_RND_RFC6979 | CX_LAST,
                                  CX_SHA256,

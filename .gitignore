@@ -25,3 +25,6 @@ tests/snapshots-tmp
 # Virtual env for sideload (macOS and Windows)
 ledger/
 
+# autocomplete files
+.clangd
+compile_commands.json

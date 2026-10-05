@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "app_errors.h"
+#include "io.h"
 #include "ux.h"
 #include "nbgl_use_case.h"
 #include "ui_globals.h"
@@ -58,6 +59,8 @@ static const char *permissionKeyLabel[PERMISSION_MAX_ENTRIES][PERMISSION_MAX_KEY
     {"Active 2 Key 1", "Active 2 Key 2", "Active 2 Key 3"},
 };
 
+static const char *stringLabelService = "Service";
+
 // Enums and structs
 enum {
     DATA_WARNING = 0,
@@ -77,8 +80,66 @@ static nbgl_layoutTagValueList_t pairList;
 static nbgl_contentInfoLongPress_t infoLongPress;
 static nbgl_tx_infos_t txInfos;
 
+#ifdef HAVE_ADDRESS_BOOK
+static nbgl_contentValueExt_t recipientExt;
+static nbgl_contentValueExt_t senderExt;
+
+// Turn an address field into an Address Book alias: contact name as value, full
+// address kept in the extension, scope shown as sub-name.
+static void apply_contact_alias(nbgl_layoutTagValue_t *field,
+                                const s_ab_contact *contact,
+                                nbgl_contentValueExt_t *ext,
+                                const char *full_address) {
+    memset(ext, 0, sizeof(*ext));
+    ext->aliasType = ADDRESS_BOOK_ALIAS;
+    ext->fullValue = full_address;
+    ext->aliasSubName = (contact->scope[0] != '\0') ? contact->scope : NULL;
+    field->value = contact->contact_name;
+    field->aliasValue = 1;
+    field->extension = ext;
+}
+
+// Substitute contact names on the fields bound to toAddress / fromAddress.
+static void apply_address_book_aliases(void) {
+    for (uint8_t i = 0; i < pairList.nbPairs; i++) {
+        if ((g_recipient_contact != NULL) && (txInfos.fields[i].value == toAddress)) {
+            apply_contact_alias(&txInfos.fields[i], g_recipient_contact, &recipientExt, toAddress);
+        } else if ((g_sender_contact != NULL) && (txInfos.fields[i].value == fromAddress)) {
+            apply_contact_alias(&txInfos.fields[i], g_sender_contact, &senderExt, fromAddress);
+        }
+    }
+}
+#endif  // HAVE_ADDRESS_BOOK
+
+// Add the known-service label as its own pair, right above the recipient address.
+// The address field itself is left untouched: the label is shown in addition to
+// the raw address, never in place of it.
+static bool insert_known_service_label(void) {
+    if (g_recipient_service == NULL) {
+        return true;
+    }
+    for (uint8_t i = 0; i < pairList.nbPairs; i++) {
+        if (txInfos.fields[i].value != toAddress) {
+            continue;
+        }
+        if (pairList.nbPairs >= MAX_TX_FIELDS) {
+            PRINTF("No room left for the known-service label\n");
+            return false;
+        }
+        for (uint8_t j = pairList.nbPairs; j > i; j--) {
+            txInfos.fields[j] = txInfos.fields[j - 1];
+        }
+        memset(&txInfos.fields[i], 0, sizeof(txInfos.fields[i]));
+        txInfos.fields[i].item = stringLabelService;
+        txInfos.fields[i].value = g_recipient_service;
+        pairList.nbPairs++;
+        return true;
+    }
+    return true;
+}
+
 // Static functions declarations
-static void prepareTxInfos(ui_approval_state_t state, bool data_warning);
+static bool prepareTxInfos(ui_approval_state_t state, bool data_warning);
 static void reviewStart(void);
 static void displayTransaction(void);
 static void displayDataWarning(void);
@@ -187,7 +248,7 @@ static char *format_hash(const uint8_t *hash, char *buffer, size_t buffer_size, 
     return buffer + offset;
 }
 
-static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
+static bool prepareTxInfos(ui_approval_state_t state, bool data_warning) {
     memset(&txInfos, 0, sizeof(txInfos));
     memset(&infoLongPress, 0, sizeof(infoLongPress));
 
@@ -465,6 +526,14 @@ static void prepareTxInfos(ui_approval_state_t state, bool data_warning) {
             PRINTF("This should not happen !\n");
             break;
     }
+    // Must run before the aliases, which overwrite the address field value.
+    if (!insert_known_service_label()) {
+        return false;
+    }
+#ifdef HAVE_ADDRESS_BOOK
+    apply_address_book_aliases();
+#endif
+    return true;
 }
 
 static void display_address_callback(bool confirm) {
@@ -487,7 +556,12 @@ void ux_flow_display(ui_approval_state_t state, bool data_warning) {
                                   display_address_callback);
     } else {
         // Prepare transaction infos to be displayed (field values etc.)
-        prepareTxInfos(state, data_warning);
+        if (!prepareTxInfos(state, data_warning)) {
+            terminate_signing_session(&txContext, &txContent);
+            io_send_sw(E_INCORRECT_DATA);
+            ui_idle();
+            return;
+        }
         // Display transaction
         reviewStart();
     }
