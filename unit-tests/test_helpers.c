@@ -191,13 +191,13 @@ void test_signTransaction_forwards_sdk_failure(void) {
 
 // helper_send_response_pubkey: layout of the APDU response.
 
-static const buffer_t *g_send_captured;
+static buffer_t g_send_captured;
 static uint16_t g_send_sw;
 
 static int send_capture_cb(const buffer_t *rdatalist, size_t count, uint16_t sw, int n) {
     (void) count;
     (void) n;
-    g_send_captured = rdatalist;
+    g_send_captured = rdatalist[0];
     g_send_sw = sw;
     return 0;
 }
@@ -213,9 +213,9 @@ void test_helper_send_response_pubkey_without_chaincode(void) {
 
     helper_send_response_pubkey(&ctx);
 
-    TEST_ASSERT_EQUAL_UINT32(1 + PUBLIC_KEY_SIZE + 1 + BASE58CHECK_ADDRESS_SIZE, g_send_captured->size);
-    TEST_ASSERT_EQUAL_HEX8(PUBLIC_KEY_SIZE, g_send_captured->ptr[0]);
-    TEST_ASSERT_EQUAL_HEX8(BASE58CHECK_ADDRESS_SIZE, g_send_captured->ptr[1 + PUBLIC_KEY_SIZE]);
+    TEST_ASSERT_EQUAL_UINT32(1 + PUBLIC_KEY_SIZE + 1 + BASE58CHECK_ADDRESS_SIZE, g_send_captured.size);
+    TEST_ASSERT_EQUAL_HEX8(PUBLIC_KEY_SIZE, g_send_captured.ptr[0]);
+    TEST_ASSERT_EQUAL_HEX8(BASE58CHECK_ADDRESS_SIZE, g_send_captured.ptr[1 + PUBLIC_KEY_SIZE]);
 }
 
 void test_helper_send_response_pubkey_with_chaincode_appends_it(void) {
@@ -229,9 +229,9 @@ void test_helper_send_response_pubkey_with_chaincode_appends_it(void) {
     helper_send_response_pubkey(&ctx);
 
     size_t expect_size = 1 + PUBLIC_KEY_SIZE + 1 + BASE58CHECK_ADDRESS_SIZE + CHAIN_CODE_SIZE;
-    TEST_ASSERT_EQUAL_UINT32(expect_size, g_send_captured->size);
+    TEST_ASSERT_EQUAL_UINT32(expect_size, g_send_captured.size);
     TEST_ASSERT_EQUAL_MEMORY(ctx.chainCode,
-                             g_send_captured->ptr + 1 + PUBLIC_KEY_SIZE + 1 + BASE58CHECK_ADDRESS_SIZE,
+                             g_send_captured.ptr + 1 + PUBLIC_KEY_SIZE + 1 + BASE58CHECK_ADDRESS_SIZE,
                              CHAIN_CODE_SIZE);
 }
 
