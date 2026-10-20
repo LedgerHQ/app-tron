@@ -300,17 +300,17 @@ static bool prepareTxInfos(ui_approval_state_t state, bool data_warning) {
                     continue;
                 }
 
-                txInfos.fields[fieldCount].item = permissionThresholdLabel[e];
+                txInfos.fields[fieldCount].item = PIC(permissionThresholdLabel[e]);
                 txInfos.fields[fieldCount].value = permissionEntries[e].threshold;
                 fieldCount++;
 
                 for (uint8_t k = 0; k < permissionEntries[e].keysCount; k++) {
-                    txInfos.fields[fieldCount].item = permissionKeyLabel[e][k];
+                    txInfos.fields[fieldCount].item = PIC(permissionKeyLabel[e][k]);
                     txInfos.fields[fieldCount].value = permissionEntries[e].keys[k];
                     fieldCount++;
                 }
 
-                txInfos.fields[fieldCount].item = permissionOperationsLabel[e];
+                txInfos.fields[fieldCount].item = PIC(permissionOperationsLabel[e]);
                 txInfos.fields[fieldCount].value = permissionEntries[e].operations;
                 fieldCount++;
             }
