@@ -34,12 +34,12 @@
 // permissions, each rendering threshold + up to PERMISSION_MAX_KEYS keys + operations.
 #define MAX_TX_FIELDS (1 + PERMISSION_MAX_ENTRIES * (2 + PERMISSION_MAX_KEYS))
 
-static const char *stringLabelSenderAddress = "From";
-static const char *stringLabelRecipientAddress = "To";
-static const char *stringLabelTxAmount = "Amount";
-static const char *stringLabelResource = "Resource";
-static const char *stringLabelHash = "Hash";
-static const char *stringLabelGain = "Gain";
+static const char stringLabelSenderAddress[] = "From";
+static const char stringLabelRecipientAddress[] = "To";
+static const char stringLabelTxAmount[] = "Amount";
+static const char stringLabelResource[] = "Resource";
+static const char stringLabelHash[] = "Hash";
+static const char stringLabelGain[] = "Gain";
 static const char *permissionThresholdLabel[PERMISSION_MAX_ENTRIES] = {
     "Owner Threshold",
     "Witness Threshold",
@@ -59,7 +59,7 @@ static const char *permissionKeyLabel[PERMISSION_MAX_ENTRIES][PERMISSION_MAX_KEY
     {"Active 2 Key 1", "Active 2 Key 2", "Active 2 Key 3"},
 };
 
-static const char *stringLabelService = "Service";
+static const char stringLabelService[] = "Service";
 
 // Enums and structs
 enum {
