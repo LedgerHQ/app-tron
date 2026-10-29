@@ -183,21 +183,24 @@ void on_edit_contact_name_applied(const edit_contact_name_t *edit) {
     if (edit == NULL) {
         return;
     }
-    update_contact_name(edit->old_contact_name, edit->contact_name);
+    update_contact_name(edit->gid, edit->old_contact_name, edit->contact_name);
 }
 
 void on_edit_identifier_applied(const edit_identifier_t *edit) {
     if (edit == NULL) {
         return;
     }
-    update_contact_identifier(edit->old_identifier, edit->identity.identifier);
+    update_contact_identifier(edit->identity.gid, edit->old_identifier, edit->identity.identifier);
 }
 
 void on_edit_scope_applied(const edit_scope_t *edit) {
     if (edit == NULL) {
         return;
     }
-    update_contact_scope(edit->identity.identifier, edit->identity.scope);
+    update_contact_scope(edit->identity.gid,
+                         edit->identity.identifier,
+                         edit->old_scope,
+                         edit->identity.scope);
 }
 
 /* ============================ Provide Contact ========================== */
@@ -217,6 +220,7 @@ bool handle_provide_identity(const identity_t *contact) {
         return false;
     }
     node->type = AB_CONTACT_IDENTITY;
+    memcpy(node->gid, contact->gid, GID_SIZE);
     strlcpy(node->contact_name, contact->contact_name, sizeof(node->contact_name));
     strlcpy(node->scope, contact->scope, sizeof(node->scope));
     memcpy(node->identifier, contact->identifier, ADDRESS_SIZE);

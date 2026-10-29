@@ -190,8 +190,8 @@ bool handle_provide_ledger_account(const ledger_account_t *account) {
         return false;
     }
 
-    const s_ab_contact *existing = get_address_book_contact(address);
-    if (existing != NULL && existing->type == AB_CONTACT_LEDGER_ACCOUNT) {
+    // Any contact already cached for this address wins, whatever its type
+    if (get_address_book_contact(address) != NULL) {
         PRINTF("Contact already stored, ignoring\n");
         return true;
     }
