@@ -44,9 +44,13 @@ static bool is_valid_tron_identifier(const identity_t *id) {
 
 /* ============================ Register Identity ========================= */
 
-void finalize_ui_register_identity(void) {
+static void free_register_identity_buffers(void) {
     APP_MEM_FREE_AND_NULL((void **) &g_ctx.register_identity.identifier_display);
     APP_MEM_FREE_AND_NULL((void **) &g_ctx.register_identity.identity);
+}
+
+void finalize_ui_register_identity(void) {
+    free_register_identity_buffers();
     ui_idle();
 }
 
@@ -54,12 +58,20 @@ bool handle_check_register_identity(identity_t *params) {
     if (params == NULL || !is_valid_tron_identifier(params)) {
         return false;
     }
+    // A new review may replace the previous status screen before its finalizer runs.
+    free_register_identity_buffers();
     if (APP_MEM_PERMANENT((void **) &g_ctx.register_identity.identity, sizeof(identity_t)) ==
-        false) {
-        PRINTF("Failed to allocate identity\n");
+            false ||
+        APP_MEM_PERMANENT((void **) &g_ctx.register_identity.identifier_display,
+                          AB_ADDR_STR_SIZE) == false) {
+        PRINTF("Failed to allocate register identity buffers\n");
+        free_register_identity_buffers();
         return false;
     }
     memmove(g_ctx.register_identity.identity, params, sizeof(identity_t));
+    // Formatted once here: NBGL calls the getter again on every navigation.
+    getBase58FromAddress(g_ctx.register_identity.identity->identifier,
+                         g_ctx.register_identity.identifier_display);
     return true;
 }
 
@@ -75,13 +87,6 @@ nbgl_contentTagValue_t *get_register_identity_tagValue(uint8_t pairIndex) {
             g_ctx.current_pair.value = g_ctx.register_identity.identity->scope;
             break;
         case 2:
-            if (APP_MEM_PERMANENT((void **) &g_ctx.register_identity.identifier_display,
-                                  AB_ADDR_STR_SIZE) == false) {
-                PRINTF("Failed to allocate identifier display buffer\n");
-                return NULL;
-            }
-            getBase58FromAddress(g_ctx.register_identity.identity->identifier,
-                                 g_ctx.register_identity.identifier_display);
             g_ctx.current_pair.item = "Address";
             g_ctx.current_pair.value = g_ctx.register_identity.identifier_display;
             break;
@@ -126,6 +131,8 @@ bool handle_check_edit_identifier(const edit_identifier_t *params) {
         return false;
     }
 
+    // A new review may replace the previous status screen before its finalizer runs.
+    free_edit_identifier_buffers();
     if (APP_MEM_PERMANENT((void **) &g_ctx.edit_identifier.contact_name, CONTACT_NAME_LENGTH) ==
             false ||
         APP_MEM_PERMANENT((void **) &g_ctx.edit_identifier.scope, SCOPE_LENGTH) == false ||
