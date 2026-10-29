@@ -809,21 +809,30 @@ static bool account_permission_update_contract(txContent_t *content, pb_istream_
 }
 
 typedef struct {
-    const uint8_t *buf;
+    const uint8_t *chunk;  // chunk being decoded by processTx()
+    size_t chunk_len;
+    size_t offset;  // verified position of Any.value within the chunk
     size_t size;
     bool captured;
-} buffer_t;
+} contract_value_t;
 
 bool pb_decode_contract_parameter(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     PB_UNUSED(field);
-    buffer_t *buffer = *arg;
+    contract_value_t *value = *arg;
+    const uint8_t *data = stream->state;
 
-    if (buffer->captured) {
+    if (value->captured) {
         return false;
     }
-    buffer->buf = stream->state;
-    buffer->size = stream->bytes_left;
-    buffer->captured = true;
+    // Any.value is decoded later, from the chunk itself: check now that nanopb handed
+    // us a view into the chunk (not a temporary copy) and keep it as an offset.
+    if (data < value->chunk || data > value->chunk + value->chunk_len ||
+        stream->bytes_left > (size_t) (value->chunk + value->chunk_len - data)) {
+        return false;
+    }
+    value->offset = (size_t) (data - value->chunk);
+    value->size = stream->bytes_left;
+    value->captured = true;
     return true;
 }
 
@@ -852,9 +861,9 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
      * and deserializing the nested contract inside the message requires too much
      * stack for Nano S
      */
-    buffer_t contract_buffer = {0};
+    contract_value_t contract_value = {.chunk = buffer, .chunk_len = length};
     transaction.contract->parameter.value.funcs.decode = pb_decode_contract_parameter;
-    transaction.contract->parameter.value.arg = &contract_buffer;
+    transaction.contract->parameter.value.arg = &contract_value;
 
     /* Set callback to determine if transaction contains custom data.
      * This allows to retrieve the size of arbitrary data. */
@@ -890,19 +899,16 @@ parserStatus_e processTx(uint8_t *buffer, uint32_t length, txContent_t *content)
         }
         content->contractSeen = true;
 
-        // has_parameter can be true with an empty Any.value, leaving contract_buffer unset.
-        if (contract_buffer.buf == NULL || contract_buffer.size == 0) {
-            return USTREAM_FAULT;
-        }
-        if (contract_buffer.buf < buffer || contract_buffer.buf > buffer + length ||
-            contract_buffer.size > (size_t) (buffer + length - contract_buffer.buf)) {
+        // has_parameter can be true with an empty Any.value, leaving contract_value unset.
+        if (!contract_value.captured || contract_value.size == 0) {
             return USTREAM_FAULT;
         }
 
         content->permission_id = transaction.contract->Permission_id;
         content->contractType = (contractType_e) transaction.contract->type;
 
-        pb_istream_t tx_stream = pb_istream_from_buffer(contract_buffer.buf, contract_buffer.size);
+        pb_istream_t tx_stream =
+            pb_istream_from_buffer(buffer + contract_value.offset, contract_value.size);
         bool ret;
 
         switch (transaction.contract->type) {
