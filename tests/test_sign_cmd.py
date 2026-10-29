@@ -268,6 +268,24 @@ def test_sign_vote_witness(backend, accounts, scenario_navigator):
     _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
 
+# A valid transfer followed by one malformed field: refused with 0x6A80, before any review.
+@pytest.mark.parametrize("malformed_field", [
+    bytes([0x50, 0x01]),                         # custom_data (bytes) sent as a varint
+    bytes([0x90, 0x01] + [0x80] * 9 + [0x02]),  # fee_limit varint overflowing 64 bits
+], ids=["custom_data_as_varint", "fee_limit_varint_overflow"])
+def test_sign_malformed_protobuf_is_rejected(backend, accounts, malformed_field):
+    client = TronCommandSender(backend)
+    tx = pack_contract(
+        tron.Transaction.Contract.TransferContract,
+        contract.TransferContract(
+            owner_address=bytes.fromhex(accounts[0]["addressHex"]),
+            to_address=bytes.fromhex(address_hex(KNOWN_TOKEN)),
+            amount=100000000))
+    with pytest.raises(ExceptionRAPDU) as e:
+        client.sign(accounts[0]["path"], tx + malformed_field)
+    assert e.value.status == Errors.INCORRECT_DATA
+
+
 def test_sign_vote_witness_more_than_5(backend, accounts):
     client = TronCommandSender(backend)
     tx = _vote(client, accounts, [

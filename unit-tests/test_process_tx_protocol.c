@@ -194,6 +194,54 @@ void test_processTx_accepts_custom_data_when_setting_enabled(void) {
     TEST_ASSERT_EQUAL_UINT64(sizeof(payload), content.dataBytes);
 }
 
+void test_processTx_rejects_custom_data_with_a_non_length_delimited_wire_type(void) {
+    // custom_data (field 10) sent as a varint (wire type 0) instead of bytes.
+    static const uint8_t buf[] = {0x50, 0x01};
+
+    N_storage_real = (1 << S_DATA_ALLOWED);
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx((uint8_t *) buf, sizeof(buf), &content));
+    TEST_ASSERT_EQUAL_UINT64(0, content.dataBytes);
+}
+
+void test_processTx_rejects_any_value_with_a_non_length_delimited_wire_type(void) {
+    // contract (field 11) { type = TransferContract, parameter = Any { value (field 2)
+    // sent as fixed64 (wire type 1) instead of bytes } }: rejected while decoding,
+    // before the contract is marked as seen.
+    static const uint8_t buf[] = {0x5A, 0x0D, 0x08, 0x01, 0x12, 0x09, 0x11, 0x01, 0x02,
+                                  0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx((uint8_t *) buf, sizeof(buf), &content));
+    TEST_ASSERT_FALSE(content.contractSeen);
+}
+
+void test_processTx_rejects_a_64bit_varint_overflowing_in_its_10th_byte(void) {
+    // fee_limit (field 18, tag 0x90 0x01) whose 10th byte carries more than bit 0.
+    static const uint8_t buf[] = {0x90, 0x01, 0x80, 0x80, 0x80, 0x80, 0x80,
+                                  0x80, 0x80, 0x80, 0x80, 0x02};
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx((uint8_t *) buf, sizeof(buf), &content));
+}
+
+void test_processTx_rejects_a_tag_varint_overflowing_32_bits(void) {
+    // fee_limit tag (144) with bit 32 set in its 5th byte, followed by a zero group.
+    static const uint8_t buf[] = {0x90, 0x81, 0x80, 0x80, 0x90, 0x00, 0x05};
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx((uint8_t *) buf, sizeof(buf), &content));
+}
+
+void test_processTx_accepts_a_tag_varint_padded_with_zero_groups(void) {
+    // Same fee_limit tag (144), padded with zero groups up to 6 bytes: still valid.
+    static const uint8_t buf[] = {0x90, 0x81, 0x80, 0x80, 0x80, 0x00, 0x05};
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_PROCESSING, processTx((uint8_t *) buf, sizeof(buf), &content));
+    TEST_ASSERT_EQUAL_UINT64(5, content.feeLimit);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -208,6 +256,11 @@ int main(void) {
     RUN_TEST(test_processTx_second_contract_bearing_chunk_is_rejected);
     RUN_TEST(test_processTx_rejects_custom_data_when_setting_disabled);
     RUN_TEST(test_processTx_accepts_custom_data_when_setting_enabled);
+    RUN_TEST(test_processTx_rejects_custom_data_with_a_non_length_delimited_wire_type);
+    RUN_TEST(test_processTx_rejects_any_value_with_a_non_length_delimited_wire_type);
+    RUN_TEST(test_processTx_rejects_a_64bit_varint_overflowing_in_its_10th_byte);
+    RUN_TEST(test_processTx_rejects_a_tag_varint_overflowing_32_bits);
+    RUN_TEST(test_processTx_accepts_a_tag_varint_padded_with_zero_groups);
 
     return UNITY_END();
 }
