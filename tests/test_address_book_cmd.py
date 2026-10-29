@@ -84,10 +84,10 @@ def compute_hmac_rest(gid: bytes, scope: str, address: bytes) -> bytes:
     return hmac_module.new(_hmac_key(HMAC_KDF_SALT_IDENTITY), msg, hashlib.sha256).digest()
 
 
-def compute_hmac_proof_ledger_account(contact_name: str) -> bytes:
-    # message: name_len(1) | name | family(1)
+def compute_hmac_proof_ledger_account(contact_name: str, derivation_path: str = DEFAULT_BIP32_PATH) -> bytes:
+    # message: name_len(1) | name | depth(1) | indices(4 each, big-endian) | family(1)
     name = contact_name.encode("utf-8")
-    msg = bytes([len(name)]) + name + bytes([FAMILY])
+    msg = bytes([len(name)]) + name + pack_derivation_path(derivation_path) + bytes([FAMILY])
     return hmac_module.new(_hmac_key(HMAC_KDF_SALT_LEDGER_ACCOUNT), msg, hashlib.sha256).digest()
 
 
@@ -184,7 +184,7 @@ def _register_ledger_account(nav, client, do_compare=True, derivation_path=DEFAU
     return check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_REGISTER_LEDGER_ACCOUNT,
-        compute_hmac_proof_ledger_account(contact_name),
+        compute_hmac_proof_ledger_account(contact_name, derivation_path),
     )
 
 
@@ -437,3 +437,123 @@ def test_address_book_ledger_account_tx(backend, accounts, scenario_navigator):
     tx = _transfer_tx(accounts, DEFAULT_ADDRESS)
     with client.sign_tx(accounts[0]["path"], tx):
         _approve_tx(scenario_navigator)
+
+
+# =============================================================================
+# Provide Contact — cache consistency after edits
+# =============================================================================
+
+
+def _provide_identity(client, group_handle, hmac_name, hmac_rest, contact_name=DEFAULT_CONTACT_NAME, address=DEFAULT_ADDRESS):
+    cmd = ProvideContact(
+        identifier=address,
+        group_handle=group_handle,
+        hmac_name=hmac_name,
+        hmac_rest=hmac_rest,
+        contact_name=contact_name,
+        scope=DEFAULT_SCOPE,
+        blockchain_family=FAMILY,
+    )
+    assert client.provide_address_book(cmd).status == Errors.OK
+
+
+def _provide_default_contact_of_another_group(nav, client):
+    # Cache group A's "Alice" on DEFAULT_ADDRESS, then register group B on the same address.
+    # Returns group B's (group_handle, hmac_name, hmac_rest). Group B is never provided.
+    _provide_identity(client, *_register_identity(nav, client, do_compare=False))
+    return _register_identity(nav, client, do_compare=False)
+
+
+def test_address_book_edit_identifier_of_another_group(backend, accounts, scenario_navigator):
+    # An Edit Identifier of group B must not move group A's cached contact:
+    # a TX to DEFAULT_ADDRESS still shows "Alice".
+    client = TronCommandSender(backend)
+    new_address = base58.b58decode_check("TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9")
+    group_handle_b, hmac_name_b, hmac_rest_b = _provide_default_contact_of_another_group(scenario_navigator, client)
+
+    cmd = EditIdentifier(
+        old_identifier=DEFAULT_ADDRESS,
+        new_identifier=new_address,
+        contact_name=DEFAULT_CONTACT_NAME,
+        scope=DEFAULT_SCOPE,
+        hmac_proof=hmac_name_b,
+        hmac_rest=hmac_rest_b,
+        group_handle=group_handle_b,
+        blockchain_family=FAMILY,
+    )
+    with client.provide_address_book_async(cmd):
+        _approve_identity(scenario_navigator, do_compare=False)
+    assert client.get_async_response().status == Errors.OK
+
+    tx = _transfer_tx(accounts, DEFAULT_ADDRESS)
+    with client.sign_tx(accounts[0]["path"], tx):
+        _approve_tx(scenario_navigator)
+
+
+def test_address_book_edit_contact_name_of_another_group(backend, accounts, scenario_navigator):
+    # An Edit Contact Name of group B ("Alice" -> "Mallory") must not rename group A's
+    # cached contact: a TX to DEFAULT_ADDRESS still shows "Alice".
+    client = TronCommandSender(backend)
+    group_handle_b, hmac_name_b, _ = _provide_default_contact_of_another_group(scenario_navigator, client)
+
+    cmd = EditContactName(
+        old_contact_name=DEFAULT_CONTACT_NAME,
+        new_contact_name="Mallory",
+        hmac_proof=hmac_name_b,
+        group_handle=group_handle_b,
+    )
+    with client.provide_address_book_async(cmd):
+        _approve_identity(scenario_navigator, do_compare=False)
+    assert client.get_async_response().status == Errors.OK
+
+    tx = _transfer_tx(accounts, DEFAULT_ADDRESS)
+    with client.sign_tx(accounts[0]["path"], tx):
+        _approve_tx(scenario_navigator)
+
+
+def test_address_book_edit_identifier_onto_cached_address(backend, accounts, scenario_navigator):
+    # Moving "Alice" onto an address that already has a cached contact ("Bob") must not
+    # relabel it: a TX to that address still shows "Bob".
+    client = TronCommandSender(backend)
+    bob_address = base58.b58decode_check("TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9")
+    handles = {}
+    for name, address in (("Alice", DEFAULT_ADDRESS), ("Bob", bob_address)):
+        handles[name] = _register_identity(scenario_navigator, client, contact_name=name, address=address, do_compare=False)
+        _provide_identity(client, *handles[name], contact_name=name, address=address)
+
+    group_handle, hmac_name, hmac_rest = handles["Alice"]
+    cmd = EditIdentifier(
+        old_identifier=DEFAULT_ADDRESS,
+        new_identifier=bob_address,
+        contact_name="Alice",
+        scope=DEFAULT_SCOPE,
+        hmac_proof=hmac_name,
+        hmac_rest=hmac_rest,
+        group_handle=group_handle,
+        blockchain_family=FAMILY,
+    )
+    with client.provide_address_book_async(cmd):
+        _approve_identity(scenario_navigator, do_compare=False)
+    assert client.get_async_response().status == Errors.OK
+
+    tx = _transfer_tx(accounts, bob_address)
+    with client.sign_tx(accounts[0]["path"], tx):
+        _approve_tx(scenario_navigator)
+
+
+def test_address_book_provide_ledger_account_over_identity(backend, accounts, scenario_navigator):
+    # A Ledger Account provided on an address that already has an Identity contact must not
+    # be cached again on every Provide: the heap would fill up with no user action.
+    client = TronCommandSender(backend)
+    signer = bytes.fromhex(accounts[0]["addressHex"])
+    _provide_identity(client, *_register_identity(scenario_navigator, client, address=signer, do_compare=False), address=signer)
+    hmac_proof = _register_ledger_account(scenario_navigator, client, do_compare=False)
+
+    cmd = ProvideLedgerAccountContact(
+        hmac_proof=hmac_proof,
+        contact_name=DEFAULT_ACCOUNT_NAME,
+        derivation_path=DEFAULT_BIP32_PATH,
+        blockchain_family=FAMILY,
+    )
+    for _ in range(100):  # well beyond what the 8 KB heap holds
+        assert client.provide_address_book(cmd).status == Errors.OK
