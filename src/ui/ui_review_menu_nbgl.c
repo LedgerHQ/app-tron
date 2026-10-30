@@ -92,6 +92,7 @@ static void apply_contact_alias(nbgl_layoutTagValue_t *field,
                                 const char *full_address) {
     memset(ext, 0, sizeof(*ext));
     ext->aliasType = ADDRESS_BOOK_ALIAS;
+    ext->title = contact->contact_name;
     ext->fullValue = full_address;
     ext->aliasSubName = (contact->scope[0] != '\0') ? contact->scope : NULL;
     field->value = contact->contact_name;
