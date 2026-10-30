@@ -819,18 +819,19 @@ typedef struct {
 bool pb_decode_contract_parameter(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     PB_UNUSED(field);
     contract_value_t *value = *arg;
-    const uint8_t *data = stream->state;
+    uintptr_t start = (uintptr_t) value->chunk;
+    uintptr_t data = (uintptr_t) stream->state;
 
     if (value->captured) {
         return false;
     }
     // Any.value is decoded later, from the chunk itself: check now that nanopb handed
     // us a view into the chunk (not a temporary copy) and keep it as an offset.
-    if (data < value->chunk || data > value->chunk + value->chunk_len ||
-        stream->bytes_left > (size_t) (value->chunk + value->chunk_len - data)) {
+    if (data < start || data - start > value->chunk_len ||
+        stream->bytes_left > value->chunk_len - (data - start)) {
         return false;
     }
-    value->offset = (size_t) (data - value->chunk);
+    value->offset = (size_t) (data - start);
     value->size = stream->bytes_left;
     value->captured = true;
     return true;
