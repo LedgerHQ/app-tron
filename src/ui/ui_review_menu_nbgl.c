@@ -34,12 +34,12 @@
 // permissions, each rendering threshold + up to PERMISSION_MAX_KEYS keys + operations.
 #define MAX_TX_FIELDS (1 + PERMISSION_MAX_ENTRIES * (2 + PERMISSION_MAX_KEYS))
 
-static const char *stringLabelSenderAddress = "From";
-static const char *stringLabelRecipientAddress = "To";
-static const char *stringLabelTxAmount = "Amount";
-static const char *stringLabelResource = "Resource";
-static const char *stringLabelHash = "Hash";
-static const char *stringLabelGain = "Gain";
+static const char stringLabelSenderAddress[] = "From";
+static const char stringLabelRecipientAddress[] = "To";
+static const char stringLabelTxAmount[] = "Amount";
+static const char stringLabelResource[] = "Resource";
+static const char stringLabelHash[] = "Hash";
+static const char stringLabelGain[] = "Gain";
 static const char *permissionThresholdLabel[PERMISSION_MAX_ENTRIES] = {
     "Owner Threshold",
     "Witness Threshold",
@@ -59,7 +59,7 @@ static const char *permissionKeyLabel[PERMISSION_MAX_ENTRIES][PERMISSION_MAX_KEY
     {"Active 2 Key 1", "Active 2 Key 2", "Active 2 Key 3"},
 };
 
-static const char *stringLabelService = "Service";
+static const char stringLabelService[] = "Service";
 
 // Enums and structs
 enum {
@@ -92,6 +92,7 @@ static void apply_contact_alias(nbgl_layoutTagValue_t *field,
                                 const char *full_address) {
     memset(ext, 0, sizeof(*ext));
     ext->aliasType = ADDRESS_BOOK_ALIAS;
+    ext->title = contact->contact_name;
     ext->fullValue = full_address;
     ext->aliasSubName = (contact->scope[0] != '\0') ? contact->scope : NULL;
     field->value = contact->contact_name;
