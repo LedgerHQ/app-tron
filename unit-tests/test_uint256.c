@@ -17,7 +17,7 @@ void test_convertUint256BE_short_buffer_is_left_zero_padded(void) {
     const uint8_t data[] = {0xDE, 0xAD, 0xBE, 0xEF};
     uint256_t n;
 
-    convertUint256BE(data, sizeof(data), &n);
+    TEST_ASSERT_TRUE(convertUint256BE(data, sizeof(data), &n));
 
     TEST_ASSERT_EQUAL_HEX64(0, n.elements[0].elements[0]);
     TEST_ASSERT_EQUAL_HEX64(0, n.elements[0].elements[1]);
@@ -32,12 +32,19 @@ void test_convertUint256BE_full_32_bytes(void) {
                               0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xf0};
     uint256_t n;
 
-    convertUint256BE(data, sizeof(data), &n);
+    TEST_ASSERT_TRUE(convertUint256BE(data, sizeof(data), &n));
 
     TEST_ASSERT_EQUAL_HEX64(0x0123456789abcdef, n.elements[0].elements[0]);
     TEST_ASSERT_EQUAL_HEX64(0xfedcba9876543210, n.elements[0].elements[1]);
     TEST_ASSERT_EQUAL_HEX64(0x0011223344556677, n.elements[1].elements[0]);
     TEST_ASSERT_EQUAL_HEX64(0x8899aabbccddeef0, n.elements[1].elements[1]);
+}
+
+void test_convertUint256BE_rejects_more_than_32_bytes(void) {
+    const uint8_t data[33] = {0};
+    uint256_t n;
+
+    TEST_ASSERT_FALSE(convertUint256BE(data, sizeof(data), &n));
 }
 
 // zero / equal / gt / gte
@@ -335,11 +342,44 @@ void test_tostring256_fails_when_buffer_too_small_for_digits(void) {
     TEST_ASSERT_FALSE(tostring256(&n, 16, out, sizeof(out)));
 }
 
+void test_tostring256_fails_when_no_room_left_for_nul(void) {
+    uint256_t n = {0};
+    char out[4] = {'#', '#', '#', '#'};
+    n.elements[1].elements[1] = 0xFFF;
+
+    // 3 digits and the NUL need 4 bytes: 3 must be refused without writing out[3]
+    TEST_ASSERT_FALSE(tostring256(&n, 16, out, 3));
+    TEST_ASSERT_EQUAL_CHAR('#', out[3]);
+    TEST_ASSERT_TRUE(tostring256(&n, 16, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("fff", out);
+}
+
+void test_tostring256_rejects_zero_length_buffer(void) {
+    uint256_t n = {0};
+    char out[1] = {'#'};
+
+    TEST_ASSERT_FALSE(tostring256(&n, 10, out, 0));
+    TEST_ASSERT_EQUAL_CHAR('#', out[0]);
+}
+
+void test_tostring128_fails_when_no_room_left_for_nul(void) {
+    uint128_t n = {0};
+    char out[4] = {'#', '#', '#', '#'};
+    n.elements[1] = 0xFFF;
+
+    TEST_ASSERT_FALSE(tostring128(&n, 16, out, 3));
+    TEST_ASSERT_EQUAL_CHAR('#', out[3]);
+    TEST_ASSERT_FALSE(tostring128(&n, 16, out, 0));
+    TEST_ASSERT_TRUE(tostring128(&n, 16, out, sizeof(out)));
+    TEST_ASSERT_EQUAL_STRING("fff", out);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_convertUint256BE_short_buffer_is_left_zero_padded);
     RUN_TEST(test_convertUint256BE_full_32_bytes);
+    RUN_TEST(test_convertUint256BE_rejects_more_than_32_bytes);
 
     RUN_TEST(test_zero256_true_for_all_zero);
     RUN_TEST(test_zero256_false_if_any_limb_set);
@@ -368,6 +408,9 @@ int main(void) {
     RUN_TEST(test_tostring256_rejects_base_below_2);
     RUN_TEST(test_tostring256_rejects_base_above_16);
     RUN_TEST(test_tostring256_fails_when_buffer_too_small_for_digits);
+    RUN_TEST(test_tostring256_fails_when_no_room_left_for_nul);
+    RUN_TEST(test_tostring256_rejects_zero_length_buffer);
+    RUN_TEST(test_tostring128_fails_when_no_room_left_for_nul);
 
     return UNITY_END();
 }

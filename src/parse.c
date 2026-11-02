@@ -296,7 +296,14 @@ static bool printTokenFromID(txContent_t *content,
         content->tokenIsTrx[token_index] = true;
         return true;
     }
-    strlcpy(out, (char *) data, MAX_TOKEN_LENGTH);
+    // The ID is length-delimited, not NUL-terminated: TRC10 IDs are decimal numbers
+    for (size_t i = 0; i < TOKENID_SIZE; i++) {
+        if (data[i] < '0' || data[i] > '9') {
+            return false;
+        }
+    }
+    memcpy(out, data, TOKENID_SIZE);
+    out[TOKENID_SIZE] = '\0';
     content->tokenIsTrx[token_index] = false;
     return true;
 }

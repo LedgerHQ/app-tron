@@ -42,10 +42,14 @@ void readu256BE(uint8_t *buffer, uint256_t *target) {
     readu128BE(buffer + 16, &LOWER_P(target));
 }
 
-void convertUint256BE(const uint8_t *data, const uint32_t length, uint256_t *target) {
+bool convertUint256BE(const uint8_t *data, const uint32_t length, uint256_t *target) {
     uint8_t tmp[32] = {0};
-    memcpy(tmp + 32 - length, data, length);
+    if (length > sizeof(tmp)) {
+        return false;
+    }
+    memcpy(tmp + sizeof(tmp) - length, data, length);
     readu256BE(tmp, target);
+    return true;
 }
 
 bool zero128(uint128_t *number) {
@@ -506,11 +510,12 @@ bool tostring128(uint128_t *number, uint32_t baseParam, char *out, uint32_t outL
     clear128(&base);
     LOWER(base) = baseParam;
     uint32_t offset = 0;
-    if ((baseParam < 2) || (baseParam > 16)) {
+    if ((baseParam < 2) || (baseParam > 16) || (outLength == 0)) {
         return false;
     }
     do {
-        if (offset > (outLength - 1)) {
+        // Keep room for the terminating NUL
+        if (offset >= outLength - 1) {
             return false;
         }
         divmod128(&rDiv, &base, &rDiv, &rMod);
@@ -531,11 +536,12 @@ bool tostring256(uint256_t *number, uint32_t baseParam, char *out, uint32_t outL
     UPPER(LOWER(base)) = 0;
     LOWER(LOWER(base)) = baseParam;
     uint32_t offset = 0;
-    if ((baseParam < 2) || (baseParam > 16)) {
+    if ((baseParam < 2) || (baseParam > 16) || (outLength == 0)) {
         return false;
     }
     do {
-        if (offset > (outLength - 1)) {
+        // Keep room for the terminating NUL
+        if (offset >= outLength - 1) {
             return false;
         }
         divmod256(&rDiv, &base, &rDiv, &rMod);

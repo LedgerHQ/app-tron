@@ -97,7 +97,10 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t *params) {
         return false;
     }
 
-    convertUint256BE(params->amount, params->amount_length, &swap_validated.amount);
+    if (!convertUint256BE(params->amount, params->amount_length, &swap_validated.amount)) {
+        PRINTF("Invalid amount length\n");
+        return false;
+    }
 
     swap_validated.initialized = true;
 
@@ -117,7 +120,10 @@ static bool check_swap_amount(const char *amount, const uint8_t decimals) {
     char validated_amount[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
     char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
 
-    tostring256(&G_swap_validated.amount, 10, amount_raw_string, sizeof(amount_raw_string));
+    if (!tostring256(&G_swap_validated.amount, 10, amount_raw_string, sizeof(amount_raw_string))) {
+        PRINTF("Amount conversion failed\n");
+        return false;
+    }
 
     if (!adjustDecimals(amount_raw_string,
                         strnlen(amount_raw_string, sizeof(amount_raw_string)),
