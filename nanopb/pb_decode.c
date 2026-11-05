@@ -194,6 +194,7 @@ static bool checkreturn pb_decode_varint32_eof(pb_istream_t *stream, uint32_t *d
     {
         /* Multibyte case */
         uint_fast8_t bitpos = 7;
+        bool sign_extended = false;
         result = byte & 0x7F;
         
         do
@@ -205,13 +206,24 @@ static bool checkreturn pb_decode_varint32_eof(pb_istream_t *stream, uint32_t *d
             {
                 /* Note: The varint could have trailing 0x80 bytes, or 0xFF for negative. */
                 pb_byte_t sign_extension = (bitpos < 63) ? 0xFF : 0x01;
-                bool valid_extension = ((byte & 0x7F) == 0x00 ||
-                         ((result >> 31) != 0 && byte == sign_extension));
+                bool valid_extension = sign_extended ? (byte == sign_extension)
+                                                     : ((byte & 0x7F) == 0x00);
 
                 if (bitpos >= 64 || !valid_extension)
                 {
                     PB_RETURN_ERROR(stream, "varint overflow");
                 }
+            }
+            else if (bitpos == 28)
+            {
+                /* Only the bottom 4 bits fit. The top 3 bits must be zero, or all set
+                 * together with bit 31 as the start of a sign extension that continues. */
+                sign_extended = ((byte & 0xF8) == 0xF8);
+                if ((byte & 0x70) != 0 && !sign_extended)
+                {
+                    PB_RETURN_ERROR(stream, "varint overflow");
+                }
+                result |= (uint32_t)(byte & 0x0F) << bitpos;
             }
             else
             {
@@ -219,12 +231,6 @@ static bool checkreturn pb_decode_varint32_eof(pb_istream_t *stream, uint32_t *d
             }
             bitpos = (uint_fast8_t)(bitpos + 7);
         } while (byte & 0x80);
-        
-        if (bitpos == 35 && (byte & 0x70) != 0)
-        {
-            /* The last byte was at bitpos=28, so only bottom 4 bits fit. */
-            PB_RETURN_ERROR(stream, "varint overflow");
-        }
    }
    
    *dest = result;
@@ -250,6 +256,10 @@ bool checkreturn pb_decode_varint(pb_istream_t *stream, uint64_t *dest)
         
         if (!pb_readbyte(stream, &byte))
             return false;
+
+        /* Only bit 0 of the 10th byte fits in 64 bits. */
+        if (bitpos == 63 && (byte & 0x7E) != 0)
+            PB_RETURN_ERROR(stream, "varint overflow");
 
         result |= (uint64_t)(byte & 0x7F) << bitpos;
         bitpos = (uint_fast8_t)(bitpos + 7);
@@ -532,7 +542,7 @@ static bool checkreturn decode_static_field(pb_istream_t *stream, pb_wire_type_t
                 /* Set default values for the submessage fields. */
                 if (field->submsg_desc->default_value != NULL ||
                     field->submsg_desc->field_callback != NULL ||
-                    field->submsg_desc->submsg_info[0] != NULL)
+                    ((const pb_msgdesc_t * const *)PIC(field->submsg_desc->submsg_info))[0] != NULL)
                 {
                     pb_field_iter_t submsg_iter;
                     if (pb_field_iter_begin(&submsg_iter, field->submsg_desc, field->pData))
@@ -740,10 +750,29 @@ static bool checkreturn decode_pointer_field(pb_istream_t *stream, pb_wire_type_
 #endif
 }
 
+typedef bool (*field_callback_fn_t)(pb_istream_t *istream, pb_ostream_t *ostream, const pb_field_iter_t *field);
+
 static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type_t wire_type, pb_field_iter_t *field)
 {
+    field_callback_fn_t field_callback;
+
+    /* Length-delimited types can only be encoded with PB_WT_STRING. Reject other
+     * wire types instead of handing a scalar value to a bytes/string/submessage
+     * callback. */
+    if (wire_type != PB_WT_STRING &&
+        (PB_LTYPE(field->type) == PB_LTYPE_BYTES ||
+         PB_LTYPE(field->type) == PB_LTYPE_STRING ||
+         PB_LTYPE(field->type) == PB_LTYPE_FIXED_LENGTH_BYTES ||
+         PB_LTYPE_IS_SUBMSG(field->type)))
+    {
+        PB_RETURN_ERROR(stream, "wrong wire type");
+    }
+
     if (!field->descriptor->field_callback)
         return pb_skip_field(stream, wire_type);
+
+    /* The descriptor lives in flash: relocate the callback pointer before calling it. */
+    field_callback = (field_callback_fn_t)PIC(field->descriptor->field_callback);
 
     if (wire_type == PB_WT_STRING)
     {
@@ -756,7 +785,7 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
         do
         {
             prev_bytes_left = substream.bytes_left;
-            if (!((bool (*)(pb_istream_t *istream, pb_ostream_t *ostream, const pb_field_iter_t *field))(PIC(field->descriptor->field_callback)))(&substream, NULL, field))
+            if (!field_callback(&substream, NULL, field))
                 PB_RETURN_ERROR(stream, "callback failed");
         } while (substream.bytes_left > 0 && substream.bytes_left < prev_bytes_left);
         
@@ -779,7 +808,7 @@ static bool checkreturn decode_callback_field(pb_istream_t *stream, pb_wire_type
             return false;
         substream = pb_istream_from_buffer(buffer, size);
         
-        return field->descriptor->field_callback(&substream, NULL, field);
+        return field_callback(&substream, NULL, field);
     }
 }
 
@@ -945,7 +974,7 @@ static bool pb_message_set_to_defaults(pb_field_iter_t *iter)
 
     if (iter->descriptor->default_value)
     {
-        defstream = pb_istream_from_buffer(iter->descriptor->default_value, (size_t)-1);
+        defstream = pb_istream_from_buffer((const pb_byte_t *)PIC(iter->descriptor->default_value), (size_t)-1);
         if (!pb_decode_tag(&defstream, &wire_type, &tag, &eof))
             return false;
     }

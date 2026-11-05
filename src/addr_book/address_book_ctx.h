@@ -4,9 +4,10 @@
  * @file address_book_ctx.h
  * @brief Transient UI context for Address Book flows.
  *
- * Identity and Ledger Account flows are mutually exclusive, so their per-flow
- * contexts share a union. The persistent contact list (handle_contacts.c) is
- * intentionally kept out of here.
+ * Each flow owns its own members (no union): a new review may replace the previous
+ * status screen before its finalizer runs, so each check frees what its flow left
+ * behind, and those pointers must never alias another flow's data. The persistent
+ * contact list (handle_contacts.c) is intentionally kept out of here.
  */
 
 #pragma once
@@ -29,10 +30,8 @@ typedef struct {
 } edit_identifier_ctx_t;
 
 typedef struct {
-    union {
-        register_identity_ctx_t register_identity;
-        edit_identifier_ctx_t edit_identifier;
-    };
+    register_identity_ctx_t register_identity;
+    edit_identifier_ctx_t edit_identifier;
     nbgl_contentTagValue_t current_pair;
 } identity_ui_ctx_t;
 
@@ -66,7 +65,7 @@ typedef struct {
 
 #endif  // HAVE_ADDRESS_BOOK_LEDGER_ACCOUNT
 
-typedef union {
+typedef struct {
     identity_ui_ctx_t identity;
 #if defined(HAVE_ADDRESS_BOOK_LEDGER_ACCOUNT)
     ledger_account_ui_ctx_t ledger_account;

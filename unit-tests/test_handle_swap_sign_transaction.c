@@ -180,6 +180,28 @@ void test_check_validity_rejects_recipient_mismatch(void) {
     TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", "TDifferentAddress0000000000000000"));
 }
 
+void test_copy_rejects_amount_longer_than_32_bytes(void) {
+    uint8_t amount[33] = {0}, fee[1] = {50};
+    amount[32] = 100;
+    char extra[1] = "";
+    create_transaction_parameters_t params =
+        make_valid_create_params(amount, sizeof(amount), fee, 1, (char *) VALID_DESTINATION, extra);
+
+    TEST_ASSERT_FALSE(swap_copy_transaction_parameters(&params));
+}
+
+void test_check_validity_rejects_amount_too_long_to_print(void) {
+    uint8_t amount[32], fee[1] = {50};
+    memset(amount, 0xFF, sizeof(amount));  // 78 decimal digits, more than MAX_PRINTABLE_AMOUNT_SIZE
+    char extra[1] = "";
+    create_transaction_parameters_t params =
+        make_valid_create_params(amount, sizeof(amount), fee, 1, (char *) VALID_DESTINATION, extra);
+    TEST_ASSERT_TRUE(swap_copy_transaction_parameters(&params));
+
+    // No adjustDecimals() expectation: the conversion failure must stop before it
+    TEST_ASSERT_FALSE(swap_check_validity("100", "TRX", "To", VALID_DESTINATION));
+}
+
 void test_finalize_writes_result_then_returns_to_exchange(void) {
     uint8_t amount[1] = {100}, fee[1] = {50};
     char extra[1] = "";
@@ -205,6 +227,8 @@ int main(void) {
     RUN_TEST(test_check_validity_rejects_ticker_mismatch);
     RUN_TEST(test_check_validity_rejects_non_to_action);
     RUN_TEST(test_check_validity_rejects_recipient_mismatch);
+    RUN_TEST(test_copy_rejects_amount_longer_than_32_bytes);
+    RUN_TEST(test_check_validity_rejects_amount_too_long_to_print);
     RUN_TEST(test_finalize_writes_result_then_returns_to_exchange);
 
     return UNITY_END();

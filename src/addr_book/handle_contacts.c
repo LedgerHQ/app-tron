@@ -41,41 +41,56 @@ const s_ab_contact *get_address_book_contact(const uint8_t *addr) {
     return NULL;
 }
 
-void update_contact_name(const char *old_name, const char *new_name) {
-    if (old_name == NULL || new_name == NULL) {
+// Renames only the entries of the edited group: another group may use the same name.
+void update_contact_name(const uint8_t *gid, const char *old_name, const char *new_name) {
+    if (gid == NULL || old_name == NULL || new_name == NULL) {
         return;
     }
     for (s_ab_contact *node = g_ab_contact_list; node != NULL;
          node = (s_ab_contact *) ((flist_node_t *) node)->next) {
-        if ((node->type == AB_CONTACT_IDENTITY) &&
+        if ((node->type == AB_CONTACT_IDENTITY) && (memcmp(node->gid, gid, GID_SIZE) == 0) &&
             (strncmp(node->contact_name, old_name, CONTACT_NAME_LENGTH) == 0)) {
             strlcpy(node->contact_name, new_name, sizeof(node->contact_name));
         }
     }
 }
 
-void update_contact_identifier(const uint8_t *old_addr, const uint8_t *new_addr) {
-    if (old_addr == NULL || new_addr == NULL) {
+void update_contact_identifier(const uint8_t *gid,
+                               const uint8_t *old_addr,
+                               const uint8_t *new_addr) {
+    if (gid == NULL || old_addr == NULL || new_addr == NULL) {
         return;
     }
     for (s_ab_contact *node = g_ab_contact_list; node != NULL;
          node = (s_ab_contact *) ((flist_node_t *) node)->next) {
-        if ((node->type == AB_CONTACT_IDENTITY) &&
+        if ((node->type == AB_CONTACT_IDENTITY) && (memcmp(node->gid, gid, GID_SIZE) == 0) &&
             (memcmp(node->identifier, old_addr, ADDRESS_SIZE) == 0)) {
+            const s_ab_contact *owner = get_address_book_contact(new_addr);
+            if ((owner != NULL) && (owner != node)) {
+                // The new address already has a contact: drop this one rather than duplicate it
+                flist_remove((flist_node_t **) &g_ab_contact_list,
+                             (flist_node_t *) node,
+                             (f_list_node_del) &delete_contact);
+                return;
+            }
             memcpy(node->identifier, new_addr, ADDRESS_SIZE);
             return;  // identifier is unique in the list
         }
     }
 }
 
-void update_contact_scope(const uint8_t *addr, const char *new_scope) {
-    if (addr == NULL || new_scope == NULL) {
+void update_contact_scope(const uint8_t *gid,
+                          const uint8_t *addr,
+                          const char *old_scope,
+                          const char *new_scope) {
+    if (gid == NULL || addr == NULL || old_scope == NULL || new_scope == NULL) {
         return;
     }
     for (s_ab_contact *node = g_ab_contact_list; node != NULL;
          node = (s_ab_contact *) ((flist_node_t *) node)->next) {
-        if ((node->type == AB_CONTACT_IDENTITY) &&
-            (memcmp(node->identifier, addr, ADDRESS_SIZE) == 0)) {
+        if ((node->type == AB_CONTACT_IDENTITY) && (memcmp(node->gid, gid, GID_SIZE) == 0) &&
+            (memcmp(node->identifier, addr, ADDRESS_SIZE) == 0) &&
+            (strncmp(node->scope, old_scope, SCOPE_LENGTH) == 0)) {
             strlcpy(node->scope, new_scope, sizeof(node->scope));
             return;  // identifier is unique in the list
         }

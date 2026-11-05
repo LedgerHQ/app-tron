@@ -22,6 +22,7 @@ typedef enum {
 typedef struct {
     flist_node_t _list;
     ab_contact_type_e type;
+    uint8_t gid[GID_SIZE];  ///< Identity group ID, all zeroes for a Ledger Account
     char contact_name[CONTACT_NAME_LENGTH];
     char scope[SCOPE_LENGTH];
     uint8_t identifier[ADDRESS_SIZE];  ///< 21-byte 0x41-prefixed address
@@ -33,11 +34,16 @@ const s_ab_contact *get_address_book_contact(const uint8_t *addr);
 
 void address_book_contact_cleanup(void);
 
-void update_contact_name(const char *old_name, const char *new_name);
+void update_contact_name(const uint8_t *gid, const char *old_name, const char *new_name);
 
-void update_contact_identifier(const uint8_t *old_addr, const uint8_t *new_addr);
+void update_contact_identifier(const uint8_t *gid,
+                               const uint8_t *old_addr,
+                               const uint8_t *new_addr);
 
-void update_contact_scope(const uint8_t *addr, const char *new_scope);
+void update_contact_scope(const uint8_t *gid,
+                          const uint8_t *addr,
+                          const char *old_scope,
+                          const char *new_scope);
 
 void update_ledger_account_contact_name(const uint8_t *addr, const char *new_name);
 

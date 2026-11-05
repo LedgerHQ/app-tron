@@ -50,9 +50,11 @@ void swap_handle_get_printable_amount(get_printable_amount_parameters_t *params)
     // Raw amount string without a decimal point
     char amount_raw_string[MAX_PRINTABLE_AMOUNT_SIZE] = {0};
 
-    convertUint256BE(params->amount, params->amount_length, &amount_number);
-
-    tostring256(&amount_number, 10, amount_raw_string, sizeof(amount_raw_string));
+    if (!convertUint256BE(params->amount, params->amount_length, &amount_number) ||
+        !tostring256(&amount_number, 10, amount_raw_string, sizeof(amount_raw_string))) {
+        PRINTF("Invalid amount\n");
+        goto error;
+    }
 
     if (!adjustDecimals(amount_raw_string,
                         strnlen(amount_raw_string, sizeof(amount_raw_string)),

@@ -354,9 +354,9 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
                     return io_send_sw(E_INCORRECT_DATA);
                 }
 
-                convertUint256BE(txContent.TRC20Amount, 32, &uint256);
-                tostring256(&uint256, 10, (char *) G_io_apdu_buffer + 100, 100);
-                if (!adjustDecimals((char *) G_io_apdu_buffer + 100,
+                if (!convertUint256BE(txContent.TRC20Amount, 32, &uint256) ||
+                    !tostring256(&uint256, 10, (char *) G_io_apdu_buffer + 100, 100) ||
+                    !adjustDecimals((char *) G_io_apdu_buffer + 100,
                                     strlen((const char *) G_io_apdu_buffer + 100),
                                     (char *) G_io_apdu_buffer,
                                     100,

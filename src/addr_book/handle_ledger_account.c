@@ -72,6 +72,8 @@ bool handle_check_register_ledger_account(ledger_account_t *params) {
         return false;
     }
 
+    // A new review may replace the previous status screen before its finalizer runs.
+    free_ledger_account_buffers();
     if (APP_MEM_PERMANENT((void **) &g_ctx.register_account.address_display, AB_ADDR_STR_SIZE) ==
         false) {
         PRINTF("Failed to allocate address display buffer\n");
@@ -188,8 +190,8 @@ bool handle_provide_ledger_account(const ledger_account_t *account) {
         return false;
     }
 
-    const s_ab_contact *existing = get_address_book_contact(address);
-    if (existing != NULL && existing->type == AB_CONTACT_LEDGER_ACCOUNT) {
+    // Any contact already cached for this address wins, whatever its type
+    if (get_address_book_contact(address) != NULL) {
         PRINTF("Contact already stored, ignoring\n");
         return true;
     }

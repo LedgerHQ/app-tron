@@ -134,6 +134,35 @@ void test_clears_printable_amount_when_adjust_decimals_fails(void) {
     TEST_ASSERT_EQUAL_STRING("", params.printable_amount);
 }
 
+void test_clears_printable_amount_when_amount_is_longer_than_32_bytes(void) {
+    uint8_t amount[33] = {0};
+    amount[32] = 50;
+    get_printable_amount_parameters_t params = {0};
+    strcpy(params.printable_amount, "stale");
+    params.is_fee = true;
+    params.amount = amount;
+    params.amount_length = sizeof(amount);
+
+    swap_handle_get_printable_amount(&params);
+
+    TEST_ASSERT_EQUAL_STRING("", params.printable_amount);
+}
+
+void test_clears_printable_amount_when_amount_is_too_long_to_print(void) {
+    uint8_t amount[32];
+    memset(amount, 0xFF, sizeof(amount));  // 78 decimal digits, more than MAX_PRINTABLE_AMOUNT_SIZE
+    get_printable_amount_parameters_t params = {0};
+    strcpy(params.printable_amount, "stale");
+    params.is_fee = true;
+    params.amount = amount;
+    params.amount_length = sizeof(amount);
+
+    // No adjustDecimals() expectation: the conversion failure must stop before it
+    swap_handle_get_printable_amount(&params);
+
+    TEST_ASSERT_EQUAL_STRING("", params.printable_amount);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -142,6 +171,8 @@ int main(void) {
     RUN_TEST(test_token_swap_uses_parsed_ticker_and_decimals);
     RUN_TEST(test_clears_printable_amount_when_config_parsing_fails);
     RUN_TEST(test_clears_printable_amount_when_adjust_decimals_fails);
+    RUN_TEST(test_clears_printable_amount_when_amount_is_longer_than_32_bytes);
+    RUN_TEST(test_clears_printable_amount_when_amount_is_too_long_to_print);
 
     return UNITY_END();
 }

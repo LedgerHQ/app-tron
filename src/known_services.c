@@ -165,9 +165,12 @@ const char *get_known_service_label(const uint8_t *raw_address) {
         return NULL;
     }
     for (size_t i = 0; i < ARRAYLEN(KNOWN_SERVICES); i++) {
-        for (size_t j = 0; j < KNOWN_SERVICES[i].address_count; j++) {
-            if (memcmp(raw_address, KNOWN_SERVICES[i].addresses[j], ADDRESS_SIZE) == 0) {
-                return KNOWN_SERVICES[i].label;
+        const s_known_service *service = (const s_known_service *) PIC(&KNOWN_SERVICES[i]);
+        // Pointers stored in a flash table hold link-time addresses: relocate them.
+        const uint8_t (*addresses)[ADDRESS_SIZE] = PIC(service->addresses);
+        for (size_t j = 0; j < service->address_count; j++) {
+            if (memcmp(raw_address, addresses[j], ADDRESS_SIZE) == 0) {
+                return (const char *) PIC(service->label);
             }
         }
     }

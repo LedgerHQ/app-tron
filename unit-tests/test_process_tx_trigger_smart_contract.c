@@ -185,6 +185,34 @@ void test_trc20_call_rejects_data_of_the_wrong_total_length(void) {
     TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx(buf, len, &content));
 }
 
+void test_call_data_with_a_non_length_delimited_wire_type_is_rejected(void) {
+    // data (field 4) sent as fixed32 (wire type 5): its 4 bytes would otherwise
+    // reach the callback as a valid selector of an arbitrary contract call.
+    uint8_t contract_bytes[2 + 21 + 2 + 21 + 1 + 4];
+    size_t off = 0;
+    contract_bytes[off++] = 0x0A;  // owner_address
+    contract_bytes[off++] = 21;
+    memcpy(contract_bytes + off, OWNER, 21);
+    off += 21;
+    contract_bytes[off++] = 0x12;  // contract_address
+    contract_bytes[off++] = 21;
+    memcpy(contract_bytes + off, UNKNOWN_CONTRACT_ADDRESS, 21);
+    off += 21;
+    contract_bytes[off++] = 0x25;  // data, wire type 5
+    static const uint8_t selector[4] = {0x11, 0x22, 0x33, 0x44};
+    memcpy(contract_bytes + off, selector, sizeof(selector));
+    off += sizeof(selector);
+
+    uint8_t buf[256];
+    size_t len =
+        build_transaction_raw(protocol_Transaction_Contract_ContractType_TriggerSmartContract,
+                              contract_bytes, off, 0, buf, sizeof(buf));
+    TEST_ASSERT_GREATER_THAN(0, len);
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx(buf, len, &content));
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -195,6 +223,7 @@ int main(void) {
     RUN_TEST(test_arbitrary_contract_call_rejects_args_not_a_multiple_of_32);
     RUN_TEST(test_call_data_shorter_than_a_selector_is_rejected);
     RUN_TEST(test_trc20_call_rejects_data_of_the_wrong_total_length);
+    RUN_TEST(test_call_data_with_a_non_length_delimited_wire_type_is_rejected);
 
     return UNITY_END();
 }

@@ -1,5 +1,5 @@
 // processTx() decoding for the Exchange* contract family: token-id validation
-// (printTokenFromID accepts either a 7-byte TRC10 id or the single-byte "_" TRX
+// (printTokenFromID accepts either a 7-digit TRC10 id or the single-byte "_" TRX
 // marker) plus the numeric fields each variant carries.
 
 #include <stdlib.h>
@@ -123,6 +123,53 @@ void test_exchange_inject_contract_copies_exchange_id_and_quant(void) {
     TEST_ASSERT_EQUAL_UINT64(999, content.amount[0]);
 }
 
+void test_exchange_inject_contract_duplicate_token_id_shows_only_the_last_one(void) {
+    protocol_ExchangeInjectContract msg = {0};
+    memcpy(msg.owner_address, OWNER, 21);
+    msg.exchange_id = 5;
+    msg.token_id.size = 8;  // max_size, no room for a NUL
+    memcpy(msg.token_id.bytes, "10000019", 8);
+    msg.quant = 999;
+
+    uint8_t contract[128];
+    pb_ostream_t cstream = pb_ostream_from_buffer(contract, sizeof(contract));
+    TEST_ASSERT_TRUE(pb_encode(&cstream, protocol_ExchangeInjectContract_fields, &msg));
+    // A second token_id (field 3) overwrites the first one but only its first 7 bytes
+    const uint8_t second_id[] = {0x1A, 0x07, '1', '0', '0', '0', '0', '0', '2'};
+    memcpy(contract + cstream.bytes_written, second_id, sizeof(second_id));
+
+    uint8_t buf[160];
+    size_t len =
+        build_transaction_raw(protocol_Transaction_Contract_ContractType_ExchangeInjectContract,
+                              contract, cstream.bytes_written + sizeof(second_id), 0, buf,
+                              sizeof(buf));
+    TEST_ASSERT_GREATER_THAN(0, len);
+
+    txContent_t content = {0};
+    TEST_ASSERT_EQUAL(USTREAM_PROCESSING, processTx(buf, len, &content));
+    TEST_ASSERT_EQUAL_STRING("1000002", content.tokenNames[0]);
+}
+
+void test_exchange_inject_contract_rejects_non_digit_token_id(void) {
+    static const char ids[][8] = {"100000A", "100\000" "002"};
+
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); i++) {
+        protocol_ExchangeInjectContract msg = {0};
+        memcpy(msg.owner_address, OWNER, 21);
+        msg.token_id.size = 7;
+        memcpy(msg.token_id.bytes, ids[i], 7);
+
+        uint8_t buf[128];
+        size_t len = build_transaction_raw_with_msg(
+            protocol_Transaction_Contract_ContractType_ExchangeInjectContract,
+            protocol_ExchangeInjectContract_fields, &msg, 0, buf, sizeof(buf));
+        TEST_ASSERT_GREATER_THAN(0, len);
+
+        txContent_t content = {0};
+        TEST_ASSERT_EQUAL(USTREAM_FAULT, processTx(buf, len, &content));
+    }
+}
+
 void test_exchange_withdraw_contract_copies_exchange_id_and_quant(void) {
     protocol_ExchangeWithdrawContract msg = {0};
     memcpy(msg.owner_address, OWNER, 21);
@@ -169,6 +216,8 @@ int main(void) {
     RUN_TEST(test_exchange_create_contract_rejects_malformed_token_id_length);
     RUN_TEST(test_exchange_create_contract_rejects_underscore_payload_other_than_TRX_marker);
     RUN_TEST(test_exchange_inject_contract_copies_exchange_id_and_quant);
+    RUN_TEST(test_exchange_inject_contract_duplicate_token_id_shows_only_the_last_one);
+    RUN_TEST(test_exchange_inject_contract_rejects_non_digit_token_id);
     RUN_TEST(test_exchange_withdraw_contract_copies_exchange_id_and_quant);
     RUN_TEST(test_exchange_transaction_contract_copies_quant_and_expected);
 
