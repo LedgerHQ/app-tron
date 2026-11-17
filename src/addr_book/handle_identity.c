@@ -194,7 +194,7 @@ void on_edit_identifier_applied(const edit_identifier_t *edit) {
 }
 
 void on_edit_scope_applied(const edit_scope_t *edit) {
-    if (edit == NULL) {
+    if (edit == NULL || !is_valid_tron_identifier(&edit->identity)) {
         return;
     }
     update_contact_scope(edit->identity.gid,
