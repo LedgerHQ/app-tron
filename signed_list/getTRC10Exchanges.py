@@ -89,10 +89,15 @@ for E in exchanges['exchanges']:
     print('RET:{},{},{}'.format(E['exchange_id'], sig_ser.hex(), binascii.hexlify(datab).decode("utf-8")  ))
     f.write('{},{},{}\n'.format(E['exchange_id'], sig_ser.hex(), binascii.hexlify(datab).decode("utf-8")  ))
     
-    fJS.write("{{ id: {} , message: '{}', firstToken: '{}', pair: '{}', decimals1: {}, decimals2: {} }},\n".format(
-        E['exchange_id'], binascii.hexlify(datab).decode("utf-8"), E['first_token_id'],
-        codecs.decode(token1['name'], "hex").decode('utf-8') + "/" + codecs.decode(token2['name'], "hex").decode('utf-8'),
-        token1['precision'] if 'precision' in token1 else 0, token2['precision'] if 'precision' in token2 else 0 ))
+    record = {
+        "id": int(E['exchange_id']),
+        "message": binascii.hexlify(datab).decode("utf-8"),
+        "firstToken": E['first_token_id'],
+        "pair": codecs.decode(token1['name'], "hex").decode('utf-8') + "/" + codecs.decode(token2['name'], "hex").decode('utf-8'),
+        "decimals1": int(token1['precision'] if 'precision' in token1 else 0),
+        "decimals2": int(token2['precision'] if 'precision' in token2 else 0),
+    }
+    fJS.write(json.dumps(record) + ",\n")
 
 f.close()
 
