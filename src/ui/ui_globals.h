@@ -30,6 +30,9 @@
 #define VOTE_PACK             (VOTE_ADDRESS_SIZE + VOTE_AMOUNT_SIZE)
 #define voteSlot(index, type) ((index * VOTE_PACK) + type)
 
+// Fits "<token> -> <token>" for exchange pairs
+#define FULL_CONTRACT_SIZE (2 * MAX_TOKEN_LENGTH + 4)
+
 // AccountPermissionUpdateContract review: one entry per Permission sub-message
 // (owner, witness, and each active permission), fully rendered on-device so the
 // app never falls back to blind hash-only signing for this contract type.
@@ -71,7 +74,7 @@ extern char
     fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
 extern char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
 extern char addressSummary[40];
-extern char fullContract[MAX_TOKEN_LENGTH];
+extern char fullContract[FULL_CONTRACT_SIZE];
 extern char TRC20Action[9];
 extern char TRC20ActionSendAllow[8];
 extern char fullHash[HASH_SIZE * 2 + 1];

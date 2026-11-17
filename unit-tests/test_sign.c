@@ -45,7 +45,7 @@ transactionContext_t transactionContext;
 volatile uint8_t customContractField;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];
 char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
-char fullContract[MAX_TOKEN_LENGTH];
+char fullContract[FULL_CONTRACT_SIZE];
 char TRC20Action[9];
 char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];
@@ -829,6 +829,26 @@ void test_exchange_withdraw_contract_success(void) {
     TEST_ASSERT_EQUAL(0, ret);
 }
 
+void test_exchange_transaction_pair_keeps_both_max_length_tokens(void) {
+    finalize_setup();
+    txContent.contractType = EXCHANGETRANSACTIONCONTRACT;
+    memset(txContent.tokenNames[0], 'A', MAX_TOKEN_LENGTH - 1);
+    txContent.tokenNames[0][MAX_TOKEN_LENGTH - 1] = '\0';
+    memset(txContent.tokenNames[1], 'B', MAX_TOKEN_LENGTH - 1);
+    txContent.tokenNames[1][MAX_TOKEN_LENGTH - 1] = '\0';
+
+    print_amount_ExpectAnyArgsAndReturn(0);
+    print_amount_ExpectAnyArgsAndReturn(0);
+    print_amount_ExpectAnyArgsAndReturn(0);
+    ux_flow_display_Expect(APPROVAL_EXCHANGE_TRANSACTION, false);
+
+    int ret = handleSign(P1_LAST, 0, NULL, 0);
+    TEST_ASSERT_EQUAL(0, ret);
+    TEST_ASSERT_EQUAL(2 * (MAX_TOKEN_LENGTH - 1) + 4, strlen(fullContract));
+    TEST_ASSERT_EQUAL_STRING(txContent.tokenNames[1],
+                             fullContract + MAX_TOKEN_LENGTH - 1 + 4);
+}
+
 void test_exchange_withdraw_contract_uses_token_decimals_for_non_trx_token(void) {
     finalize_setup();
     txContent.contractType = EXCHANGEWITHDRAWCONTRACT;
@@ -1262,6 +1282,7 @@ int main(void) {
     RUN_TEST(test_exchange_create_contract_rejects_second_token_name_too_long_for_toAddress);
     RUN_TEST(test_exchange_inject_contract_forwards_setExchangeContractDetail_failure);
     RUN_TEST(test_exchange_withdraw_contract_success);
+    RUN_TEST(test_exchange_transaction_pair_keeps_both_max_length_tokens);
     RUN_TEST(test_exchange_withdraw_contract_uses_token_decimals_for_non_trx_token);
     RUN_TEST(test_exchange_transaction_contract_formats_token_pair_and_amounts);
     RUN_TEST(test_vote_witness_contract_fills_one_slot_per_vote);

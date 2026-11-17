@@ -27,7 +27,7 @@ volatile uint8_t customContractField;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];  // 5 extra bytes used to inform MultSign ID
 char toAddress[BASE58CHECK_ADDRESS_SIZE + 1];
 char addressSummary[40];
-char fullContract[MAX_TOKEN_LENGTH];
+char fullContract[FULL_CONTRACT_SIZE];
 char TRC20Action[9];
 char TRC20ActionSendAllow[8];
 char fullHash[HASH_SIZE * 2 + 1];

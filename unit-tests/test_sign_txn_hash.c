@@ -24,7 +24,7 @@ uint8_t N_storage_real = 0;
 transactionContext_t transactionContext;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];
 char fullHash[HASH_SIZE * 2 + 1];
-char fullContract[MAX_TOKEN_LENGTH];
+char fullContract[FULL_CONTRACT_SIZE];
 
 static uint16_t g_captured_sw;
 

@@ -29,7 +29,7 @@ uint8_t N_storage_real = (1 << S_SIGN_BY_HASH);
 transactionContext_t transactionContext;
 txContent_t txContent;
 char fromAddress[BASE58CHECK_ADDRESS_SIZE + 1 + 5];
-char fullContract[MAX_TOKEN_LENGTH];
+char fullContract[FULL_CONTRACT_SIZE];
 
 static uint16_t g_captured_sw;
 
