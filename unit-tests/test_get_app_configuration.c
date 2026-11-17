@@ -39,13 +39,13 @@ void tearDown(void) {
 }
 
 void test_response_layout_and_version(void) {
-    N_storage_real = 0x05;
+    N_storage_real = 0x0D;
 
     int ret = handleGetAppConfiguration(0, 0, NULL, 0);
 
     TEST_ASSERT_EQUAL(0x4242, ret);
     TEST_ASSERT_EQUAL_UINT32(4, g_captured_size);
-    // NVM S_SIGN_BY_HASH (bit 2) is reported on APDU bit 3; bit 2 is reserved. See docs/APDU.md.
+    // Retired NVM bit 2 must not leak into the response
     TEST_ASSERT_EQUAL_HEX8(0x09, g_captured[0]);
     TEST_ASSERT_EQUAL_HEX8(MAJOR_VERSION, g_captured[1]);
     TEST_ASSERT_EQUAL_HEX8(MINOR_VERSION, g_captured[2]);

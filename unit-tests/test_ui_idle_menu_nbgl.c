@@ -20,7 +20,7 @@ const nbgl_icon_details_t C_app_tron_64px = {0};
 
 #define S_DATA_ALLOWED    0
 #define S_CUSTOM_CONTRACT 1
-#define S_SIGN_BY_HASH    2
+#define S_SIGN_BY_HASH    3
 uint8_t N_storage_real = 0;
 
 // Not declared in any header (see [[phase1-unit-tests]] Phase 6 notes).

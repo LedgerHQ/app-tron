@@ -28,7 +28,7 @@
 
 #define S_DATA_ALLOWED    0
 #define S_CUSTOM_CONTRACT 1
-#define S_SIGN_BY_HASH    2
+#define S_SIGN_BY_HASH    3
 uint8_t N_storage_real = 0;
 
 // fillPermissionEntry() THROWs on key-line truncation; abort rather than pull in the SDK.

@@ -18,7 +18,7 @@
 
 // Mirrors settings.h's N_storage_real/S_SIGN_BY_HASH without its `const`
 // qualifier (see [[phase1-unit-tests]] Phase 2 notes) so tests can flip it.
-#define S_SIGN_BY_HASH 2
+#define S_SIGN_BY_HASH 3
 uint8_t N_storage_real = 0;
 
 transactionContext_t transactionContext;

@@ -23,7 +23,7 @@
 #include "ui_globals.h"
 #include "app_errors.h"
 
-#define S_SIGN_BY_HASH 2
+#define S_SIGN_BY_HASH 3
 uint8_t N_storage_real = (1 << S_SIGN_BY_HASH);
 
 transactionContext_t transactionContext;
