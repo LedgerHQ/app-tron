@@ -1,6 +1,7 @@
 // apdu_dispatcher(): CLA check, INS ->
 // handler routing (forwarding p1/p2/data/lc and the handler's return value
-// verbatim), the swap-mode INS allowlist, and the per-command contact reset.
+// verbatim), the swap-mode INS allowlist, the per-command contact reset, and the
+// abort of other signing sessions.
 
 #include <string.h>
 
@@ -8,6 +9,7 @@
 
 #include "Mockhandlers.h"
 #include "Mockio.h"
+#include "Mockparse.h"
 
 #include "handlers.h"
 #include "dispatcher.h"
@@ -19,6 +21,8 @@ const s_ab_contact *g_recipient_contact;
 const s_ab_contact *g_sender_contact;
 const char *g_recipient_service;
 volatile bool G_called_from_swap;
+txContext_t txContext;
+txContent_t txContent;
 
 static uint16_t g_captured_sw;
 
@@ -33,6 +37,7 @@ static int send_sw_cb(const buffer_t *rdatalist, size_t count, uint16_t sw, int 
 void setUp(void) {
     Mockhandlers_Init();
     Mockio_Init();
+    Mockparse_Init();
     g_recipient_contact = (const s_ab_contact *) 0x1234;
     g_sender_contact = (const s_ab_contact *) 0x1234;
     g_recipient_service = "stale";
@@ -44,9 +49,11 @@ void setUp(void) {
 void tearDown(void) {
     Mockhandlers_Verify();
     Mockio_Verify();
+    Mockparse_Verify();
 
     Mockhandlers_Destroy();
     Mockio_Destroy();
+    Mockparse_Destroy();
 }
 
 void test_wrong_cla_is_rejected_without_dispatching(void) {
@@ -72,6 +79,7 @@ void test_sign_is_routed_with_its_arguments_and_return_value(void) {
     uint8_t data[2] = {0x01, 0x02};
     command_t cmd = {.cla = CLA, .ins = INS_SIGN, .p1 = 0x90, .p2 = 0, .data = data, .lc = 2};
 
+    reset_personal_message_session_Expect();
     handleSign_ExpectAndReturn(0x90, 0, data, 2, 0x4343);
 
     TEST_ASSERT_EQUAL(0x4343, apdu_dispatcher(&cmd));
@@ -81,6 +89,8 @@ void test_sign_txn_hash_is_routed(void) {
     uint8_t data[1] = {0};
     command_t cmd = {.cla = CLA, .ins = INS_SIGN_TXN_HASH, .p1 = 0, .p2 = 0, .data = data, .lc = 1};
 
+    terminate_signing_session_Expect(&txContext, &txContent);
+    reset_personal_message_session_Expect();
     handleSignByHash_ExpectAndReturn(0, 0, data, 1, 7);
 
     TEST_ASSERT_EQUAL(7, apdu_dispatcher(&cmd));
@@ -100,6 +110,8 @@ void test_get_ecdh_secret_is_routed(void) {
     uint8_t data[1] = {0};
     command_t cmd = {.cla = CLA, .ins = INS_GET_ECDH_SECRET, .p1 = 0, .p2 = 1, .data = data, .lc = 1};
 
+    terminate_signing_session_Expect(&txContext, &txContent);
+    reset_personal_message_session_Expect();
     handleECDHSecret_ExpectAndReturn(0, 1, data, 1, 9);
 
     TEST_ASSERT_EQUAL(9, apdu_dispatcher(&cmd));
@@ -110,6 +122,7 @@ void test_sign_personal_message_is_routed(void) {
     command_t cmd = {
         .cla = CLA, .ins = INS_SIGN_PERSONAL_MESSAGE, .p1 = 0, .p2 = 0, .data = data, .lc = 1};
 
+    terminate_signing_session_Expect(&txContext, &txContent);
     handleSignPersonalMessage_ExpectAndReturn(0, 0, data, 1, 10);
 
     TEST_ASSERT_EQUAL(10, apdu_dispatcher(&cmd));
@@ -120,6 +133,8 @@ void test_sign_tip712_message_is_routed(void) {
     command_t cmd = {
         .cla = CLA, .ins = INS_SIGN_TIP_712_MESSAGE, .p1 = 0, .p2 = 0, .data = data, .lc = 1};
 
+    terminate_signing_session_Expect(&txContext, &txContent);
+    reset_personal_message_session_Expect();
     handleSignTIP712Message_ExpectAndReturn(0, 0, data, 1, 11);
 
     TEST_ASSERT_EQUAL(11, apdu_dispatcher(&cmd));

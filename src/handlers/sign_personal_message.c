@@ -39,6 +39,10 @@ static struct {
     bool initialized;
 } personal_msg_ctx;
 
+void reset_personal_message_session(void) {
+    explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
+}
+
 int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     if (!HAS_SETTING(S_SIGN_BY_HASH)) {
         return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);

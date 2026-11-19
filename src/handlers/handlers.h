@@ -51,3 +51,4 @@ int handleGetAppConfiguration(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
 int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength);
 int handleECDHSecret(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength);
 int handleSignTIP712Message(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength);
+void reset_personal_message_session(void);
