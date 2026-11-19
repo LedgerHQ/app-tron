@@ -6,6 +6,7 @@ import hmac as hmac_module
 import struct
 
 import base58
+import pytest
 from application_client.tron_command_sender import Errors, TronCommandSender
 from application_client.tron_transaction import contract, pack_contract, tron
 from bip_utils import Bip32Slip10Secp256k1, Bip39SeedGenerator
@@ -22,6 +23,7 @@ from ragger.address_book import (
     RegisterIdentity,
     RegisterLedgerAccount,
 )
+from ragger.backend import SpeculosBackend
 from ragger.backend.interface import RaisePolicy
 from ragger.bip import pack_derivation_path
 from ragger.bip.seed import SPECULOS_MNEMONIC
@@ -46,6 +48,15 @@ LONG_SCOPE = "Tron Address Number One Long Nam"
 # KDF salts — must match SDK address_book_crypto.c
 HMAC_KDF_SALT_IDENTITY = b"AddressBook-Identity"
 HMAC_KDF_SALT_LEDGER_ACCOUNT = b"AddressBook-LedgerAccount"
+
+_hmac_key_known = True
+
+
+@pytest.fixture(autouse=True)
+def _detect_hmac_key(backend):
+    # On a real device the HMAC key is OS-held
+    global _hmac_key_known
+    _hmac_key_known = isinstance(backend, SpeculosBackend)
 
 
 # =============================================================================
@@ -105,8 +116,9 @@ def check_identity_response(data: bytes, contact_name: str, scope: str, address:
     off = 1 + GROUP_HANDLE_LENGTH
     hmac_name = data[off : off + HMAC_PROOF_LENGTH]
     hmac_rest = data[off + HMAC_PROOF_LENGTH : off + 2 * HMAC_PROOF_LENGTH]
-    assert hmac_name == compute_hmac_name(gid, contact_name)
-    assert hmac_rest == compute_hmac_rest(gid, scope, address)
+    if _hmac_key_known:
+        assert hmac_name == compute_hmac_name(gid, contact_name)
+        assert hmac_rest == compute_hmac_rest(gid, scope, address)
     return group_handle, hmac_name, hmac_rest
 
 
@@ -115,7 +127,8 @@ def check_hmac_response(data: bytes, expected_type: LedgerStructType, expected_h
     assert data[0] == expected_type
     assert len(data) == 1 + HMAC_PROOF_LENGTH
     hmac = data[1 : 1 + HMAC_PROOF_LENGTH]
-    assert hmac == expected_hmac
+    if _hmac_key_known:
+        assert hmac == expected_hmac
     return hmac
 
 
