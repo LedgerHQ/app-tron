@@ -1,4 +1,4 @@
-"""Ledger Donjon security suite for Tron clear signing.
+"""Signing integrity suite for Tron clear signing.
 
 What the user reviews must be what gets signed: a field the screens do not show is either
 refused or shown, never silently signed. The parser guards behind these refusals are
@@ -6,34 +6,34 @@ unit-tested in unit-tests/; these tests lock them in on the real APDU path, wher
 transaction arrives split into several chunks that the app decodes one at a time.
 
 Tests here:
-  test_donjon_permission_update_full_review      - a permission update shows every threshold,
-                                                   key, weight and operations bitmap.
-  test_donjon_permission_update_ignores_sign_by_hash
-                                                 - "Blind signing" does not shorten that
-                                                   review (same snapshots).
-  test_donjon_trc20_approve_shows_spender        - an approve shows its spender under "Allow",
-                                                   not "To" as a transfer would.
-  test_donjon_second_contract_refused            - a second contract is refused, in the same
-                                                   APDU or a later one.
-  test_donjon_fee_limit_change_refused           - a later APDU cannot change fee_limit.
-  test_donjon_data_without_setting_refused       - custom data needs "Transactions data",
-                                                   even when it only arrives in the last APDU.
-  test_donjon_unknown_selector_refused           - another method on a known token needs
-                                                   "Custom contracts".
-  test_donjon_trc20_hidden_value_refused         - a TRC20 transfer or approve cannot also move
-                                                   TRX or a TRC10 token.
-  test_donjon_permission_id_out_of_range_refused - permission IDs above 9 are refused.
-  test_donjon_trc10_name_bound_to_id             - a token-name signature for one asset ID
-                                                   cannot name another.
-  test_donjon_exchange_names_bound_to_pair       - signed exchange names only apply to their
-                                                   exchange and tokens, and cannot be edited.
-  test_donjon_permission_update_overflow_refused - an update the review cannot show in full
-                                                   (or with nothing to show) is refused.
-  test_donjon_unsupported_contract_needs_blind_signing
-                                                 - a contract type with no review is refused
-                                                   while "Blind signing" is off.
-  test_donjon_hash_commands_need_blind_signing   - hash, personal-message and TIP-712 signing
-                                                   are refused while "Blind signing" is off.
+  test_signing_integrity_permission_update_full_review
+      a permission update shows every threshold, key, weight and operations bitmap.
+  test_signing_integrity_permission_update_ignores_sign_by_hash
+      "Blind signing" does not shorten that review (same snapshots).
+  test_signing_integrity_trc20_approve_shows_spender
+      an approve shows its spender under "Allow", not "To" as a transfer would.
+  test_signing_integrity_second_contract_refused
+      a second contract is refused, in the same APDU or a later one.
+  test_signing_integrity_fee_limit_change_refused
+      a later APDU cannot change fee_limit.
+  test_signing_integrity_data_without_setting_refused
+      custom data needs "Transactions data", even when it only arrives in the last APDU.
+  test_signing_integrity_unknown_selector_refused
+      another method on a known token needs "Custom contracts".
+  test_signing_integrity_trc20_hidden_value_refused
+      a TRC20 transfer or approve cannot also move TRX or a TRC10 token.
+  test_signing_integrity_permission_id_out_of_range_refused
+      permission IDs above 9 are refused.
+  test_signing_integrity_trc10_name_bound_to_id
+      a token-name signature for one asset ID cannot name another.
+  test_signing_integrity_exchange_names_bound_to_pair
+      signed exchange names only apply to their exchange and tokens, and cannot be edited.
+  test_signing_integrity_permission_update_overflow_refused
+      an update the review cannot show in full (or with nothing to show) is refused.
+  test_signing_integrity_unsupported_contract_needs_blind_signing
+      a contract type with no review is refused while "Blind signing" is off.
+  test_signing_integrity_hash_commands_need_blind_signing
+      hash, personal-message and TIP-712 signing are refused while "Blind signing" is off.
 """
 import hashlib
 from collections import OrderedDict
@@ -83,7 +83,7 @@ ExchangeDetails = proto_builder.MakeSimpleProtoClass(OrderedDict([
     ("token2Name", _Field.TYPE_STRING),
     ("token2Precision", _Field.TYPE_UINT32),
     ("signature", _Field.TYPE_BYTES),
-]), full_name="test_donjon.ExchangeDetails")
+]), full_name="test_signing_integrity.ExchangeDetails")
 
 
 def _addr(base58_address: str) -> bytes:
@@ -262,7 +262,7 @@ def _assert_refused(client: TronCommandSender, account: dict, tx: bytes, status:
 # =============================================================================
 
 
-def test_donjon_permission_update_full_review(backend, accounts, scenario_navigator):
+def test_signing_integrity_permission_update_full_review(backend, accounts, scenario_navigator):
     """Permission review. An update that hands owner control to another key shows every
     threshold, key with its weight, and the active operations bitmap; the snapshots
     pin each page."""
@@ -271,18 +271,18 @@ def test_donjon_permission_update_full_review(backend, accounts, scenario_naviga
                      _takeover_update(_owner(accounts)))
 
 
-def test_donjon_permission_update_ignores_sign_by_hash(backend, device, navigator, accounts,
-                                                       scenario_navigator):
+def test_signing_integrity_permission_update_ignores_sign_by_hash(backend, device, navigator, accounts,
+                                                                  scenario_navigator):
     """No blind permission update. With "Blind signing" on, the same update still gets
     the full review: it is compared against the snapshots of the test above."""
     client = TronCommandSender(backend)
     settings_toggle(device, navigator, [SettingID.SIGN_BY_HASH])
     _review_and_sign(client, accounts[0], scenario_navigator,
                      _takeover_update(_owner(accounts)),
-                     test_name="test_donjon_permission_update_full_review")
+                     test_name="test_signing_integrity_permission_update_full_review")
 
 
-def test_donjon_trc20_approve_shows_spender(backend, accounts, scenario_navigator):
+def test_signing_integrity_trc20_approve_shows_spender(backend, accounts, scenario_navigator):
     """Approval display. An unlimited approve on a known token shows the full amount and
     the spender under "Allow", where a transfer would show "To"."""
     client = TronCommandSender(backend)
@@ -297,7 +297,7 @@ def test_donjon_trc20_approve_shows_spender(backend, accounts, scenario_navigato
 
 
 @pytest.mark.parametrize("shown", [_withdraw, _vote], ids=["same_apdu", "later_apdu"])
-def test_donjon_second_contract_refused(backend, accounts, shown):
+def test_signing_integrity_second_contract_refused(backend, accounts, shown):
     """One contract per transaction. The review shows only the first contract, so a
     second one (a TRX transfer) is refused, in the same APDU or a later one."""
     client = TronCommandSender(backend)
@@ -312,7 +312,7 @@ def test_donjon_second_contract_refused(backend, accounts, shown):
     _assert_refused(client, accounts[0], tx, Errors.INCORRECT_DATA)
 
 
-def test_donjon_fee_limit_change_refused(backend, accounts):
+def test_signing_integrity_fee_limit_change_refused(backend, accounts):
     """Fee limit binding. fee_limit sent in the first APDU cannot be sent again with
     another value in a later one, where protobuf's last-value-wins would hand the node
     a different limit. The votes are only there to start a new APDU."""
@@ -325,7 +325,7 @@ def test_donjon_fee_limit_change_refused(backend, accounts):
 
 
 @pytest.mark.parametrize("last_apdu", [False, True], ids=["first_apdu", "last_apdu"])
-def test_donjon_data_without_setting_refused(backend, accounts, last_apdu):
+def test_signing_integrity_data_without_setting_refused(backend, accounts, last_apdu):
     """Data gate. Custom data is refused without the "Transactions data" setting, also
     when it only arrives in the last APDU, after the contract was decoded."""
     client = TronCommandSender(backend)
@@ -337,7 +337,7 @@ def test_donjon_data_without_setting_refused(backend, accounts, last_apdu):
     _assert_refused(client, accounts[0], tx, Errors.MISSING_SETTING_DATA_ALLOWED)
 
 
-def test_donjon_unknown_selector_refused(backend, accounts):
+def test_signing_integrity_unknown_selector_refused(backend, accounts):
     """Method binding. Only transfer and approve are clear-signed on a known token; any
     other method (here transferFrom) needs the "Custom contracts" setting."""
     client = TronCommandSender(backend)
@@ -353,7 +353,7 @@ def test_donjon_unknown_selector_refused(backend, accounts):
     {"call_value": 1_000_000_000},
     {"call_token_value": 1_000_000, "token_id": 1002000},
 ], ids=["trx", "trc10"])
-def test_donjon_trc20_hidden_value_refused(backend, accounts, method, hidden_value):
+def test_signing_integrity_trc20_hidden_value_refused(backend, accounts, method, hidden_value):
     """Hidden value. A known TRC20 review shows only the token amount, so a call that
     also sends TRX or a TRC10 token to the contract is refused."""
     client = TronCommandSender(backend)
@@ -363,7 +363,7 @@ def test_donjon_trc20_hidden_value_refused(backend, accounts, method, hidden_val
                     Errors.INCORRECT_DATA)
 
 
-def test_donjon_permission_id_out_of_range_refused(backend, accounts):
+def test_signing_integrity_permission_id_out_of_range_refused(backend, accounts):
     """Permission binding. TRON permission IDs stop at 9 (owner 0, witness 1, actives
     2 to 9); a higher one is refused."""
     client = TronCommandSender(backend)
@@ -371,7 +371,7 @@ def test_donjon_permission_id_out_of_range_refused(backend, accounts):
                     Errors.INCORRECT_DATA)
 
 
-def test_donjon_trc10_name_bound_to_id(backend, accounts):
+def test_signing_integrity_trc10_name_bound_to_id(backend, accounts):
     """Token-name binding. The signed name of asset 1002000 cannot be replayed to show
     asset 1002001 as "BitTorrent"."""
     client = TronCommandSender(backend)
@@ -384,7 +384,7 @@ def test_donjon_trc10_name_bound_to_id(backend, accounts):
 
 
 @pytest.mark.parametrize("replay", _EXCHANGE_REPLAYS)
-def test_donjon_exchange_names_bound_to_pair(backend, accounts, replay):
+def test_signing_integrity_exchange_names_bound_to_pair(backend, accounts, replay):
     """Exchange-name binding. The signed names of exchange 6 are refused on another
     exchange or for a token outside the pair, and editing the exchange ID or a name in
     the signed message breaks its signature."""
@@ -396,7 +396,7 @@ def test_donjon_exchange_names_bound_to_pair(backend, accounts, replay):
 
 
 @pytest.mark.parametrize("update", _OVERFLOWING_UPDATES)
-def test_donjon_permission_update_overflow_refused(backend, accounts, update):
+def test_signing_integrity_permission_update_overflow_refused(backend, accounts, update):
     """Nothing cut from a permission update. The review shows at most 3 keys per
     permission and 2 active permissions; an update with more, or with no permission
     at all, is refused."""
@@ -407,7 +407,7 @@ def test_donjon_permission_update_overflow_refused(backend, accounts, update):
 
 @pytest.mark.parametrize("build", [_proposal_create, _account_update],
                          ids=["proposal_create", "account_update"])
-def test_donjon_unsupported_contract_needs_blind_signing(backend, accounts, build):
+def test_signing_integrity_unsupported_contract_needs_blind_signing(backend, accounts, build):
     """Blind fallback fails closed. A contract type the app has no review for is only
     shown as its type and hash, so it is refused while "Blind signing" is off."""
     client = TronCommandSender(backend)
@@ -416,7 +416,7 @@ def test_donjon_unsupported_contract_needs_blind_signing(backend, accounts, buil
 
 
 @pytest.mark.parametrize("command", _HASH_COMMANDS)
-def test_donjon_hash_commands_need_blind_signing(backend, accounts, command):
+def test_signing_integrity_hash_commands_need_blind_signing(backend, accounts, command):
     """Blind signing gate. Hash, personal-message and TIP-712 signing are refused while
     "Blind signing" is off."""
     client = TronCommandSender(backend)
