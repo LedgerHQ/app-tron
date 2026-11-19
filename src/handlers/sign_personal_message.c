@@ -44,7 +44,8 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
     }
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
-        off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
+        bip32_path_t path;
+        off_t ret = read_bip32_path(workBuffer, dataLength, &path);
         if (ret < 0) {
             explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
             return io_send_sw(E_INCORRECT_BIP32_PATH);
@@ -56,6 +57,7 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
             explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
             return io_send_sw(E_INCORRECT_LENGTH);
         }
+        transactionContext.bip32_path = path;
 
         // Message Length
         txContent.dataBytes = U4BE(workBuffer, 0);

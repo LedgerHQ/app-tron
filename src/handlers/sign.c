@@ -105,10 +105,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
     // initialize context
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
-        off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
+        bip32_path_t path;
+        off_t ret = read_bip32_path(workBuffer, dataLength, &path);
         if (ret < 0) {
             return io_send_sw(E_INCORRECT_BIP32_PATH);
         }
+        transactionContext.bip32_path = path;
         workBuffer += ret;
         dataLength -= ret;
 

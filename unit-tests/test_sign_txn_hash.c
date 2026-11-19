@@ -119,6 +119,29 @@ void test_success_stashes_hash_and_displays_review(void) {
     TEST_ASSERT_EQUAL_MEMORY(buf + 5, transactionContext.hash, HASH_SIZE);
 }
 
+static off_t path_b_cb(const uint8_t *buffer, size_t length, bip32_path_t *path, int n) {
+    (void) buffer;
+    (void) length;
+    (void) n;
+    path->length = 1;
+    path->indices[0] = 0xB;
+    return 5;
+}
+
+void test_malformed_request_keeps_the_signing_path(void) {
+    transactionContext.bip32_path.length = 1;
+    transactionContext.bip32_path.indices[0] = 0xA;
+    read_bip32_path_Stub(path_b_cb);
+    initPublicKeyContext_ExpectAnyArgsAndReturn(0);
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+
+    uint8_t buf[5] = {0};
+    handleSignByHash(0x00, 0x00, buf, sizeof(buf));
+
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_LENGTH, g_captured_sw);
+    TEST_ASSERT_EQUAL_HEX32(0xA, transactionContext.bip32_path.indices[0]);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -128,6 +151,7 @@ int main(void) {
     RUN_TEST(test_forwards_key_derivation_failure);
     RUN_TEST(test_rejects_hash_of_the_wrong_length);
     RUN_TEST(test_success_stashes_hash_and_displays_review);
+    RUN_TEST(test_malformed_request_keeps_the_signing_path);
 
     return UNITY_END();
 }
