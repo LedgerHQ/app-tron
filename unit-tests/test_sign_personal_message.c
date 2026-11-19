@@ -137,29 +137,37 @@ void test_rejects_declared_length_field_shorter_than_4_bytes(void) {
     TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_LENGTH, g_captured_sw);
 }
 
-void test_rejects_wrong_p2_after_wasting_the_header_hash(void) {
+void test_rejects_wrong_p2_before_touching_any_state(void) {
+    txContent.dataBytes = 7;
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+
+    uint8_t buf[4];
+    size_t len = build_first_chunk(buf, 0, (const uint8_t *) "", 0);
+    handleSignPersonalMessage(P1_FIRST, 1, buf, len);
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_P1_P2, g_captured_sw);
+    TEST_ASSERT_EQUAL(7, txContent.dataBytes);
+
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+    handleSignPersonalMessage(P1_MORE, 0, buf, 0);
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_P1_P2, g_captured_sw);
+}
+
+void test_message_does_not_touch_transaction_data_bytes(void) {
+    const uint8_t msg[] = "hi";
+    uint8_t buf[64];
+    size_t len = build_first_chunk(buf, 10, msg, sizeof(msg) - 1);
+    txContent.dataBytes = 7;
+
     read_bip32_path_ExpectAnyArgsAndReturn(0);
     cx_keccak_init_no_throw_ExpectAnyArgsAndReturn(CX_OK);
     cx_hash_no_throw_ExpectAnyArgsAndReturn(CX_OK);  // magic
     cx_hash_no_throw_ExpectAnyArgsAndReturn(CX_OK);  // declared-length string
+    cx_hash_no_throw_ExpectAnyArgsAndReturn(CX_OK);  // message bytes
     io_send_response_buffers_ExpectAnyArgsAndReturn(0);
 
-    uint8_t buf[4];
-    size_t len = build_first_chunk(buf, 5, (const uint8_t *) "", 0);
-    handleSignPersonalMessage(P1_FIRST, 1, buf, len);
-    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_P1_P2, g_captured_sw);
-
-    // Unlike the bip32-path/length-check error paths, a p2 rejection does NOT
-    // wipe personal_msg_ctx (no explicit_bzero on this branch): the hash state
-    // and the declared dataBytes(5) from this aborted attempt are still live.
-    // Not a security issue (nothing sensitive in a Keccak sponge over the
-    // attacker's own declared length), but worth pinning down: a bare P1_MORE
-    // is accepted right after, continuing the leftover state instead of being
-    // rejected.
-    cx_hash_no_throw_ExpectAnyArgsAndReturn(CX_OK);
-    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
-    handleSignPersonalMessage(P1_MORE, 0, buf, 0);
+    handleSignPersonalMessage(P1_FIRST, 0, buf, len);
     TEST_ASSERT_EQUAL_HEX16(E_OK, g_captured_sw);
+    TEST_ASSERT_EQUAL(7, txContent.dataBytes);
 }
 
 void test_rejects_a_first_chunk_longer_than_its_own_declared_length(void) {
@@ -251,7 +259,8 @@ int main(void) {
     RUN_TEST(test_rejects_when_sign_by_hash_setting_is_disabled);
     RUN_TEST(test_forwards_bip32_path_error);
     RUN_TEST(test_rejects_declared_length_field_shorter_than_4_bytes);
-    RUN_TEST(test_rejects_wrong_p2_after_wasting_the_header_hash);
+    RUN_TEST(test_rejects_wrong_p2_before_touching_any_state);
+    RUN_TEST(test_message_does_not_touch_transaction_data_bytes);
     RUN_TEST(test_rejects_a_first_chunk_longer_than_its_own_declared_length);
     RUN_TEST(test_single_chunk_message_completes_immediately);
     RUN_TEST(test_message_split_across_first_and_more_chunks);
