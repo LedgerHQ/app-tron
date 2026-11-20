@@ -203,10 +203,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case USTREAM_FINISHED:
             break;
         case USTREAM_FAULT:
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);
         case USTREAM_MISSING_SETTING_DATA_ALLOWED:
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
 #ifdef HAVE_SWAP
             if (G_called_from_swap) {
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
@@ -215,7 +215,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
         default:
             PRINTF("Unexpected parser status\n");
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(txResult);
     }
 

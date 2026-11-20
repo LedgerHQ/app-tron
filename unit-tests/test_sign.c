@@ -93,6 +93,13 @@ static void fake_initTx(txContext_t *ctx, txContent_t *content, int n) {
     init_tx_reset_called = true;
 }
 
+static void fake_terminate_signing_session(txContext_t *ctx, txContent_t *content, int n) {
+    (void) n;
+    memset(ctx, 0, sizeof(*ctx));
+    memset(content, 0, sizeof(*content));
+    content->contractType = INVALID_CONTRACT;
+}
+
 void setUp(void) {
     Mocklcx_hash_Init();
     Mockledger_assert_internals_Init();
@@ -105,8 +112,7 @@ void setUp(void) {
     Mockui_globals_Init();
     Mockhandle_swap_sign_transaction_Init();
 
-    // handleSign() tears the session down on every exit path; not what these tests assert.
-    terminate_signing_session_Ignore();
+    terminate_signing_session_Stub(fake_terminate_signing_session);
 
     N_storage_real = 0;
     memset(&txContext, 0, sizeof(txContext));
@@ -226,7 +232,7 @@ void test_ustream_fault_resets_context_and_reports_incorrect_data(void) {
 
     handleSign(P1_LAST, 0, NULL, 0);
     TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_DATA, g_captured_sw);
-    TEST_ASSERT_TRUE(init_tx_reset_called);
+    TEST_ASSERT_FALSE(txContext.initialized);
 }
 
 void test_ustream_missing_setting_data_allowed_resets_and_reports(void) {
@@ -236,7 +242,7 @@ void test_ustream_missing_setting_data_allowed_resets_and_reports(void) {
 
     handleSign(P1_LAST, 0, NULL, 0);
     TEST_ASSERT_EQUAL_HEX16(E_MISSING_SETTING_DATA_ALLOWED, g_captured_sw);
-    TEST_ASSERT_TRUE(init_tx_reset_called);
+    TEST_ASSERT_FALSE(txContext.initialized);
 }
 
 void test_ustream_missing_setting_data_allowed_reports_swap_fail_when_from_swap(void) {
@@ -256,7 +262,22 @@ void test_unexpected_processTx_status_resets_and_forwards_it_as_sw(void) {
 
     handleSign(P1_LAST, 0, NULL, 0);
     TEST_ASSERT_EQUAL_HEX16(0x1234, g_captured_sw);
-    TEST_ASSERT_TRUE(init_tx_reset_called);
+    TEST_ASSERT_FALSE(txContext.initialized);
+}
+
+void test_rejected_first_chunk_leaves_the_session_inactive(void) {
+    read_bip32_path_ExpectAnyArgsAndReturn(2);
+    processTx_ExpectAnyArgsAndReturn(USTREAM_FAULT);
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+
+    uint8_t buf[4] = {0};
+    handleSign(P1_FIRST, 0, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_DATA, g_captured_sw);
+    TEST_ASSERT_FALSE(txContext.initialized);
+
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+    handleSign(P1_MORE, 0, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_P1_P2, g_captured_sw);
 }
 
 void test_swap_double_sign_safety_exits(void) {
@@ -1244,6 +1265,7 @@ int main(void) {
     RUN_TEST(test_ustream_missing_setting_data_allowed_resets_and_reports);
     RUN_TEST(test_ustream_missing_setting_data_allowed_reports_swap_fail_when_from_swap);
     RUN_TEST(test_unexpected_processTx_status_resets_and_forwards_it_as_sw);
+    RUN_TEST(test_rejected_first_chunk_leaves_the_session_inactive);
     RUN_TEST(test_swap_double_sign_safety_exits);
     RUN_TEST(test_swap_second_call_marks_response_ready);
     RUN_TEST(test_trc10_name_index_above_1_is_rejected_for_token_name_types);
