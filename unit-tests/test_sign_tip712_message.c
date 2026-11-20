@@ -182,6 +182,54 @@ void test_success_captures_hashes_and_resolves_sender_contact(void) {
     TEST_ASSERT_EQUAL_PTR(&FAKE_CONTACT, g_sender_contact);
 }
 
+static void stash_previous_context(void) {
+    messageSigningContext712.pathLength = 3;
+    messageSigningContext712.bip32Path[0] = TRON_BIP32_PREFIX_0;
+    messageSigningContext712.bip32Path[1] = TRON_BIP32_PREFIX_1;
+    messageSigningContext712.bip32Path[2] = 0xA;
+    memset(messageSigningContext712.domainHash, 0x11, 32);
+    memset(messageSigningContext712.messageHash, 0x22, 32);
+}
+
+static void assert_previous_context_kept(void) {
+    uint8_t domain[32], message[32];
+    memset(domain, 0x11, sizeof(domain));
+    memset(message, 0x22, sizeof(message));
+    TEST_ASSERT_EQUAL(3, messageSigningContext712.pathLength);
+    TEST_ASSERT_EQUAL_HEX32(TRON_BIP32_PREFIX_0, messageSigningContext712.bip32Path[0]);
+    TEST_ASSERT_EQUAL_HEX32(TRON_BIP32_PREFIX_1, messageSigningContext712.bip32Path[1]);
+    TEST_ASSERT_EQUAL_HEX32(0xA, messageSigningContext712.bip32Path[2]);
+    TEST_ASSERT_EQUAL_MEMORY(domain, messageSigningContext712.domainHash, 32);
+    TEST_ASSERT_EQUAL_MEMORY(message, messageSigningContext712.messageHash, 32);
+}
+
+void test_rejected_path_keeps_the_signing_context(void) {
+    uint32_t path[2] = {0x8000002C, 0x8000003C};
+    uint8_t buf[1 + 8 + 64];
+    size_t len = build_payload(buf, path, 2, DOMAIN_HASH, MESSAGE_HASH);
+    stash_previous_context();
+
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+    handleSignTIP712Message(0, 0, buf, len);
+
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_DATA, g_captured_sw);
+    assert_previous_context_kept();
+}
+
+void test_derivation_failure_keeps_the_signing_context(void) {
+    uint32_t path[3] = {TRON_BIP32_PREFIX_0, TRON_BIP32_PREFIX_1, 0xB};
+    uint8_t buf[1 + 12 + 64];
+    size_t len = build_payload(buf, path, 3, DOMAIN_HASH, MESSAGE_HASH);
+    stash_previous_context();
+
+    initPublicKeyContext_ExpectAnyArgsAndReturn(-1);
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+    handleSignTIP712Message(0, 0, buf, len);
+
+    TEST_ASSERT_EQUAL_HEX16(E_SECURITY_STATUS_NOT_SATISFIED, g_captured_sw);
+    assert_previous_context_kept();
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -196,6 +244,8 @@ int main(void) {
     RUN_TEST(test_rejects_truncated_hash_tail);
     RUN_TEST(test_forwards_key_derivation_failure);
     RUN_TEST(test_success_captures_hashes_and_resolves_sender_contact);
+    RUN_TEST(test_rejected_path_keeps_the_signing_context);
+    RUN_TEST(test_derivation_failure_keeps_the_signing_context);
 
     return UNITY_END();
 }
