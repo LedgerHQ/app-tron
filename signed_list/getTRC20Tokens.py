@@ -46,8 +46,8 @@ while (toread>0):
             continue
         f.write('{}{}{}{}, \"${} \", {}{},'.format("{","{",conv(address),"}",symbol,decimals,"}" ))
         f.write('\n')
-    
-    totalToken += len(data[ItemsFields])
+        totalToken += 1
+
     if len(data[ItemsFields])<toread:
         toread = 0
     start = start + toread
