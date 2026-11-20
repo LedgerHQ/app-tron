@@ -83,7 +83,7 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
                                    0));
 
         char tmp[11];
-        snprintf((char *) tmp, 11, "%d", (uint32_t) personal_msg_ctx.remaining);
+        snprintf(tmp, sizeof(tmp), "%u", personal_msg_ctx.remaining);
         CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
                                    0,
                                    (const uint8_t *) tmp,
