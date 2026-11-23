@@ -353,6 +353,36 @@ def test_address_book_identity_edit_scope(backend, scenario_navigator):
     )
 
 
+@pytest.mark.xfail(strict=True, reason="SDK has no pre-review hook for Edit Scope")
+def test_address_book_identity_edit_scope_rejects_non_tron_address(backend, device, scenario_navigator):
+    if not isinstance(backend, SpeculosBackend):
+        pytest.skip("Forges the proof with the Speculos HMAC key")
+    client = TronCommandSender(backend)
+    group_handle, hmac_name, _ = _register_identity(scenario_navigator, client, do_compare=False)
+    bad_address = b"\x42" + DEFAULT_ADDRESS[1:]
+
+    cmd = EditScope(
+        old_scope=DEFAULT_SCOPE,
+        new_scope="Trx Savings",
+        identifier=bad_address,
+        contact_name=DEFAULT_CONTACT_NAME,
+        hmac_proof=hmac_name,
+        hmac_rest=compute_hmac_rest(group_handle[:GID_SIZE], DEFAULT_SCOPE, bad_address),
+        group_handle=group_handle,
+        blockchain_family=FAMILY,
+    )
+    backend.raise_policy = RaisePolicy.RAISE_NOTHING
+    chunks = cmd.get_chunks()
+    for chunk in chunks[:-1]:
+        backend.exchange_raw(chunk)
+    with backend.exchange_async_raw(chunks[-1]) as answered_before_review:
+        if not answered_before_review:
+            text = "Cancel" if device.is_nano else "Confirm"
+            scenario_navigator.review_reject(custom_screen_text=text, do_comparison=False)
+    assert answered_before_review
+    assert client.get_async_response().status != Errors.OK
+
+
 # =============================================================================
 # Ledger Account — Register / Edit
 # =============================================================================
