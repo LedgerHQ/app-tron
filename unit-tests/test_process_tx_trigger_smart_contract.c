@@ -45,10 +45,10 @@ void tearDown(void) {
 }
 
 static const uint8_t OWNER[21] = {0x41, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-// Real TOKENS_TRC20[0] entry (src/tokens.c): ticker "PKT", decimals 6.
-static const uint8_t KNOWN_TOKEN_ADDRESS[21] = {0x41, 0xDB, 0xF2, 0xB7, 0x3D, 0xF1, 0x23, 0xED, 0x12,
-                                                0x89, 0x99, 0x51, 0xA1, 0x38, 0x25, 0x48, 0x24, 0x5E,
-                                                0x52, 0xB8, 0xF9};
+// Real TOKENS_TRC20 entry (src/tokens.c): ticker "USDT", decimals 6.
+static const uint8_t KNOWN_TOKEN_ADDRESS[21] = {0x41, 0xA6, 0x14, 0xF8, 0x03, 0xB6, 0xFD, 0x78, 0x09,
+                                                0x86, 0xA4, 0x2C, 0x78, 0xEC, 0x9C, 0x7F, 0x77, 0xE6,
+                                                0xDE, 0xD1, 0x3C};
 static const uint8_t UNKNOWN_CONTRACT_ADDRESS[21] = {0x41, 9, 9, 9, 9, 9, 9, 9, 9, 9,
                                                       9,    9, 9, 9, 9, 9, 9, 9, 9, 9, 9};
 
@@ -100,7 +100,7 @@ void test_trc20_transfer_to_a_known_token_sets_TRC20Method_and_decimals(void) {
     TEST_ASSERT_EQUAL(USTREAM_PROCESSING, processTx(buf, len, &content));
     TEST_ASSERT_EQUAL(1, content.TRC20Method);
     TEST_ASSERT_EQUAL_MEMORY(to_address, content.destination, 21);
-    TEST_ASSERT_EQUAL_STRING("PKT", content.tokenNames[0]);
+    TEST_ASSERT_EQUAL_STRING("USDT", content.tokenNames[0]);
     TEST_ASSERT_EQUAL(6, content.decimals[0]);
 }
 

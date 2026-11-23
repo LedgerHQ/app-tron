@@ -49,7 +49,7 @@ from application_client.tron_transaction import pack_contract, address_hex, cont
 from application_client.settings import SettingID, settings_toggle
 from utils import check_tx_signature
 
-KNOWN_TOKEN = "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16"
+KNOWN_TOKEN = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"  # USDT
 OTHER_KEY = "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"
 WITNESSES = [
     "TKSXDA8HfE9E1y39RczVQ1ZascUEtaSToF",
