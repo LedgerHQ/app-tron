@@ -20,6 +20,7 @@
 
 #include "dispatcher.h"
 #include "handlers.h"
+#include "parse.h"
 #include "app_errors.h"
 
 #ifdef HAVE_SWAP
@@ -50,6 +51,18 @@ int apdu_dispatcher(const command_t *cmd) {
         }
     }
 #endif  // HAVE_SWAP
+
+    // A signing command aborts any multi-APDU session of another command
+    bool signing_ins = (cmd->ins == INS_SIGN) || (cmd->ins == INS_SIGN_TXN_HASH) ||
+                       (cmd->ins == INS_GET_ECDH_SECRET) ||
+                       (cmd->ins == INS_SIGN_PERSONAL_MESSAGE) ||
+                       (cmd->ins == INS_SIGN_TIP_712_MESSAGE);
+    if (signing_ins && (cmd->ins != INS_SIGN)) {
+        terminate_signing_session(&txContext, &txContent);
+    }
+    if (signing_ins && (cmd->ins != INS_SIGN_PERSONAL_MESSAGE)) {
+        reset_personal_message_session();
+    }
 
     switch (cmd->ins) {
         case INS_GET_PUBLIC_KEY:

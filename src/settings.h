@@ -27,7 +27,8 @@ extern const internal_storage_t N_storage_real;
 
 #define S_DATA_ALLOWED    0
 #define S_CUSTOM_CONTRACT 1
-#define S_SIGN_BY_HASH    2
+// bit 2: retired, never reuse
+#define S_SIGN_BY_HASH 3
 
 #define S_INITIALIZED 7
 

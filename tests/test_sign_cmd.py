@@ -13,6 +13,7 @@ from utils import check_tx_signature, build_trc20_calldata
 
 # A known token address used for clear-signed transfers.
 KNOWN_TOKEN = "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16"
+KNOWN_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"  # USDT
 
 
 def _approve(scenario_navigator: NavigateWithScenario, warning: bool = False) -> None:
@@ -482,7 +483,7 @@ def test_sign_trc20_send(backend, accounts, scenario_navigator):
         tron.Transaction.Contract.TriggerSmartContract,
         contract.TriggerSmartContract(
             owner_address=bytes.fromhex(accounts[0]["addressHex"]),
-            contract_address=bytes.fromhex(address_hex(KNOWN_TOKEN)),
+            contract_address=bytes.fromhex(address_hex(KNOWN_TRC20)),
             data=calldata))
     _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
@@ -518,7 +519,7 @@ def test_sign_trc20_approve(backend, accounts, scenario_navigator):
         tron.Transaction.Contract.TriggerSmartContract,
         contract.TriggerSmartContract(
             owner_address=bytes.fromhex(accounts[0]["addressHex"]),
-            contract_address=bytes.fromhex(address_hex(KNOWN_TOKEN)),
+            contract_address=bytes.fromhex(address_hex(KNOWN_TRC20)),
             data=calldata))
     _sign_and_check(client, accounts[0], scenario_navigator, tx)
 
