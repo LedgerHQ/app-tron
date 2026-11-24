@@ -12,7 +12,7 @@ TRONIFY_LAST = "TUSYcK5yf8Et4xNTiUcpfZwmhFsxfdoooo"
 # one byte off TRONIFY: must NOT be labelled
 TRON_ORDINARY_ADDR = "TUFXua1qzfCsFpcZEGXaU7oGFURqJZBtja"
 # A known token address, used as the TRC20 contract
-KNOWN_TOKEN = "TBoTZcARzWVgnNuB9SyE3S5g1RwsXoQL16"
+KNOWN_TOKEN = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"  # USDT
 
 
 def _sign_and_check(client, account, nav: NavigateWithScenario, tx: bytes) -> None:

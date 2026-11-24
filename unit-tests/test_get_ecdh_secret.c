@@ -103,6 +103,40 @@ void test_success_stashes_peer_pubkey_and_displays_review(void) {
     TEST_ASSERT_EQUAL_MEMORY(buf + 5, transactionContext.signature, PUBLIC_KEY_SIZE);
 }
 
+static off_t path_b_cb(const uint8_t *buffer, size_t length, bip32_path_t *path, int n) {
+    (void) buffer;
+    (void) length;
+    (void) n;
+    path->length = 1;
+    path->indices[0] = 0xB;
+    return 5;
+}
+
+void test_malformed_request_keeps_the_signing_path(void) {
+    transactionContext.bip32_path.length = 1;
+    transactionContext.bip32_path.indices[0] = 0xA;
+    read_bip32_path_Stub(path_b_cb);
+    io_send_response_buffers_ExpectAnyArgsAndReturn(0);
+
+    uint8_t buf[5] = {0};
+    handleECDHSecret(0x00, 0x01, buf, sizeof(buf));
+
+    TEST_ASSERT_EQUAL_HEX16(E_INCORRECT_LENGTH, g_captured_sw);
+    TEST_ASSERT_EQUAL_HEX32(0xA, transactionContext.bip32_path.indices[0]);
+}
+
+void test_valid_request_commits_its_path(void) {
+    read_bip32_path_Stub(path_b_cb);
+    initPublicKeyContext_ExpectAnyArgsAndReturn(0);
+    getBase58FromPublicKey_ExpectAnyArgs();
+    ux_flow_display_Expect(APPROVAL_SHARED_ECDH_SECRET, false);
+
+    uint8_t buf[5 + PUBLIC_KEY_SIZE] = {0};
+    handleECDHSecret(0x00, 0x01, buf, sizeof(buf));
+
+    TEST_ASSERT_EQUAL_HEX32(0xB, transactionContext.bip32_path.indices[0]);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -111,6 +145,8 @@ int main(void) {
     RUN_TEST(test_rejects_peer_pubkey_of_the_wrong_length);
     RUN_TEST(test_forwards_key_derivation_failure);
     RUN_TEST(test_success_stashes_peer_pubkey_and_displays_review);
+    RUN_TEST(test_malformed_request_keeps_the_signing_path);
+    RUN_TEST(test_valid_request_commits_its_path);
 
     return UNITY_END();
 }

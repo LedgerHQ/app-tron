@@ -5,6 +5,10 @@ from binascii import unhexlify
 import codecs
 import time
 import fileinput
+import re
+
+# "$" + symbol + " " + NUL must fit tokenDefinition_t.ticker[10]
+SYMBOL_RE = re.compile(r"[A-Za-z0-9!$&*+._-]{1,7}")
 
 def conv(string):
     ret = "0x"+string[0:2]
@@ -36,10 +40,14 @@ while (toread>0):
 
     for T in data[ItemsFields]:
         address = tron.address.to_hex(T['contract_address'])
-        f.write('{}{}{}{}, \"${} \", {}{},'.format("{","{",conv(address),"}",T['symbol'],T['decimals'],"}" ))
+        symbol, decimals = str(T['symbol']), str(T['decimals'])
+        if not SYMBOL_RE.fullmatch(symbol) or not re.fullmatch(r"[0-9]{1,2}", decimals) or int(decimals) > 77:
+            print("Skipping {}: invalid symbol/decimals {!r}/{!r}".format(T['contract_address'], symbol, decimals))
+            continue
+        f.write('{}{}{}{}, \"${} \", {}{},'.format("{","{",conv(address),"}",symbol,decimals,"}" ))
         f.write('\n')
-    
-    totalToken += len(data[ItemsFields])
+        totalToken += 1
+
     if len(data[ItemsFields])<toread:
         toread = 0
     start = start + toread

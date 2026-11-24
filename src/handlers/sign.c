@@ -105,10 +105,12 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
 
     // initialize context
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
-        off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
+        bip32_path_t path;
+        off_t ret = read_bip32_path(workBuffer, dataLength, &path);
         if (ret < 0) {
             return io_send_sw(E_INCORRECT_BIP32_PATH);
         }
+        transactionContext.bip32_path = path;
         workBuffer += ret;
         dataLength -= ret;
 
@@ -201,10 +203,10 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
         case USTREAM_FINISHED:
             break;
         case USTREAM_FAULT:
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(E_INCORRECT_DATA);
         case USTREAM_MISSING_SETTING_DATA_ALLOWED:
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
 #ifdef HAVE_SWAP
             if (G_called_from_swap) {
                 return io_send_sw(E_SWAP_CHECKING_FAIL);
@@ -213,7 +215,7 @@ int handleSign(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength)
             return io_send_sw(E_MISSING_SETTING_DATA_ALLOWED);
         default:
             PRINTF("Unexpected parser status\n");
-            initTx(&txContext, &txContent);
+            terminate_signing_session(&txContext, &txContent);
             return io_send_sw(txResult);
     }
 

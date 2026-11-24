@@ -178,6 +178,7 @@ ledger_unit_tests_add_test(
     NAME          test_dispatcher
     SOURCES       ${CMAKE_CURRENT_SOURCE_DIR}/../src/handlers/dispatcher.c
     MOCK_HEADERS  ${CMAKE_CURRENT_SOURCE_DIR}/../src/handlers/handlers.h
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../src/parse.h
                   ${SDK_DIR}/lib_standard_app/io.h
     INCLUDE_DIRS  ${UT_INCLUDE_DIRS} ${UT_INCLUDE_DIRS_SDK}
     COMPILE_DEFS  ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
@@ -236,6 +237,18 @@ ledger_unit_tests_add_test(
                   ${SDK_DIR}/lib_standard_app/io.h
                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/ui_review_menu.h
                   ${CMAKE_CURRENT_SOURCE_DIR}/../src/addr_book/handle_contacts.h
+    INCLUDE_DIRS  ${UT_INCLUDE_DIRS} ${UT_INCLUDE_DIRS_SDK}
+    COMPILE_DEFS  ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
+)
+
+ledger_unit_tests_add_test(
+    NAME          test_handle_identity
+    SOURCES       ${CMAKE_CURRENT_SOURCE_DIR}/../src/addr_book/handle_identity.c
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../src/addr_book/address_book_ctx.c
+    MOCK_HEADERS  ${CMAKE_CURRENT_SOURCE_DIR}/../src/addr_book/handle_contacts.h
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../src/helpers.h
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/ui_idle_menu.h
+                  ${SDK_DIR}/lib_alloc/app_mem_utils.h
     INCLUDE_DIRS  ${UT_INCLUDE_DIRS} ${UT_INCLUDE_DIRS_SDK}
     COMPILE_DEFS  ${UT_COMPILE_DEFS_SDK} ${UT_COMPILE_DEFS}
 )

@@ -35,16 +35,25 @@ static const char SIGN_MAGIC[] = "\x19TRON Signed Message:\n";
 // Keccak state must survive across P1_MORE chunks, each handled by a fresh call.
 static struct {
     cx_sha3_t sha3;
+    uint32_t remaining;
     bool initialized;
 } personal_msg_ctx;
+
+void reset_personal_message_session(void) {
+    explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
+}
 
 int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint16_t dataLength) {
     if (!HAS_SETTING(S_SIGN_BY_HASH)) {
         return io_send_sw(E_MISSING_SETTING_SIGN_BY_HASH);
     }
+    if (p2 != 0) {
+        return io_send_sw(E_INCORRECT_P1_P2);
+    }
 
     if ((p1 == P1_FIRST) || (p1 == P1_SIGN)) {
-        off_t ret = read_bip32_path(workBuffer, dataLength, &transactionContext.bip32_path);
+        bip32_path_t path;
+        off_t ret = read_bip32_path(workBuffer, dataLength, &path);
         if (ret < 0) {
             explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
             return io_send_sw(E_INCORRECT_BIP32_PATH);
@@ -56,9 +65,10 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
             explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
             return io_send_sw(E_INCORRECT_LENGTH);
         }
+        transactionContext.bip32_path = path;
 
         // Message Length
-        txContent.dataBytes = U4BE(workBuffer, 0);
+        personal_msg_ctx.remaining = U4BE(workBuffer, 0);
         workBuffer += 4;
         dataLength -= 4;
 
@@ -73,7 +83,7 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
                                    0));
 
         char tmp[11];
-        snprintf((char *) tmp, 11, "%d", (uint32_t) txContent.dataBytes);
+        snprintf(tmp, sizeof(tmp), "%u", personal_msg_ctx.remaining);
         CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
                                    0,
                                    (const uint8_t *) tmp,
@@ -85,18 +95,15 @@ int handleSignPersonalMessage(uint8_t p1, uint8_t p2, uint8_t *workBuffer, uint1
         return io_send_sw(E_INCORRECT_P1_P2);
     }
 
-    if (p2 != 0) {
-        return io_send_sw(E_INCORRECT_P1_P2);
-    }
-    if (dataLength > txContent.dataBytes) {
+    if (dataLength > personal_msg_ctx.remaining) {
         explicit_bzero(&personal_msg_ctx, sizeof(personal_msg_ctx));
         return io_send_sw(E_INCORRECT_LENGTH);
     }
 
     CX_ASSERT(
         cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3, 0, workBuffer, dataLength, NULL, 0));
-    txContent.dataBytes -= dataLength;
-    if (txContent.dataBytes == 0) {
+    personal_msg_ctx.remaining -= dataLength;
+    if (personal_msg_ctx.remaining == 0) {
         CX_ASSERT(cx_hash_no_throw((cx_hash_t *) &personal_msg_ctx.sha3,
                                    CX_LAST,
                                    workBuffer,

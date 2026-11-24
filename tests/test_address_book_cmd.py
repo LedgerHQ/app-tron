@@ -6,6 +6,7 @@ import hmac as hmac_module
 import struct
 
 import base58
+import pytest
 from application_client.tron_command_sender import Errors, TronCommandSender
 from application_client.tron_transaction import contract, pack_contract, tron
 from bip_utils import Bip32Slip10Secp256k1, Bip39SeedGenerator
@@ -22,6 +23,7 @@ from ragger.address_book import (
     RegisterIdentity,
     RegisterLedgerAccount,
 )
+from ragger.backend import SpeculosBackend
 from ragger.backend.interface import RaisePolicy
 from ragger.bip import pack_derivation_path
 from ragger.bip.seed import SPECULOS_MNEMONIC
@@ -46,6 +48,15 @@ LONG_SCOPE = "Tron Address Number One Long Nam"
 # KDF salts — must match SDK address_book_crypto.c
 HMAC_KDF_SALT_IDENTITY = b"AddressBook-Identity"
 HMAC_KDF_SALT_LEDGER_ACCOUNT = b"AddressBook-LedgerAccount"
+
+_hmac_key_known = True
+
+
+@pytest.fixture(autouse=True)
+def _detect_hmac_key(backend):
+    # On a real device the HMAC key is OS-held
+    global _hmac_key_known
+    _hmac_key_known = isinstance(backend, SpeculosBackend)
 
 
 # =============================================================================
@@ -105,8 +116,9 @@ def check_identity_response(data: bytes, contact_name: str, scope: str, address:
     off = 1 + GROUP_HANDLE_LENGTH
     hmac_name = data[off : off + HMAC_PROOF_LENGTH]
     hmac_rest = data[off + HMAC_PROOF_LENGTH : off + 2 * HMAC_PROOF_LENGTH]
-    assert hmac_name == compute_hmac_name(gid, contact_name)
-    assert hmac_rest == compute_hmac_rest(gid, scope, address)
+    if _hmac_key_known:
+        assert hmac_name == compute_hmac_name(gid, contact_name)
+        assert hmac_rest == compute_hmac_rest(gid, scope, address)
     return group_handle, hmac_name, hmac_rest
 
 
@@ -115,7 +127,8 @@ def check_hmac_response(data: bytes, expected_type: LedgerStructType, expected_h
     assert data[0] == expected_type
     assert len(data) == 1 + HMAC_PROOF_LENGTH
     hmac = data[1 : 1 + HMAC_PROOF_LENGTH]
-    assert hmac == expected_hmac
+    if _hmac_key_known:
+        assert hmac == expected_hmac
     return hmac
 
 
@@ -188,6 +201,28 @@ def _register_ledger_account(nav, client, do_compare=True, derivation_path=DEFAU
     )
 
 
+def _provide_contact_status(
+    client, group_handle, hmac_name, hmac_rest, contact_name=DEFAULT_CONTACT_NAME, scope=DEFAULT_SCOPE, address=DEFAULT_ADDRESS
+) -> int:
+    cmd = ProvideContact(
+        identifier=address,
+        group_handle=group_handle,
+        hmac_name=hmac_name,
+        hmac_rest=hmac_rest,
+        contact_name=contact_name,
+        scope=scope,
+        blockchain_family=FAMILY,
+    )
+    return client.provide_address_book(cmd).status
+
+
+def _assert_proof_bound(client, proofs: dict, record: dict, stale_record: dict) -> None:
+    # Device-key agnostic: the proofs must match the new record only
+    client.backend.raise_policy = RaisePolicy.RAISE_NOTHING
+    assert _provide_contact_status(client, **proofs, **stale_record) == Errors.SECURITY_STATUS_NOT_SATISFIED
+    assert _provide_contact_status(client, **proofs, **record) == Errors.OK
+
+
 def _transfer_tx(accounts, to_address: bytes, owner_index: int = 0):
     return pack_contract(
         tron.Transaction.Contract.TransferContract,
@@ -235,7 +270,7 @@ def test_address_book_identity_register_reject(backend, device, scenario_navigat
 def test_address_book_identity_edit_contact_name(backend, scenario_navigator):
     client = TronCommandSender(backend)
     new_name = "Bob"
-    group_handle, hmac_name_old, _ = _register_identity(scenario_navigator, client, do_compare=False)
+    group_handle, hmac_name_old, hmac_rest_old = _register_identity(scenario_navigator, client, do_compare=False)
 
     cmd = EditContactName(
         old_contact_name=DEFAULT_CONTACT_NAME,
@@ -245,10 +280,16 @@ def test_address_book_identity_edit_contact_name(backend, scenario_navigator):
     )
     with client.provide_address_book_async(cmd):
         _approve_identity(scenario_navigator)
-    check_hmac_response(
+    hmac_name_new = check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_EDIT_CONTACT_NAME,
         compute_hmac_name(group_handle[:GID_SIZE], new_name),
+    )
+    _assert_proof_bound(
+        client,
+        {"group_handle": group_handle, "hmac_name": hmac_name_new, "hmac_rest": hmac_rest_old},
+        {"contact_name": new_name},
+        {"contact_name": DEFAULT_CONTACT_NAME},
     )
 
 
@@ -269,10 +310,16 @@ def test_address_book_identity_edit_identifier(backend, scenario_navigator):
     )
     with client.provide_address_book_async(cmd):
         _approve_identity(scenario_navigator)
-    check_hmac_response(
+    hmac_rest_new = check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_EDIT_IDENTIFIER,
         compute_hmac_rest(group_handle[:GID_SIZE], DEFAULT_SCOPE, new_address),
+    )
+    _assert_proof_bound(
+        client,
+        {"group_handle": group_handle, "hmac_name": hmac_name_old, "hmac_rest": hmac_rest_new},
+        {"address": new_address},
+        {"address": DEFAULT_ADDRESS},
     )
 
 
@@ -293,11 +340,47 @@ def test_address_book_identity_edit_scope(backend, scenario_navigator):
     )
     with client.provide_address_book_async(cmd):
         _approve_identity(scenario_navigator)
-    check_hmac_response(
+    hmac_rest_new = check_hmac_response(
         client.get_async_response().data,
         LedgerStructType.TYPE_EDIT_SCOPE,
         compute_hmac_rest(group_handle[:GID_SIZE], new_scope, DEFAULT_ADDRESS),
     )
+    _assert_proof_bound(
+        client,
+        {"group_handle": group_handle, "hmac_name": hmac_name_old, "hmac_rest": hmac_rest_new},
+        {"scope": new_scope},
+        {"scope": DEFAULT_SCOPE},
+    )
+
+
+@pytest.mark.xfail(strict=True, reason="SDK has no pre-review hook for Edit Scope")
+def test_address_book_identity_edit_scope_rejects_non_tron_address(backend, device, scenario_navigator):
+    if not isinstance(backend, SpeculosBackend):
+        pytest.skip("Forges the proof with the Speculos HMAC key")
+    client = TronCommandSender(backend)
+    group_handle, hmac_name, _ = _register_identity(scenario_navigator, client, do_compare=False)
+    bad_address = b"\x42" + DEFAULT_ADDRESS[1:]
+
+    cmd = EditScope(
+        old_scope=DEFAULT_SCOPE,
+        new_scope="Trx Savings",
+        identifier=bad_address,
+        contact_name=DEFAULT_CONTACT_NAME,
+        hmac_proof=hmac_name,
+        hmac_rest=compute_hmac_rest(group_handle[:GID_SIZE], DEFAULT_SCOPE, bad_address),
+        group_handle=group_handle,
+        blockchain_family=FAMILY,
+    )
+    backend.raise_policy = RaisePolicy.RAISE_NOTHING
+    chunks = cmd.get_chunks()
+    for chunk in chunks[:-1]:
+        backend.exchange_raw(chunk)
+    with backend.exchange_async_raw(chunks[-1]) as answered_before_review:
+        if not answered_before_review:
+            text = "Cancel" if device.is_nano else "Confirm"
+            scenario_navigator.review_reject(custom_screen_text=text, do_comparison=False)
+    assert answered_before_review
+    assert client.get_async_response().status != Errors.OK
 
 
 # =============================================================================
